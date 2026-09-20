@@ -37,6 +37,90 @@ class TranslationsEn extends Translations with BaseTranslations<AppLocale, Trans
       TranslationsEn(meta: meta ?? this.$meta);
 
   @override
+  String get configurationInteractionBlocked => 'Finish working in the open window';
+  @override
+  String get startupLoading => 'SkySecret is loading…';
+  @override
+  String get startupReady => 'SkySecret is ready';
+  @override
+  String get startupFailed => 'Some components failed to load';
+  @override
+  String get projectWorkflow => 'Environments and launch';
+  @override
+  String get projectWorkflowHelp => 'Secrets stay here. Code stays in your folder.';
+  @override
+  String get projectEnvironments => 'Environments';
+  @override
+  String get projectEnvironmentAdd => 'Add environment';
+  @override
+  String get projectEnvironmentEdit => 'Configure environment';
+  @override
+  String get projectEnvironmentName => 'Environment name';
+  @override
+  String get projectEnvironmentEmpty =>
+      'Create an environment, such as Development, Test or Production, and add variables for your program.';
+  @override
+  String get projectVariableName => 'Variable name';
+  @override
+  String get projectVariableValue => 'Value';
+  @override
+  String get projectVariableAdd => 'Add variable';
+  @override
+  String get projectVariableRemove => 'Remove variable';
+  @override
+  String get projectVariablesInvalid =>
+      'Check the name and variables. Use unique names with Latin letters, digits and underscores. Up to 128 variables; total size is limited.';
+  @override
+  String get projectVariablesProtected => 'Values are hidden and saved inside the encrypted vault.';
+  @override
+  String get projectResources => 'Secrets and files';
+  @override
+  String get projectOverview => 'Back to environments';
+  @override
+  String get projectLaunchConfigure => 'Configure launch';
+  @override
+  String get projectLaunch => 'Run';
+  @override
+  String get projectStop => 'Stop';
+  @override
+  String get projectRunning => 'Running';
+  @override
+  String get projectStarting => 'Starting…';
+  @override
+  String get projectStopped => 'Stopped';
+  @override
+  String projectExited({required Object code}) => 'Process exited: ${code}';
+  @override
+  String get projectLaunchReady => 'Launch configured on this computer';
+  @override
+  String get projectLaunchMissing => 'Choose a program and working folder on this computer';
+  @override
+  String get projectExecutable => 'Program (.exe)';
+  @override
+  String get projectDirectory => 'Working folder with code';
+  @override
+  String get projectArguments => 'Arguments — one per line';
+  @override
+  String get projectBrowse => 'Browse';
+  @override
+  String get projectLaunchHelp =>
+      'The program receives environment variables directly. SkySecret does not create .env files, interpolate values into the command or save program output. It keeps running with the supplied secrets after the vault locks. Stop or exiting SkySecret terminates it and its child processes.';
+  @override
+  String get projectLaunchTrust =>
+      'Run only trusted code: the program receives secrets and can write or transmit them. This does not check existing files in Git.';
+  @override
+  String get projectLaunchInvalid =>
+      'Select absolute paths to an .exe and a working folder. Keep secrets out of paths and arguments.';
+  @override
+  String get projectLaunchFailed =>
+      'Could not start the program. Check the executable, working folder and access permissions.';
+  @override
+  String get projectLaunchLocal => 'Launch settings stay on this computer and are not transferred by synchronization.';
+  @override
+  String get projectLaunchReview => 'Review the program and folder before running';
+  @override
+  String get configurationFailed => 'Could not open the settings window. Please try again.';
+  @override
   String get noticeError => 'Error';
   @override
   String get noticeWarning => 'Attention';
@@ -886,6 +970,48 @@ class TranslationsEn extends Translations with BaseTranslations<AppLocale, Trans
 extension on TranslationsEn {
   dynamic _flatMapFunction(String path) {
     return switch (path) {
+      'configurationInteractionBlocked' => 'Finish working in the open window',
+      'startupLoading' => 'SkySecret is loading…',
+      'startupReady' => 'SkySecret is ready',
+      'startupFailed' => 'Some components failed to load',
+      'projectWorkflow' => 'Environments and launch',
+      'projectWorkflowHelp' => 'Secrets stay here. Code stays in your folder.',
+      'projectEnvironments' => 'Environments',
+      'projectEnvironmentAdd' => 'Add environment',
+      'projectEnvironmentEdit' => 'Configure environment',
+      'projectEnvironmentName' => 'Environment name',
+      'projectEnvironmentEmpty' =>
+        'Create an environment, such as Development, Test or Production, and add variables for your program.',
+      'projectVariableName' => 'Variable name',
+      'projectVariableValue' => 'Value',
+      'projectVariableAdd' => 'Add variable',
+      'projectVariableRemove' => 'Remove variable',
+      'projectVariablesInvalid' => 'Check the name and variables. Use unique names with Latin letters, digits and underscores. Up to 128 variables; total size is limited.',
+      'projectVariablesProtected' => 'Values are hidden and saved inside the encrypted vault.',
+      'projectResources' => 'Secrets and files',
+      'projectOverview' => 'Back to environments',
+      'projectLaunchConfigure' => 'Configure launch',
+      'projectLaunch' => 'Run',
+      'projectStop' => 'Stop',
+      'projectRunning' => 'Running',
+      'projectStarting' => 'Starting…',
+      'projectStopped' => 'Stopped',
+      'projectExited' => ({required Object code}) => 'Process exited: ${code}',
+      'projectLaunchReady' => 'Launch configured on this computer',
+      'projectLaunchMissing' => 'Choose a program and working folder on this computer',
+      'projectExecutable' => 'Program (.exe)',
+      'projectDirectory' => 'Working folder with code',
+      'projectArguments' => 'Arguments — one per line',
+      'projectBrowse' => 'Browse',
+      'projectLaunchHelp' => 'The program receives environment variables directly. SkySecret does not create .env files, interpolate values into the command or save program output. It keeps running with the supplied secrets after the vault locks. Stop or exiting SkySecret terminates it and its child processes.',
+      'projectLaunchTrust' => 'Run only trusted code: the program receives secrets and can write or transmit them. This does not check existing files in Git.',
+      'projectLaunchInvalid' =>
+        'Select absolute paths to an .exe and a working folder. Keep secrets out of paths and arguments.',
+      'projectLaunchFailed' =>
+        'Could not start the program. Check the executable, working folder and access permissions.',
+      'projectLaunchLocal' => 'Launch settings stay on this computer and are not transferred by synchronization.',
+      'projectLaunchReview' => 'Review the program and folder before running',
+      'configurationFailed' => 'Could not open the settings window. Please try again.',
       'noticeError' => 'Error',
       'noticeWarning' => 'Attention',
       'noticeSuccess' => 'Done',

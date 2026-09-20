@@ -10,6 +10,7 @@ class _VaultEntryPresenter {
   final Future<void> Function(VaultEntry) onOpenFile;
   final Future<void> Function(VaultEntry) onConnectSsh;
   final Future<void> Function(VaultEntry) onCopyEntry;
+  final Future<void> Function(VaultEntry) onEnvironment;
   final Future<void> Function(VaultEntry) onFavoriteEntry;
   final Future<void> Function(VaultEntry, Offset) onEntryMenu;
   final void Function(PointerDownEvent, VaultEntry) onStartExternalDrag;
@@ -23,6 +24,7 @@ class _VaultEntryPresenter {
     required this.onOpenFile,
     required this.onConnectSsh,
     required this.onCopyEntry,
+    required this.onEnvironment,
     required this.onFavoriteEntry,
     required this.onEntryMenu,
     required this.onStartExternalDrag,
@@ -33,11 +35,15 @@ class _VaultEntryPresenter {
   bool isCopied(VaultEntry entry) => copyNotice == (session: activeSession, entryId: entry.id);
 
   bool canUse(VaultEntry entry) =>
-      busy == false && entry.isDeleted == false && (entry.isTotp || entry.isFile || entry.isSsh || entry.hasPassword);
+      busy == false &&
+      entry.isDeleted == false &&
+      (entry.isEnvironment || entry.isTotp || entry.isFile || entry.isSsh || entry.hasPassword);
 
   Future<void> use(VaultEntry entry) async {
     if (canUse(entry) == false) return;
-    if (entry.isTotp) {
+    if (entry.isEnvironment) {
+      await onEnvironment(entry);
+    } else if (entry.isTotp) {
       await onOpenCodes();
     } else if (entry.isFile) {
       await onOpenFile(entry);

@@ -5,6 +5,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
+import 'package:hotkey_manager/hotkey_manager.dart';
 
 import '../../core/crypto/crypto.dart';
 import '../../core/desktop/desktop_actions.dart';
@@ -16,7 +17,6 @@ import '../../core/os/windows/services/windows_sensitive_clipboard.dart';
 import '../../core/sync/github/controllers/github_backup.dart';
 import '../../i18n/translations.g.dart';
 import '../github/github_dialog.dart';
-import '../settings/shortcut_dialog.dart';
 import '../shared/app_theme.dart';
 import '../shared/notifications/desktop_notice.dart';
 
@@ -26,6 +26,7 @@ import '../shared/menu/desktop_menu.dart';
 import '../shared/files/native_file_drop_target.dart';
 import '../shared/input/sensitive_text_editing.dart';
 import '../vault/vault_panel.dart';
+import '../../core/desktop/configuration/controllers/configuration_windows.dart';
 part 'widgets/_manager_file_drop_target.dart';
 part 'widgets/_manager_title_bar.dart';
 part 'widgets/_manager_section_button.dart';
@@ -61,6 +62,7 @@ class _ManagerWindowState extends State<ManagerWindow> {
   final _vaultKey = GlobalKey<VaultPanelState>();
   bool _fileHover = false;
   bool _projectsSelected = false;
+  bool _projectsAvailable = false;
   late final _generatorService = GeneratorService(
     widget.vaultStore == null ? GeneratorPreferences.local() : GeneratorPreferences(),
   );
@@ -82,6 +84,9 @@ class _ManagerWindowState extends State<ManagerWindow> {
   @override
   void initState() {
     super.initState();
+    ConfigurationWindows.copy = _copySecret;
+    ConfigurationWindows.clearClipboard = _clearVaultClipboard;
+    ConfigurationWindows.onBlur = widget.desktop.onCompanionBlur;
     widget.clipboardBoundary?.attach(_copySecret);
     widget.desktop.onBeforeHide = _beforeHide;
     widget.desktop.onAfterShow = _afterShow;
@@ -154,6 +159,10 @@ class _ManagerWindowState extends State<ManagerWindow> {
 
   @override
   void dispose() {
+    ConfigurationWindows.closeAll();
+    ConfigurationWindows.copy = null;
+    ConfigurationWindows.clearClipboard = null;
+    ConfigurationWindows.onBlur = null;
     widget.clipboardBoundary?.detach(_copySecret);
     widget.desktop.onBeforeHide = null;
     widget.desktop.onAfterShow = null;
@@ -182,10 +191,22 @@ class _ManagerWindowState extends State<ManagerWindow> {
             body: SafeArea(
               child: Column(
                 children: [
-                  _ManagerTitleBar(desktop: widget.desktop, onSectionChanged: (projects) => _vaultKey.currentState?.showSection(projects), projectsSelected: _projectsSelected),
+                  _ManagerTitleBar(
+                    desktop: widget.desktop,
+                    onSectionChanged: (projects) => _vaultKey.currentState?.showSection(projects),
+                    projectsSelected: _projectsSelected,
+                    projectsAvailable: _projectsAvailable,
+                  ),
                   Expanded(
                     child: VaultPanel(
                       onSectionChanged: (projects) => setState(() => _projectsSelected = projects),
+                      onWorkspaceChanged: (available) {
+                        if (_projectsAvailable == available) return;
+                        setState(() {
+                          _projectsAvailable = available;
+                          if (!available) _projectsSelected = false;
+                        });
+                      },
                       generatorService: _generatorService,
                       onFileDragChanged: widget.desktop.setFileDragActive,
                       onSearchHandlerChanged: widget.desktop.setSearchHandler,

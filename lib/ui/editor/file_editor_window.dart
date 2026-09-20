@@ -5,6 +5,7 @@ import 'package:desktop_multi_window/desktop_multi_window.dart';
 import 'package:flutter/material.dart';
 
 import '../shared/app_theme.dart';
+import '../shared/configuration/configuration_page.dart';
 import '../shared/notifications/desktop_notice.dart';
 
 import 'package:flutter/services.dart';
@@ -214,25 +215,26 @@ class _FileEditorWindowState extends State<FileEditorWindow> with WindowListener
       return;
     }
     _askingClose = true;
-    final choice = await showDialog<String>(
-      context: _navigator.currentContext!,
-      builder: (context) => AlertDialog(
-        title: Text(t.fileEditorUnsaved),
-        content: Text(t.fileEditorCloseHelp),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, 'cancel'),
-            child: Text(t.cancel),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, 'discard'),
-            child: Text(t.fileEditorDiscard),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, 'save'),
-            child: Text(t.save),
-          ),
-        ],
+    final choice = await _navigator.currentState!.push<String>(
+      MaterialPageRoute(
+        builder: (context) => ConfigurationPage(
+          title: Text(t.fileEditorUnsaved),
+          content: Text(t.fileEditorCloseHelp),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, 'cancel'),
+              child: Text(t.cancel),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context, 'discard'),
+              child: Text(t.fileEditorDiscard),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(context, 'save'),
+              child: Text(t.save),
+            ),
+          ],
+        ),
       ),
     );
     _askingClose = false;

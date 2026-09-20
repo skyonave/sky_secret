@@ -1,7 +1,5 @@
 part of '../vault_panel.dart';
 
-typedef _ProjectDraft = ({String name, String? password});
-
 class _ProjectCreateDialog extends StatefulWidget {
   const _ProjectCreateDialog();
 
@@ -46,7 +44,7 @@ class _ProjectCreateDialogState extends State<_ProjectCreateDialog> {
   }
 
   @override
-  Widget build(BuildContext context) => AlertDialog(
+  Widget build(BuildContext context) => ConfigurationPage(
     title: Text(t.projectCreate),
     scrollable: true,
     content: SizedBox(

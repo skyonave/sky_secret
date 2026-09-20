@@ -1,3 +1,5 @@
+import 'controllers/github_settings_controller.dart';
+import '../shared/configuration/configuration_page.dart';
 import '../shared/desktop_tooltip.dart';
 
 import 'dart:async';
@@ -14,13 +16,17 @@ part 'widgets/_git_hub_tile_surface.dart';
 
 class GitHubDialog extends StatefulWidget {
   final bool restoreSeparately;
-  final GitHubBackup backup;
+  final GitHubBackup? backup;
+  final Future<dynamic> Function(String, dynamic)? action;
+  final Map<String, dynamic> initial;
   final Future<bool> Function(RemoteVault)? linkExisting;
   final Future<bool> Function(Uint8List, RemoteVault?) restore;
 
   const GitHubDialog({
     super.key,
-    required this.backup,
+    this.backup,
+    this.action,
+    this.initial = const {},
     required this.restore,
     this.linkExisting,
     this.restoreSeparately = false,
@@ -42,9 +48,10 @@ class _GitHubDialogState extends State<GitHubDialog> {
     shape: WidgetStatePropertyAll(_controlShape),
     visualDensity: VisualDensity.standard,
   );
+  late final _backup = GitHubSettingsController(local: widget.backup, action: widget.action, initial: widget.initial);
   final _token = TextEditingController();
   late final _repository = TextEditingController(
-    text: widget.backup.repositoryAddress,
+    text: _backup.repositoryAddress,
   );
   bool _initializeRepository = false;
   bool _restrictedToken = false;
@@ -68,9 +75,10 @@ class _GitHubDialogState extends State<GitHubDialog> {
 
   @override
   void dispose() {
-    widget.backup.cancelConnection();
+    _backup.cancelConnection();
     _token.clear();
     _token.dispose();
+    _backup.dispose();
     _repository.dispose();
     super.dispose();
   }
@@ -88,12 +96,12 @@ class _GitHubDialogState extends State<GitHubDialog> {
   Future<void> _connect() async {
     final token = _token.text;
     _token.clear();
-    await widget.backup.connectToken(
+    await _backup.connectToken(
       token,
       _repository.text,
       initializeRepository: _initializeRepository,
     );
-    if (mounted && widget.backup.problem == null) {
+    if (mounted && _backup.problem == null) {
       setState(() => _editConnection = false);
     }
   }
@@ -104,7 +112,15 @@ class _GitHubDialogState extends State<GitHubDialog> {
       _error = null;
     });
     try {
-      final bytes = await widget.backup.download(vault);
+      if (widget.action != null) {
+        final restored = await widget.action!('restore', {
+          'id': vault.id,
+          'link': !widget.restoreSeparately && _linkForSync,
+        });
+        if (restored == true && mounted) Navigator.pop(context);
+        return;
+      }
+      final bytes = await _backup.download(vault);
       if (bytes == null || !mounted) return;
       final synchronized = widget.restoreSeparately == false && _linkForSync;
       if (await widget.restore(bytes, synchronized ? vault : null) && mounted) {
@@ -118,37 +134,38 @@ class _GitHubDialogState extends State<GitHubDialog> {
   }
 
   Future<void> _recoverConnection() async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(t.githubRecoverConnection),
-        content: Text(t.githubRecoverConnectionHelp),
-        actions: [
-          TextButton(
-            style: _buttonStyle,
-            onPressed: () => Navigator.pop(context, false),
-            child: Text(t.cancel),
-          ),
-          FilledButton(
-            style: _buttonStyle,
-            onPressed: () => Navigator.pop(context, true),
-            child: Text(t.githubRecoverConnection),
-          ),
-        ],
+    final confirmed = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (context) => ConfigurationPage(
+          title: Text(t.githubRecoverConnection),
+          content: Text(t.githubRecoverConnectionHelp),
+          actions: [
+            TextButton(
+              style: _buttonStyle,
+              onPressed: () => Navigator.pop(context, false),
+              child: Text(t.cancel),
+            ),
+            FilledButton(
+              style: _buttonStyle,
+              onPressed: () => Navigator.pop(context, true),
+              child: Text(t.githubRecoverConnection),
+            ),
+          ],
+        ),
       ),
     );
     if (confirmed == true && mounted) {
-      await widget.backup.resetDamagedConnection();
+      await _backup.resetDamagedConnection();
     }
   }
 
   @override
   Widget build(BuildContext context) => ListenableBuilder(
-    listenable: widget.backup,
+    listenable: _backup,
     builder: (context, _) {
-      final backup = widget.backup;
+      final backup = _backup;
       final disabled = backup.busy || _restoring || !backup.usable;
-      return AlertDialog(
+      return ConfigurationPage(
         title: Text(t.githubTitle),
         insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
         titlePadding: const EdgeInsets.fromLTRB(20, 18, 20, 12),
@@ -163,7 +180,7 @@ class _GitHubDialogState extends State<GitHubDialog> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Text(
-                  GitHubLabels.status(backup),
+                  GitHubLabels.statusValue(backup.status),
                   style: Theme.of(context).textTheme.titleSmall,
                 ),
                 const SizedBox(height: 10),
@@ -348,11 +365,11 @@ class _GitHubDialogState extends State<GitHubDialog> {
                       backup.login!,
                       style: const TextStyle(fontWeight: FontWeight.w600),
                     ),
-                  if (backup.repository != null)
+                  if (backup.repositoryLabel != null)
                     Padding(
                       padding: const EdgeInsets.only(top: 6),
                       child: Text(
-                        backup.repository!.label,
+                        backup.repositoryLabel!,
                         style: const TextStyle(fontSize: 12),
                       ),
                     ),
@@ -541,7 +558,9 @@ class _GitHubDialogState extends State<GitHubDialog> {
 }
 
 abstract final class GitHubLabels {
-  static String status(GitHubBackup backup) => switch (backup.status) {
+  static String status(GitHubBackup backup) => statusValue(backup.status);
+
+  static String statusValue(BackupStatus status) => switch (status) {
     BackupStatus.disconnected => t.githubDisconnected,
     BackupStatus.ready => t.githubReady,
     BackupStatus.pending => t.githubPending,

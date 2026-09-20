@@ -221,6 +221,11 @@ class _TotpWindowState extends State<TotpWindow> with WindowListener {
 
   Future<void> _dismiss() async {
     final epoch = _epoch;
+    if (epoch == null) return;
+    try {
+      await widget.channel.invokeMethod('closing', {'epoch': epoch}).timeout(const Duration(seconds: 1));
+    } catch (_) {}
+    if (_epoch != epoch) return;
     await _hide();
     try {
       await widget.channel.invokeMethod('closed', {'epoch': epoch}).timeout(const Duration(seconds: 1));

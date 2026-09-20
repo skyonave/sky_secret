@@ -33,6 +33,90 @@ class Translations with BaseTranslations<AppLocale, Translations> {
   Translations $copyWith({TranslationMetadata<AppLocale, Translations>? meta}) =>
       Translations(meta: meta ?? this.$meta);
 
+  String get configurationInteractionBlocked => 'Завершите работу в открытом окне';
+
+  String get startupLoading => 'SkySecret загружается…';
+
+  String get startupReady => 'SkySecret готов';
+
+  String get startupFailed => 'Не всё удалось загрузить';
+
+  String get projectWorkflow => 'Окружения и запуск';
+
+  String get projectWorkflowHelp => 'Секреты хранятся здесь. Код остаётся в вашей папке.';
+
+  String get projectEnvironments => 'Окружения';
+
+  String get projectEnvironmentAdd => 'Добавить окружение';
+
+  String get projectEnvironmentEdit => 'Настроить окружение';
+
+  String get projectEnvironmentName => 'Название окружения';
+
+  String get projectEnvironmentEmpty =>
+      'Создайте окружение, например Development, Test или Production, и добавьте переменные для своей программы.';
+
+  String get projectVariableName => 'Имя переменной';
+
+  String get projectVariableValue => 'Значение';
+
+  String get projectVariableAdd => 'Добавить переменную';
+
+  String get projectVariableRemove => 'Убрать переменную';
+
+  String get projectVariablesInvalid =>
+      'Проверьте название и переменные. Имена: латинские буквы, цифры и подчёркивание, без повторов. До 128 переменных; общий объём ограничен.';
+
+  String get projectVariablesProtected => 'Значения скрыты и сохраняются внутри зашифрованного сейфа.';
+
+  String get projectResources => 'Секреты и файлы';
+
+  String get projectOverview => 'К окружениям';
+
+  String get projectLaunchConfigure => 'Настроить запуск';
+
+  String get projectLaunch => 'Запустить';
+
+  String get projectStop => 'Остановить';
+
+  String get projectRunning => 'Работает';
+
+  String get projectStarting => 'Запускается…';
+
+  String get projectStopped => 'Остановлен';
+
+  String projectExited({required Object code}) => 'Процесс завершён: ${code}';
+
+  String get projectLaunchReady => 'Запуск настроен на этом компьютере';
+
+  String get projectLaunchMissing => 'Выберите программу и рабочую папку на этом компьютере';
+
+  String get projectExecutable => 'Программа (.exe)';
+
+  String get projectDirectory => 'Рабочая папка с кодом';
+
+  String get projectArguments => 'Аргументы — каждый на отдельной строке';
+
+  String get projectBrowse => 'Выбрать';
+
+  String get projectLaunchHelp =>
+      'Программа получает переменные окружения напрямую. SkySecret не создаёт .env, не подставляет значения в команду и не сохраняет вывод программы. После блокировки запуск продолжает работать с выданными секретами. Кнопка «Остановить» или выход из SkySecret завершает его и дочерние процессы.';
+
+  String get projectLaunchTrust =>
+      'Запускайте только доверенный код: программа получит секреты и сможет записать или отправить их. Уже существующие файлы в Git этим не проверяются.';
+
+  String get projectLaunchInvalid =>
+      'Выберите полный путь к .exe и рабочей папке. Не включайте секреты в пути или аргументы.';
+
+  String get projectLaunchFailed => 'Не удалось запустить программу. Проверьте путь, рабочую папку и доступ к ним.';
+
+  String get projectLaunchLocal =>
+      'Настройка запуска хранится только на этом компьютере и не переносится через синхронизацию.';
+
+  String get projectLaunchReview => 'Проверьте программу и папку перед запуском';
+
+  String get configurationFailed => 'Не удалось открыть окно настроек. Попробуйте ещё раз.';
+
   String get noticeError => 'Ошибка';
 
   String get noticeWarning => 'Обратите внимание';
@@ -886,6 +970,48 @@ class Translations with BaseTranslations<AppLocale, Translations> {
 extension on Translations {
   dynamic _flatMapFunction(String path) {
     return switch (path) {
+      'configurationInteractionBlocked' => 'Завершите работу в открытом окне',
+      'startupLoading' => 'SkySecret загружается…',
+      'startupReady' => 'SkySecret готов',
+      'startupFailed' => 'Не всё удалось загрузить',
+      'projectWorkflow' => 'Окружения и запуск',
+      'projectWorkflowHelp' => 'Секреты хранятся здесь. Код остаётся в вашей папке.',
+      'projectEnvironments' => 'Окружения',
+      'projectEnvironmentAdd' => 'Добавить окружение',
+      'projectEnvironmentEdit' => 'Настроить окружение',
+      'projectEnvironmentName' => 'Название окружения',
+      'projectEnvironmentEmpty' =>
+        'Создайте окружение, например Development, Test или Production, и добавьте переменные для своей программы.',
+      'projectVariableName' => 'Имя переменной',
+      'projectVariableValue' => 'Значение',
+      'projectVariableAdd' => 'Добавить переменную',
+      'projectVariableRemove' => 'Убрать переменную',
+      'projectVariablesInvalid' => 'Проверьте название и переменные. Имена: латинские буквы, цифры и подчёркивание, без повторов. До 128 переменных; общий объём ограничен.',
+      'projectVariablesProtected' => 'Значения скрыты и сохраняются внутри зашифрованного сейфа.',
+      'projectResources' => 'Секреты и файлы',
+      'projectOverview' => 'К окружениям',
+      'projectLaunchConfigure' => 'Настроить запуск',
+      'projectLaunch' => 'Запустить',
+      'projectStop' => 'Остановить',
+      'projectRunning' => 'Работает',
+      'projectStarting' => 'Запускается…',
+      'projectStopped' => 'Остановлен',
+      'projectExited' => ({required Object code}) => 'Процесс завершён: ${code}',
+      'projectLaunchReady' => 'Запуск настроен на этом компьютере',
+      'projectLaunchMissing' => 'Выберите программу и рабочую папку на этом компьютере',
+      'projectExecutable' => 'Программа (.exe)',
+      'projectDirectory' => 'Рабочая папка с кодом',
+      'projectArguments' => 'Аргументы — каждый на отдельной строке',
+      'projectBrowse' => 'Выбрать',
+      'projectLaunchHelp' => 'Программа получает переменные окружения напрямую. SkySecret не создаёт .env, не подставляет значения в команду и не сохраняет вывод программы. После блокировки запуск продолжает работать с выданными секретами. Кнопка «Остановить» или выход из SkySecret завершает его и дочерние процессы.',
+      'projectLaunchTrust' => 'Запускайте только доверенный код: программа получит секреты и сможет записать или отправить их. Уже существующие файлы в Git этим не проверяются.',
+      'projectLaunchInvalid' =>
+        'Выберите полный путь к .exe и рабочей папке. Не включайте секреты в пути или аргументы.',
+      'projectLaunchFailed' => 'Не удалось запустить программу. Проверьте путь, рабочую папку и доступ к ним.',
+      'projectLaunchLocal' =>
+        'Настройка запуска хранится только на этом компьютере и не переносится через синхронизацию.',
+      'projectLaunchReview' => 'Проверьте программу и папку перед запуском',
+      'configurationFailed' => 'Не удалось открыть окно настроек. Попробуйте ещё раз.',
       'noticeError' => 'Ошибка',
       'noticeWarning' => 'Обратите внимание',
       'noticeSuccess' => 'Готово',

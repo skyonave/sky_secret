@@ -1,6 +1,22 @@
 #include "companion_window.h"
 
+#include <algorithm>
 #include <cmath>
+#include <vector>
+
+void CompanionWindow::CloseAll() {
+  std::vector<HWND> windows;
+  EnumThreadWindows(GetCurrentThreadId(), [](HWND window, LPARAM data) -> BOOL {
+    wchar_t name[128]{};
+    if (GetClassNameW(window, name, 128) && wcscmp(name, L"FLUTTER_MULTI_WINDOW_WIN32_WINDOW") == 0) {
+      reinterpret_cast<std::vector<HWND>*>(data)->push_back(window);
+    }
+    return TRUE;
+  }, reinterpret_cast<LPARAM>(&windows));
+  for (const auto window : windows) {
+    if (IsWindow(window)) DestroyWindow(window);
+  }
+}
 
 std::optional<RECT> CompanionWindow::Bounds() const {
   RECT client{};
@@ -18,7 +34,7 @@ bool CompanionWindow::ValidChild(HWND child) const {
   return process == GetCurrentProcessId();
 }
 
-bool CompanionWindow::Place(HWND child, double gap, bool above) {
+bool CompanionWindow::Place(HWND child, double gap, bool above, bool configuration) {
   if (!ValidChild(child) || !std::isfinite(gap) || gap < 0 || gap > 100) return false;
   const auto bounds = Bounds();
   RECT tile{};
@@ -27,6 +43,7 @@ bool CompanionWindow::Place(HWND child, double gap, bool above) {
       !GetMonitorInfo(MonitorFromWindow(main_, MONITOR_DEFAULTTONEAREST), &monitor)) return false;
   gap_ = gap;
   above_ = above;
+  configuration_ = configuration;
   if (child_ != child) {
     const auto needed = tile.right - tile.left + std::lround(gap_ * GetDpiForWindow(main_) / 96.0);
     const auto left_room = bounds->left - monitor.rcWork.left;
@@ -46,6 +63,17 @@ bool CompanionWindow::Follow() {
   RECT tile{};
   if (!bounds || !GetWindowRect(child_, &tile)) return false;
   const auto gap = std::lround(gap_ * GetDpiForWindow(main_) / 96.0);
+  if (configuration_) {
+    MONITORINFO monitor{sizeof(MONITORINFO)};
+    if (!GetMonitorInfo(MonitorFromWindow(main_, MONITOR_DEFAULTTONEAREST), &monitor)) return false;
+    const auto width = bounds->right - bounds->left;
+    const auto height = bounds->bottom - bounds->top;
+    const auto x = std::max(monitor.rcWork.left, bounds->left - gap - width);
+    const auto y = std::max(monitor.rcWork.top, bounds->top);
+    if (tile.left == x && tile.top == y && tile.right - tile.left == width && tile.bottom - tile.top == height) return true;
+    return SetWindowPos(child_, nullptr, x, y, width, height,
+                        SWP_NOZORDER | SWP_NOACTIVATE | SWP_NOOWNERZORDER) != FALSE;
+  }
   auto x = left_ ? bounds->left - gap - (tile.right - tile.left) : bounds->right + gap;
   auto y = bounds->bottom - (tile.bottom - tile.top);
   if (above_) {
@@ -67,6 +95,15 @@ bool CompanionWindow::Follow() {
 void CompanionWindow::Detach() {
   if (ValidChild(child_)) ShowWindow(child_, SW_HIDE);
   child_ = nullptr;
+}
+
+bool CompanionWindow::ReturnFocus(HWND child, HWND target) const {
+  if (!ValidChild(child) || !IsWindowVisible(main_) || IsIconic(main_)) return false;
+  if (GetAncestor(GetForegroundWindow(), GA_ROOT) != child) return false;
+  if (!target) target = main_;
+  if (target != main_ && !ValidChild(target)) return false;
+  if (!IsWindowVisible(target) || IsIconic(target)) return false;
+  return SetForegroundWindow(target) != FALSE;
 }
 
 void CompanionWindow::OnMessage(UINT message, WPARAM wparam, LPARAM lparam) {

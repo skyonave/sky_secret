@@ -12,6 +12,7 @@ import 'ui/manager/manager_window.dart';
 import 'ui/shared/app_theme.dart';
 import 'ui/shared/notifications/desktop_notice.dart';
 import 'ui/shared/menu/desktop_menu.dart';
+import 'ui/shared/configuration/configuration_interaction_guard.dart';
 
 export 'ui/manager/manager_window.dart' show ManagerWindow;
 
@@ -48,14 +49,16 @@ class SkySecretApp extends StatelessWidget {
           theme: AppTheme.theme,
           builder: (context, child) => DesktopNoticeHost(child: child!),
           navigatorObservers: [DesktopMenuObserver()],
-          home: ManagerWindow(
-            desktop: desktop,
-            clipboard: clipboard,
-            clipboardBoundary: clipboardBoundary,
-            vaultStore: vaultStore,
-            vaultCatalog: vaultCatalog,
-            vaultPreferences: vaultPreferences,
-            githubBackup: githubBackup,
+          home: ConfigurationInteractionGuard(
+            child: ManagerWindow(
+              desktop: desktop,
+              clipboard: clipboard,
+              clipboardBoundary: clipboardBoundary,
+              vaultStore: vaultStore,
+              vaultCatalog: vaultCatalog,
+              vaultPreferences: vaultPreferences,
+              githubBackup: githubBackup,
+            ),
           ),
         );
       },

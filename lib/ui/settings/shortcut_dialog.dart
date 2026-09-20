@@ -5,6 +5,7 @@ import 'package:hotkey_manager/hotkey_manager.dart';
 import '../../core/desktop/desktop_actions.dart';
 import '../../core/settings/repositories/shortcut_settings.dart';
 import '../../i18n/translations.g.dart';
+import '../shared/configuration/configuration_page.dart';
 
 class ShortcutDialog extends StatefulWidget {
   final DesktopActions desktop;
@@ -92,7 +93,7 @@ class _ShortcutDialogState extends State<ShortcutDialog> {
   }
 
   @override
-  Widget build(BuildContext context) => AlertDialog(
+  Widget build(BuildContext context) => ConfigurationPage(
     scrollable: true,
     insetPadding: const EdgeInsets.all(20),
     title: Text(t.keyboardShortcuts),

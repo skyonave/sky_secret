@@ -5,6 +5,7 @@ add_executable(${BINARY_NAME} WIN32
   "flutter_window.cpp"
   "companion_window.cpp"
   "desktop_notice.cpp"
+  "startup_indicator.cpp"
   "file_drop_target.cpp"
   "file_drag_source.cpp"
   "secret_drag_source.cpp"
@@ -14,6 +15,7 @@ add_executable(${BINARY_NAME} WIN32
   "virtual_file_data.cpp"
   "main.cpp"
   "ssh_bridge.cpp"
+  "project_process.cpp"
   "utils.cpp"
   "win32_window.cpp"
   "${FLUTTER_MANAGED_DIR}/generated_plugin_registrant.cc"
@@ -46,6 +48,16 @@ add_executable(companion_window_test EXCLUDE_FROM_ALL "../../test/windows/compan
 apply_standard_settings(companion_window_test)
 target_compile_definitions(companion_window_test PRIVATE NOMINMAX)
 
+add_executable(project_process_arguments_test EXCLUDE_FROM_ALL "../../test/windows/project_process_arguments_test.cpp")
+apply_standard_settings(project_process_arguments_test)
+target_compile_definitions(project_process_arguments_test PRIVATE NOMINMAX)
+target_link_libraries(project_process_arguments_test PRIVATE "shell32.lib")
+
+add_executable(project_process_test EXCLUDE_FROM_ALL "../../test/windows/project_process_test.cpp")
+apply_standard_settings(project_process_test)
+target_compile_definitions(project_process_test PRIVATE NOMINMAX)
+target_link_libraries(project_process_test PRIVATE flutter flutter_wrapper_plugin)
+
 add_executable(desktop_notice_layout_test EXCLUDE_FROM_ALL "../../test/windows/desktop_notice_layout_test.cpp")
 apply_standard_settings(desktop_notice_layout_test)
 target_compile_definitions(desktop_notice_layout_test PRIVATE NOMINMAX)
@@ -53,6 +65,11 @@ target_compile_definitions(desktop_notice_layout_test PRIVATE NOMINMAX)
 add_executable(desktop_notice_surface_test EXCLUDE_FROM_ALL "../../test/windows/desktop_notice_surface_test.cpp")
 apply_standard_settings(desktop_notice_surface_test)
 target_compile_definitions(desktop_notice_surface_test PRIVATE NOMINMAX)
+
+add_executable(desktop_notice_lifecycle_test EXCLUDE_FROM_ALL "../../test/windows/desktop_notice_lifecycle_test.cpp")
+apply_standard_settings(desktop_notice_lifecycle_test)
+target_compile_definitions(desktop_notice_lifecycle_test PRIVATE NOMINMAX)
+target_link_libraries(desktop_notice_lifecycle_test PRIVATE flutter flutter_wrapper_plugin)
 
 add_executable(virtual_file_data_test EXCLUDE_FROM_ALL
   "../../test/windows/virtual_file_data_test.cpp" "virtual_file_data.cpp")

@@ -59,11 +59,15 @@ class TotpWindowManager {
         final session = _session;
         final epoch = _epoch;
         bool valid() => _disposed == false && _epoch == epoch && session?.valid == true;
-        if (args is! Map || args['epoch'] != epoch || valid() == false) return null;
+        if (args is! Map || args['epoch'] != epoch) return null;
+        if (call.method == 'closed') {
+          close();
+          return true;
+        }
+        if (valid() == false) return null;
         switch (call.method) {
-          case 'closed':
-            close();
-            return true;
+          case 'closing':
+            return _placement.invokeMethod<bool>('returnFocus', {'window': _windowId});
           case 'read':
             final rows = await session!.snapshot(DateTime.now());
             final area = await _placement.invokeMapMethod<String, num>('bounds');

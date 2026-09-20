@@ -4,6 +4,7 @@ import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 
 import '../../../core/files/services/file_save_target.dart';
+import '../../../core/desktop/configuration/controllers/configuration_windows.dart';
 import '../../../i18n/translations.g.dart';
 
 abstract final class SaveFileDialog {
@@ -27,16 +28,15 @@ abstract final class SaveFileDialog {
       requireExtension: requireExtension,
       confirmReplacement: (path) async {
         if (!context.mounted || !allowed()) return false;
-        return await showDialog<bool>(
-              context: context,
-              builder: (context) => AlertDialog(
-                title: Text(t.fileReplaceTitle),
-                content: Text(t.fileReplaceBody(path: path)),
-                actions: [
-                  TextButton(onPressed: () => Navigator.pop(context, false), child: Text(t.cancel)),
-                  FilledButton(onPressed: () => Navigator.pop(context, true), child: Text(t.fileReplace)),
-                ],
-              ),
+        return await ConfigurationWindows.open(
+              kind: 'confirm',
+              locale: LocaleSettings.currentLocale.languageCode,
+              isValid: () => context.mounted && allowed(),
+              data: {
+                'title': t.fileReplaceTitle,
+                'message': t.fileReplaceBody(path: path),
+                'action': t.fileReplace,
+              },
             ) ==
             true;
       },

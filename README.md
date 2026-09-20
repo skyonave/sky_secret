@@ -43,7 +43,7 @@ Use **General / Projects** in the title bar. General remains a complete vault fo
 
 **Back up the general vault and each project separately.** A general-vault export includes the encrypted project catalog, but not project contents. Exporting a shared-unlock project asks for a password for that independent copy. To recover a missing project file, open its project and restore a `.smv` copy or select its GitHub backup. Existing files are not overwritten by restoration. Keep the workspace and export passwords separately; there is no password reset.
 
-Next workflow: **Project → secrets → `.env` → run command**. Later: select the relevant project from context when opening **Shift+Space**. Windows Hello, hardware keys and session re-authentication are possible policy extensions, not implemented features or scheduled releases.
+**Project → environment → launch.** Add variables, select a local .exe, its working folder and one argument per line. For example, run node.exe with server.js in your repository folder. SkySecret supplies variables directly without creating .env files or inserting values into the command. Code stays in your folder. Launch settings are local to each computer. The program keeps its supplied secrets after the vault locks; use Stop in the project or Exit from the tray to terminate the managed process tree. Only launch trusted code: it can write or transmit the supplied values. Existing Git files are not scanned.
 
 ## Русский
 
@@ -81,7 +81,7 @@ Next workflow: **Project → secrets → `.env` → run command**. Later: select
 
 **Сохраняйте копии общего сейфа и каждого проекта отдельно.** Экспорт общего сейфа содержит зашифрованный каталог проектов, но не их содержимое. При экспорте проекта с общим открытием задаётся пароль независимой копии. Для восстановления отсутствующего файла откройте проект и выберите копию `.smv` или его резервную копию в GitHub. Восстановление не перезаписывает существующие файлы. Храните пароли workspace и экспортов отдельно; сброса пароля нет.
 
-Следующий сценарий: **Проект → секреты → `.env` → запуск команды**. Затем — выбор проекта по контексту при вызове **Shift+Space**. Windows Hello, аппаратные ключи и повторное подтверждение сессии рассматриваются как расширения политики; они пока не реализованы и не имеют срока выпуска.
+**Проект → окружение → запуск.** Добавьте переменные, выберите локальный .exe, рабочую папку и аргументы по одному на строке. Например, node.exe с аргументом server.js в папке репозитория. SkySecret передаёт переменные напрямую, не создавая .env и не подставляя значения в команду. Код остаётся в вашей папке. Настройка запуска локальна для каждого компьютера. После блокировки программа сохраняет выданные секреты; кнопка «Остановить» в проекте или «Выход» из трея завершает управляемое дерево процессов. Запускайте только доверенный код: он может записать или отправить значения. Существующие файлы Git не сканируются.
 
 ---
 

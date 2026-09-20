@@ -6,11 +6,12 @@ import 'package:flutter/services.dart';
 import '../../core/crypto/generator/models/generator_options.dart';
 import '../../i18n/translations.g.dart';
 import '../shared/app_theme.dart';
-import '../shared/menu/desktop_menu.dart';
 import '../shared/desktop_option.dart';
 import '../shared/desktop_tooltip.dart';
 import '../shared/input/sensitive_text_editing.dart';
 import 'services/generator_service.dart';
+import '../../core/desktop/configuration/controllers/configuration_windows.dart';
+import '../shared/configuration/configuration_page.dart';
 part 'widgets/_generator_mode_button.dart';
 part 'widgets/_generator_preview.dart';
 part 'widgets/_generator_count.dart';
@@ -41,14 +42,27 @@ class GeneratorDialog extends StatefulWidget {
     required Future<bool> Function(String) copy,
     required String actionLabel,
     bool canApply = true,
-  }) {
+  }) async {
     DesktopTooltip.dismissAll();
-    return showDialog<String>(
-      context: context,
-      routeSettings: const RouteSettings(name: DesktopMenuObserver.routeName),
-      animationStyle: AnimationStyle.noAnimation,
-      builder: (_) => GeneratorDialog(service: service, copy: copy, actionLabel: actionLabel, canApply: canApply),
+    if (ConfigurationWindows.isChild) {
+      return Navigator.of(context).push<String>(
+        MaterialPageRoute(
+          builder: (_) => GeneratorDialog(service: service, copy: copy, actionLabel: actionLabel, canApply: canApply),
+        ),
+      );
+    }
+    final value = await ConfigurationWindows.open(
+      kind: 'generator',
+      locale: LocaleSettings.currentLocale.languageCode,
+      data: {'label': actionLabel, 'apply': canApply},
+      isValid: () => context.mounted,
+      onAction: (method, value) async {
+        if (method == 'generatorLoad') return (await service.preferences.load()).toJson();
+        if (method == 'generatorSave') await service.preferences.save(GeneratorOptions.fromJson(value));
+        return null;
+      },
     );
+    return value as String?;
   }
 }
 
@@ -157,88 +171,68 @@ class _GeneratorDialogState extends State<GeneratorDialog> {
   }
 
   @override
-  Widget build(BuildContext context) => Dialog(
-    alignment: Alignment.topRight,
-    insetPadding: const EdgeInsets.fromLTRB(12, 42, 12, 12),
-    child: ConstrainedBox(
-      constraints: const BoxConstraints(maxWidth: 420),
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.all(14),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+  Widget build(BuildContext context) => ConfigurationPage(
+    title: Text(t.generator),
+    content: Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
           children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(t.generator, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
-                ),
-                DesktopIconButton(
-                  tooltip: t.generatorClose,
-                  onPressed: () => Navigator.of(context).pop(),
-                  icon: const Icon(Icons.close_rounded, size: 16),
-                ),
-              ],
+            Expanded(
+              child: _GeneratorModeButton(
+                mode: GeneratorMode.password,
+                label: t.generatorPassword,
+                loading: _loading,
+                onChangeMode: _changeMode,
+                options: _options,
+              ),
             ),
-            const SizedBox(height: 10),
-            Row(
-              children: [
-                Expanded(
-                  child: _GeneratorModeButton(
-                    mode: GeneratorMode.password,
-                    label: t.generatorPassword,
-                    loading: _loading,
-                    onChangeMode: _changeMode,
-                    options: _options,
-                  ),
-                ),
-                const SizedBox(width: 6),
-                Expanded(
-                  child: _GeneratorModeButton(
-                    mode: GeneratorMode.passphrase,
-                    label: t.generatorPassphrase,
-                    loading: _loading,
-                    onChangeMode: _changeMode,
-                    options: _options,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            _GeneratorPreview(
-              loading: _loading,
-              generating: _generating,
-              value: _value,
-              copied: _copied,
-              countValid: _countValid,
-              options: _options,
-              onGenerate: _generate,
-              ready: _ready,
-              copying: _copying,
-              onCopy: _copy,
-            ),
-            const SizedBox(height: 12),
-            if (!_loading) ...[
-              _GeneratorCount(phrase: _phrase, count: _count, countValid: _countValid, onChangeCount: _changeCount),
-              const SizedBox(height: 8),
-              if (_phrase)
-                _PhraseOptions(options: _options, onChange: _change)
-              else
-                _PasswordOptions(options: _options, onChange: _change),
-              if (!_options.valid) _GeneratorWarning(text: t.generatorChooseGroup),
-            ],
-            if (_error != null) _GeneratorWarning(text: _error!),
-            if (_preferencesError != null) _GeneratorWarning(text: _preferencesError!),
-            const SizedBox(height: 12),
-            FilledButton.icon(
-              key: const Key('generator-apply'),
-              onPressed: _ready && widget.canApply ? () => Navigator.of(context).pop(_value) : null,
-              icon: const Icon(Icons.add_rounded, size: 16),
-              label: Text(widget.actionLabel),
+            const SizedBox(width: 6),
+            Expanded(
+              child: _GeneratorModeButton(
+                mode: GeneratorMode.passphrase,
+                label: t.generatorPassphrase,
+                loading: _loading,
+                onChangeMode: _changeMode,
+                options: _options,
+              ),
             ),
           ],
         ),
-      ),
+        const SizedBox(height: 12),
+        _GeneratorPreview(
+          loading: _loading,
+          generating: _generating,
+          value: _value,
+          copied: _copied,
+          countValid: _countValid,
+          options: _options,
+          onGenerate: _generate,
+          ready: _ready,
+          copying: _copying,
+          onCopy: _copy,
+        ),
+        const SizedBox(height: 12),
+        if (!_loading) ...[
+          _GeneratorCount(phrase: _phrase, count: _count, countValid: _countValid, onChangeCount: _changeCount),
+          const SizedBox(height: 8),
+          if (_phrase)
+            _PhraseOptions(options: _options, onChange: _change)
+          else
+            _PasswordOptions(options: _options, onChange: _change),
+          if (!_options.valid) _GeneratorWarning(text: t.generatorChooseGroup),
+        ],
+        if (_error != null) _GeneratorWarning(text: _error!),
+        if (_preferencesError != null) _GeneratorWarning(text: _preferencesError!),
+        const SizedBox(height: 12),
+        FilledButton.icon(
+          key: const Key('generator-apply'),
+          onPressed: _ready && widget.canApply ? () => Navigator.of(context).pop(_value) : null,
+          icon: const Icon(Icons.add_rounded, size: 16),
+          label: Text(widget.actionLabel),
+        ),
+      ],
     ),
   );
 

@@ -12,6 +12,24 @@ HWND focused_window = manager_handle;
 int position_requests = 0;
 UINT last_flags = 0;
 RECT last_bounds = {};
+int quit_requests = 0;
+int close_requests = 0;
+HWND closed_window = nullptr;
+int show_mode = 0;
+
+BOOL WINAPI RecordShow(HWND, int mode) {
+  show_mode = mode;
+  return TRUE;
+}
+
+void WINAPI RecordQuit(int) { ++quit_requests; }
+BOOL WINAPI RecordMessage(HWND window, UINT message, WPARAM wparam, LPARAM) {
+  if (message == WM_SYSCOMMAND && wparam == SC_CLOSE) {
+    ++close_requests;
+    closed_window = window;
+  }
+  return TRUE;
+}
 
 BOOL WINAPI RecordPosition(HWND window, HWND, int x, int y, int width, int height, UINT flags) {
   ++position_requests;
@@ -34,16 +52,43 @@ HRESULT WINAPI ExtendFrame(HWND, const MARGINS*) { return S_OK; }
 #define GetWindowRect WindowBounds
 #define GetWindow ChildWindow
 #define DwmExtendFrameIntoClientArea ExtendFrame
+#define PostQuitMessage RecordQuit
+#define PostMessageW RecordMessage
+#define ShowWindowAsync RecordShow
 #include SKY_WINDOW_MANAGER_SOURCE
 #undef SetWindowPos
 #undef GetWindowRect
 #undef GetWindow
 #undef DwmExtendFrameIntoClientArea
+#undef PostQuitMessage
+#undef PostMessageW
+#undef ShowWindowAsync
 
 int main(int argc, char** argv) {
   WindowManager window;
   window.native_window = search_handle;
-  if (argc > 1 && std::strcmp(argv[1], "--frame") == 0) {
+#ifdef SKY_INACTIVE_SHOW
+  if (argc > 1 && std::strcmp(argv[1], "--inactive") == 0) {
+    window.Show(true);
+    if (show_mode != SW_SHOWNOACTIVATE || focused_window != manager_handle) return 9;
+    std::puts("Inactive show preserves foreground; no windows created");
+    return 0;
+  }
+#endif
+  if (argc > 1 && std::strcmp(argv[1], "--close") == 0) {
+    window.Destroy();
+    if (quit_requests != 1 || close_requests != 0) return 6;
+    quit_requests = 0;
+    window.SetPreventClose({{flutter::EncodableValue("isPreventClose"), flutter::EncodableValue(false)}});
+    window.Close();
+    if (quit_requests != 0 || close_requests != 1 || closed_window != search_handle || window.IsPreventClose()) return 7;
+    std::puts("Close targets only the companion HWND; Destroy quits the message loop; no windows created");
+    return 0;
+  }
+  if (argc > 1 && std::strcmp(argv[1], "--topmost") == 0) {
+    window.SetAlwaysOnTop({{flutter::EncodableValue("isAlwaysOnTop"), flutter::EncodableValue(true)}});
+    if (position_requests != 1) return 8;
+  } else if (argc > 1 && std::strcmp(argv[1], "--frame") == 0) {
     window.SetTitleBarStyle({{flutter::EncodableValue("titleBarStyle"), flutter::EncodableValue("hidden")}});
     window.ForceRefresh();
     window.ForceChildRefresh();

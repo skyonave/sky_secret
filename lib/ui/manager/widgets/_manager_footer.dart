@@ -53,10 +53,28 @@ class _ManagerFooter extends StatelessWidget {
         DesktopIconButton(
           key: const Key('shortcut-settings'),
           tooltip: t.keyboardShortcuts,
-          onPressed: () => showDialog<void>(
-            context: context,
-            builder: (_) => ShortcutDialog(desktop: desktop),
-          ),
+          onPressed: () async {
+            try {
+              await ConfigurationWindows.open(
+                kind: 'shortcuts',
+                locale: LocaleSettings.currentLocale.languageCode,
+                data: {'shortcut': desktop.shortcut.toJson(), 'search': desktop.searchShortcut.toJson()},
+                isValid: () => context.mounted,
+                onAction: (method, value) async {
+                  if (method == 'capture') {
+                    desktop.setShortcutCapture(value == true);
+                    return null;
+                  }
+                  final key = HotKey.fromJson(Map<String, dynamic>.from(value as Map));
+                  return method == 'search' ? desktop.updateSearchShortcut(key) : desktop.updateShortcut(key);
+                },
+              );
+            } catch (_) {
+              if (context.mounted) DesktopNoticeHost.show(context, t.configurationFailed);
+            } finally {
+              desktop.setShortcutCapture(false);
+            }
+          },
           icon: const Icon(Icons.keyboard_outlined, size: 17, color: AppColors.muted),
         ),
       ],

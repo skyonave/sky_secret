@@ -12,6 +12,9 @@ import 'i18n/translations.g.dart';
 import 'ui/editor/file_editor_window.dart';
 import 'ui/authenticator/totp_window.dart';
 import 'ui/search/vault_search_window.dart';
+import 'ui/shared/configuration/configuration_window.dart';
+import 'core/desktop/configuration/controllers/configuration_windows.dart';
+import 'core/os/windows/window/desktop_startup.dart';
 
 Future<void> main(List<String> args) async {
   final clipboardBoundary = SensitiveClipboardBoundary();
@@ -25,6 +28,7 @@ Future<void> main(List<String> args) async {
     );
     return;
   }
+  if (await ConfigurationWindow.runIfNeeded(clipboardBoundary)) return;
   if (await FileEditorWindow.runIfNeeded(clipboardBoundary: clipboardBoundary)) return;
   if (await TotpWindow.runIfNeeded()) return;
   if (await VaultSearchWindow.runIfNeeded(clipboardBoundary: clipboardBoundary)) return;
@@ -41,10 +45,24 @@ Future<void> main(List<String> args) async {
   final desktop = DesktopController(onExit: instance.dispose);
   instance.listen(() => unawaited(desktop.show()));
   final backup = GitHubBackup.local();
+  await DesktopStartup.begin();
   runApp(SkySecretApp(desktop: desktop, githubBackup: backup, clipboardBoundary: clipboardBoundary));
-  unawaited(backup.initialize());
+  unawaited(
+    DesktopStartup.track('backup', () async {
+      await backup.initialize();
+      if (backup.connectionNeedsRecovery) throw StateError('Backup settings unavailable');
+    }).catchError((_) {}),
+  );
   try {
-    await desktop.initialize();
+    await DesktopStartup.track('desktop', desktop.initialize);
+    unawaited(
+      DesktopStartup.track(
+        'forms',
+        () => ConfigurationWindows.prepare(
+          LocaleSettings.currentLocale.languageCode,
+        ),
+      ).catchError((_) {}),
+    );
   } catch (_) {
     instance.dispose();
     exit(1);

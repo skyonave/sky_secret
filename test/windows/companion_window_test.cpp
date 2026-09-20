@@ -11,6 +11,10 @@ UINT dpi = 96;
 DWORD child_process = 42;
 int moves = 0;
 int hides = 0;
+int destroyed = 0;
+HWND foreground = code_window;
+bool main_visible = true;
+int focused = 0;
 UINT move_flags = 0;
 
 BOOL WINAPI ClientBounds(HWND window, LPRECT rect) {
@@ -35,15 +39,33 @@ UINT WINAPI WindowDpi(HWND) { return dpi; }
 HMONITOR WINAPI WindowMonitor(HWND, DWORD) { return reinterpret_cast<HMONITOR>(1); }
 BOOL WINAPI MonitorInfo(HMONITOR, LPMONITORINFO info) { info->rcWork = work_bounds; return TRUE; }
 BOOL WINAPI Iconic(HWND) { return FALSE; }
+BOOL WINAPI Visible(HWND window) { return window != main_window || main_visible; }
+HWND WINAPI Foreground() { return foreground; }
+BOOL WINAPI FocusWindow(HWND window) { foreground = window; ++focused; return TRUE; }
 BOOL WINAPI Visibility(HWND window, int command) {
   if (window == code_window && command == SW_HIDE) ++hides;
   return TRUE;
 }
-BOOL WINAPI Position(HWND window, HWND, int x, int y, int, int, UINT flags) {
+BOOL WINAPI ThreadWindows(DWORD, WNDENUMPROC callback, LPARAM data) {
+  callback(main_window, data);
+  callback(code_window, data);
+  return TRUE;
+}
+int WINAPI ClassName(HWND window, LPWSTR name, int size) {
+  const auto value = window == code_window ? L"FLUTTER_MULTI_WINDOW_WIN32_WINDOW" : L"SkySecret";
+  wcscpy_s(name, size, value);
+  return static_cast<int>(wcslen(name));
+}
+BOOL WINAPI DestroyCompanion(HWND window) {
+  destroyed += window == code_window ? 1 : 100;
+  return TRUE;
+}
+BOOL WINAPI Position(HWND window, HWND, int x, int y, int width, int height, UINT flags) {
   if (window != code_window) return FALSE;
   ++moves;
   move_flags = flags;
-  code_bounds = RECT{x, y, x + code_bounds.right - code_bounds.left, y + code_bounds.bottom - code_bounds.top};
+  if (flags & SWP_NOSIZE) { width = code_bounds.right - code_bounds.left; height = code_bounds.bottom - code_bounds.top; }
+  code_bounds = RECT{x, y, x + width, y + height};
   return TRUE;
 }
 }
@@ -60,8 +82,14 @@ BOOL WINAPI Position(HWND window, HWND, int x, int y, int, int, UINT flags) {
 #undef GetMonitorInfo
 #define GetMonitorInfo MonitorInfo
 #define IsIconic Iconic
+#define IsWindowVisible Visible
+#define GetForegroundWindow Foreground
+#define SetForegroundWindow FocusWindow
 #define ShowWindow Visibility
 #define SetWindowPos Position
+#define EnumThreadWindows ThreadWindows
+#define GetClassNameW ClassName
+#define DestroyWindow DestroyCompanion
 #include "../../windows/runner/companion_window.cpp"
 
 #define CHECK(condition) if (!(condition)) { std::fprintf(stderr, "Failed at line %d\n", __LINE__); return 1; }
@@ -133,6 +161,34 @@ int main() {
   CHECK(code_bounds.top == work_bounds.top);
   CHECK(code_bounds.bottom - code_bounds.top == 256);
   CHECK((move_flags & SWP_NOACTIVATE) != 0);
+  main_bounds = RECT{1400, 400, 1870, 1010};
+  CHECK(companion.Place(code_window, 12, false, true));
+  CHECK(code_bounds.left == 942 && code_bounds.top == 400);
+  CHECK(code_bounds.right - code_bounds.left == 454);
+  CHECK(code_bounds.bottom - code_bounds.top == 602);
+  CHECK((move_flags & SWP_NOSIZE) == 0);
+  dpi = 144;
+  CHECK(companion.Place(code_window, 12, false, true));
+  CHECK(code_bounds.right == 1390);
+  main_bounds = RECT{-1910, 100, -1440, 710};
+  work_bounds = RECT{-1920, 0, 0, 1040};
+  CHECK(companion.Place(code_window, 12, false, true));
+  CHECK(code_bounds.left == -1920 && code_bounds.top == 100);
+  CompanionWindow::CloseAll();
+  CHECK(destroyed == 1);
+  CHECK(companion.ReturnFocus(code_window));
+  CHECK(foreground == main_window && focused == 1);
+  foreground = reinterpret_cast<HWND>(3);
+  CHECK(!companion.ReturnFocus(code_window));
+  CHECK(focused == 1);
+  foreground = code_window;
+  main_visible = false;
+  CHECK(!companion.ReturnFocus(code_window));
+  CHECK(focused == 1);
+  main_visible = true;
+  child_process = 99;
+  CHECK(!companion.ReturnFocus(code_window));
+  CHECK(focused == 1);
   std::puts("Companion follows each native move, aligns client edges, preserves focus and detaches; no windows created");
   return 0;
 }

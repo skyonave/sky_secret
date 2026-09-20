@@ -14,6 +14,7 @@ import '../../authentication/ssh_endpoint.dart';
 import '../../authentication/totp.dart';
 import '../models/vault_kdf_profile.dart';
 import '../models/vault_revision.dart';
+import '../models/project_environment.dart';
 
 part '../models/_vault_entry.dart';
 part '../models/_vault_attachment.dart';
@@ -264,11 +265,13 @@ abstract final class VaultCipher {
     if (json is! Map<String, dynamic> ||
         json['entries'] is! List ||
         (json['entries'] as List).length >
-            ([4, 5, 6, 7, 8, 9, 10].contains(json['schemaVersion']) ? VaultCipher.maxItems : VaultCipher.maxEntries)) {
+            ([4, 5, 6, 7, 8, 9, 10, 11].contains(json['schemaVersion'])
+                ? VaultCipher.maxItems
+                : VaultCipher.maxEntries)) {
       throw const VaultFormatException();
     }
     final legacy = json.length == 1 && json.containsKey('entries');
-    final projectSchema = json['schemaVersion'] == 10;
+    final projectSchema = [10, 11].contains(json['schemaVersion']);
     final rawProjects = projectSchema ? json['projects'] : const [];
     if (rawProjects is! List || rawProjects.length > VaultCipher.maxProjects) {
       throw const VaultFormatException();
@@ -281,7 +284,8 @@ abstract final class VaultCipher {
     var rawEntries = 0;
     for (final value in json['entries'] as List) {
       if (value is! Map) throw const VaultFormatException();
-      if ([4, 5, 6, 7, 8, 9, 10].contains(json['schemaVersion']) && value['kind'] == 'file') {
+      if (value['kind'] == 'environment' && json['schemaVersion'] != 11) throw const VaultFormatException();
+      if ([4, 5, 6, 7, 8, 9, 10, 11].contains(json['schemaVersion']) && value['kind'] == 'file') {
         rawFiles++;
       } else {
         rawEntries++;
@@ -293,16 +297,16 @@ abstract final class VaultCipher {
         throw const VaultFormatException();
       }
     }
-    final organized = [6, 7, 8, 9, 10].contains(json['schemaVersion']);
+    final organized = [6, 7, 8, 9, 10, 11].contains(json['schemaVersion']);
     if (!legacy &&
         (json.length !=
                 (projectSchema
                     ? 6
-                    : [5, 6, 7, 8, 9, 10].contains(json['schemaVersion'])
+                    : [5, 6, 7, 8, 9, 10, 11].contains(json['schemaVersion'])
                     ? 5
                     : 4) ||
             json['schemaVersion'] is! int ||
-            ![2, 3, 4, 5, 6, 7, 8, 9, 10].contains(json['schemaVersion']) ||
+            ![2, 3, 4, 5, 6, 7, 8, 9, 10, 11].contains(json['schemaVersion']) ||
             !json.containsKey('name') ||
             !VaultCipher._validName(json['name']) ||
             json['folders'] is! List ||
@@ -333,12 +337,12 @@ abstract final class VaultCipher {
           (value) => VaultEntry.fromJson(
             value,
             legacy: legacy,
-            files: json['schemaVersion'] == 3 || [4, 5, 6, 7, 8, 9, 10].contains(json['schemaVersion']),
-            typed: [4, 5, 6, 7, 8, 9, 10].contains(json['schemaVersion']),
+            files: json['schemaVersion'] == 3 || [4, 5, 6, 7, 8, 9, 10, 11].contains(json['schemaVersion']),
+            typed: [4, 5, 6, 7, 8, 9, 10, 11].contains(json['schemaVersion']),
             organized: organized,
-            sshAllowed: [7, 8, 9, 10].contains(json['schemaVersion']),
-            metadata: [8, 9, 10].contains(json['schemaVersion']),
-            totpAllowed: [9, 10].contains(json['schemaVersion']),
+            sshAllowed: [7, 8, 9, 10, 11].contains(json['schemaVersion']),
+            metadata: [8, 9, 10, 11].contains(json['schemaVersion']),
+            totpAllowed: [9, 10, 11].contains(json['schemaVersion']),
           ),
         )
         .toList();
@@ -363,7 +367,7 @@ abstract final class VaultCipher {
     final normalized = <VaultEntry>[];
     final entryIds = entries.map((e) => e.id).toSet();
     for (final entry in entries) {
-      if ([4, 5, 6, 7, 8, 9, 10].contains(json['schemaVersion']) || entry.attachments.isEmpty) {
+      if ([4, 5, 6, 7, 8, 9, 10, 11].contains(json['schemaVersion']) || entry.attachments.isEmpty) {
         normalized.add(entry);
         continue;
       }
@@ -405,7 +409,9 @@ abstract final class VaultCipher {
       projects: projects,
       folders: folders,
       name: legacy ? null : json['name'] as String?,
-      revision: [5, 6, 7, 8, 9, 10].contains(json['schemaVersion']) ? VaultRevision.fromJson(json['revision']) : null,
+      revision: [5, 6, 7, 8, 9, 10, 11].contains(json['schemaVersion'])
+          ? VaultRevision.fromJson(json['revision'])
+          : null,
     );
   }
 
@@ -456,12 +462,15 @@ abstract final class VaultCipher {
       plain = Uint8List.fromList(
         utf8.encode(
           jsonEncode({
-            'schemaVersion': projects.isNotEmpty
+            'schemaVersion': entries.any((entry) => entry.isEnvironment)
+                ? 11
+                : projects.isNotEmpty
                 ? 10
                 : entries.any((entry) => entry.hasTotp)
                 ? 9
                 : 8,
-            if (projects.isNotEmpty) 'projects': projects.map((project) => project.toJson()).toList(),
+            if (projects.isNotEmpty || entries.any((entry) => entry.isEnvironment))
+              'projects': projects.map((project) => project.toJson()).toList(),
             'revision': revision.toJson(),
             'name': name,
             'folders': folders.map((folder) => folder.toJson()).toList(),

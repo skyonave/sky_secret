@@ -42,7 +42,7 @@ class _VaultTextFileDialogState extends State<_VaultTextFileDialog> {
   @override
   Widget build(BuildContext context) => PopScope(
     canPop: !_saving,
-    child: AlertDialog(
+    child: ConfigurationPage(
       title: Text(t.vaultCreateTextFile),
       scrollable: true,
       content: Form(

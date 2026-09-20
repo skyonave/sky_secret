@@ -8,10 +8,10 @@
 #include "flutter/generated_plugin_registrant.h"
 #include "desktop_multi_window/desktop_multi_window_plugin.h"
 
-FlutterWindow::FlutterWindow(const flutter::DartProject& project)
-    : project_(project) {}
+FlutterWindow::FlutterWindow(const flutter::DartProject& project, StartupIndicator* startup)
+    : project_(project), startup_(startup) {}
 
-FlutterWindow::~FlutterWindow() {}
+FlutterWindow::~FlutterWindow() { OnDestroy(); }
 
 bool FlutterWindow::OnCreate() {
   if (!Win32Window::OnCreate()) {
@@ -29,8 +29,43 @@ bool FlutterWindow::OnCreate() {
     return false;
   }
   RegisterPlugins(flutter_controller_->engine());
+  startup_channel_ = std::make_unique<flutter::MethodChannel<flutter::EncodableValue>>(
+      flutter_controller_->engine()->messenger(), "skysecret/startup",
+      &flutter::StandardMethodCodec::GetInstance());
+  startup_channel_->SetMethodCallHandler([this](const auto& call, auto result) {
+    using Value = flutter::EncodableValue;
+    const auto* args = call.arguments() ? std::get_if<flutter::EncodableMap>(call.arguments()) : nullptr;
+    if (!startup_ || !args) {
+      result->Success();
+      return;
+    }
+    if (call.method_name() == "labels") {
+      const auto text = [args](const char* key) -> std::wstring {
+        const auto found = args->find(Value(key));
+        const auto* value = found == args->end() ? nullptr : std::get_if<std::string>(&found->second);
+        if (!value || value->empty() || value->size() > 1024) return {};
+        const int size = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, value->data(),
+            static_cast<int>(value->size()), nullptr, 0);
+        if (size <= 0) return {};
+        std::wstring converted(size, 0);
+        MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, value->data(), static_cast<int>(value->size()),
+            converted.data(), size);
+        return converted;
+      };
+      startup_->Labels(text("loading"), text("ready"), text("failed"));
+    } else if (call.method_name() == "finish") {
+      const auto found = args->find(Value("success"));
+      const auto* success = found == args->end() ? nullptr : std::get_if<bool>(&found->second);
+      startup_->Finish(success && *success);
+    } else {
+      result->NotImplemented();
+      return;
+    }
+    result->Success();
+  });
   RegisterDesktopNotice(flutter_controller_->engine()->GetRegistrarForPlugin("DesktopNoticePlugin"));
   ssh_bridge_ = std::make_unique<SshBridge>(flutter_controller_->engine()->messenger());
+  project_process_ = std::make_unique<ProjectProcess>(flutter_controller_->engine()->messenger());
   DesktopMultiWindowSetWindowCreatedCallback([](void* controller) {
     auto* view_controller = reinterpret_cast<flutter::FlutterViewController*>(controller);
     RegisterPlugins(view_controller->engine());
@@ -39,6 +74,7 @@ bool FlutterWindow::OnCreate() {
   SetChildContent(flutter_controller_->view()->GetNativeWindow());
   companion_ = std::make_unique<CompanionWindow>(GetHandle());
   search_companion_ = std::make_unique<CompanionWindow>(GetHandle());
+  configuration_companion_ = std::make_unique<CompanionWindow>(GetHandle());
   companion_channel_ = std::make_unique<flutter::MethodChannel<flutter::EncodableValue>>(
       flutter_controller_->engine()->messenger(), "skysecret/companion",
       &flutter::StandardMethodCodec::GetInstance());
@@ -56,7 +92,7 @@ bool FlutterWindow::OnCreate() {
           {flutter::EncodableValue("width"), flutter::EncodableValue((bounds->right - bounds->left) / scale)},
           {flutter::EncodableValue("height"), flutter::EncodableValue((bounds->bottom - bounds->top) / scale)},
       }));
-    } else if (call.method_name() == "place" || call.method_name() == "placeSearch") {
+    } else if (call.method_name() == "place" || call.method_name() == "placeSearch" || call.method_name() == "placeConfiguration") {
       const auto* args = std::get_if<flutter::EncodableMap>(call.arguments());
       if (!args || args->count(flutter::EncodableValue("window")) == 0 ||
           args->count(flutter::EncodableValue("gap")) == 0) {
@@ -67,9 +103,29 @@ bool FlutterWindow::OnCreate() {
       const auto* gap = std::get_if<double>(&args->at(flutter::EncodableValue("gap")));
       const bool integer = std::holds_alternative<int32_t>(id) || std::holds_alternative<int64_t>(id);
       const bool search = call.method_name() == "placeSearch";
-      auto* target = search ? search_companion_.get() : companion_.get();
+      const bool configuration = call.method_name() == "placeConfiguration";
+      auto* target = configuration ? configuration_companion_.get() : search ? search_companion_.get() : companion_.get();
       result->Success(flutter::EncodableValue(integer && gap &&
-          target->Place(reinterpret_cast<HWND>(id.LongValue()), *gap, search)));
+          target->Place(reinterpret_cast<HWND>(id.LongValue()), *gap, search, configuration)));
+    } else if (call.method_name() == "returnFocus") {
+      const auto* args = call.arguments() ? std::get_if<flutter::EncodableMap>(call.arguments()) : nullptr;
+      HWND child = nullptr;
+      HWND target = nullptr;
+      if (args) {
+        const auto handle = [args](const char* key) -> HWND {
+          const auto found = args->find(flutter::EncodableValue(key));
+          if (found == args->end()) return nullptr;
+          const auto& value = found->second;
+          if (!std::holds_alternative<int32_t>(value) && !std::holds_alternative<int64_t>(value)) return nullptr;
+          return reinterpret_cast<HWND>(value.LongValue());
+        };
+        child = handle("window");
+        target = handle("target");
+      }
+      result->Success(flutter::EncodableValue(companion_->ReturnFocus(child, target)));
+    } else if (call.method_name() == "detachConfiguration") {
+      configuration_companion_->Detach();
+      result->Success();
     } else if (call.method_name() == "detachSearch") {
       search_companion_->Detach();
       result->Success();
@@ -165,6 +221,8 @@ bool FlutterWindow::OnCreate() {
 }
 
 void FlutterWindow::OnDestroy() {
+  startup_channel_.reset();
+  CompanionWindow::CloseAll();
   if (secret_drag_) secret_drag_->Stop();
   secret_drag_channel_.reset();
   secret_drag_.reset();
@@ -173,17 +231,23 @@ void FlutterWindow::OnDestroy() {
   file_drag_.reset();
   if (companion_) companion_->Detach();
   if (search_companion_) search_companion_->Detach();
+  if (configuration_companion_) configuration_companion_->Detach();
   companion_channel_.reset();
   companion_.reset();
   search_companion_.reset();
+  configuration_companion_.reset();
   ssh_bridge_.reset();
+  project_process_.reset();
   if (file_drop_) {
     file_drop_->Stop();
     file_drop_->Release();
     file_drop_ = nullptr;
   }
   file_drop_channel_.reset();
-  if (session_notifications_) WTSUnRegisterSessionNotification(GetHandle());
+    if (session_notifications_) {
+      WTSUnRegisterSessionNotification(GetHandle());
+      session_notifications_ = false;
+    }
   security_channel_.reset();
   if (flutter_controller_) {
     flutter_controller_ = nullptr;
@@ -205,6 +269,7 @@ FlutterWindow::MessageHandler(HWND hwnd, UINT const message,
   }
   if (companion_) companion_->OnMessage(message, wparam, lparam);
   if (search_companion_) search_companion_->OnMessage(message, wparam, lparam);
+  if (configuration_companion_) configuration_companion_->OnMessage(message, wparam, lparam);
   if (message == WM_SHOWWINDOW && !wparam && file_drop_) {
     if (secret_drag_) secret_drag_->Revoke();
     if (file_drag_) file_drag_->Revoke();
@@ -214,6 +279,7 @@ FlutterWindow::MessageHandler(HWND hwnd, UINT const message,
   if (file_drag_ && ((message == WM_WTSSESSION_CHANGE && wparam == WTS_SESSION_UNLOCK) ||
       (message == WM_POWERBROADCAST && (wparam == PBT_APMRESUMEAUTOMATIC || wparam == PBT_APMRESUMESUSPEND)))) {
     file_drag_->SetSuspended(false);
+    if (project_process_) project_process_->SetSuspended(false);
     if (secret_drag_) secret_drag_->SetSuspended(false);
   }
 
@@ -225,6 +291,10 @@ FlutterWindow::MessageHandler(HWND hwnd, UINT const message,
         (wparam == PBT_APMSUSPEND || wparam == PBT_APMRESUMEAUTOMATIC ||
          wparam == PBT_APMRESUMESUSPEND)))) {
     if (ssh_bridge_) ssh_bridge_->Revoke();
+    if (project_process_) {
+      project_process_->SetSuspended(message == WM_WTSSESSION_CHANGE || wparam == PBT_APMSUSPEND);
+      project_process_->Lock();
+    }
     if (secret_drag_) {
       const bool suspended = message == WM_WTSSESSION_CHANGE || wparam == PBT_APMSUSPEND;
       if (suspended) secret_drag_->SetSuspended(true);
@@ -249,7 +319,7 @@ FlutterWindow::MessageHandler(HWND hwnd, UINT const message,
 
   switch (message) {
     case WM_FONTCHANGE:
-      flutter_controller_->engine()->ReloadSystemFonts();
+      if (flutter_controller_) flutter_controller_->engine()->ReloadSystemFonts();
       break;
   }
 

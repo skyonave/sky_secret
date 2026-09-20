@@ -505,7 +505,7 @@ class DesktopController extends DesktopActions with WindowListener, TrayListener
   Future<void> quit() async {
     if (_exiting) return;
     await releaseResources();
-    await windowManager.destroy();
+    await windowManager.close();
     onExit?.call();
   }
 

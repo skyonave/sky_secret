@@ -31,7 +31,7 @@ class _VaultPreferencesDialogState extends State<_VaultPreferencesDialog> {
   late bool captureAllowed = widget.captureAllowed;
 
   @override
-  Widget build(BuildContext context) => AlertDialog(
+  Widget build(BuildContext context) => ConfigurationPage(
     title: Text(t.vaultSettings),
     insetPadding: const EdgeInsets.all(20),
     titlePadding: const EdgeInsets.fromLTRB(20, 18, 20, 12),
@@ -80,8 +80,7 @@ class _VaultPreferencesDialogState extends State<_VaultPreferencesDialog> {
                     onPressed: widget.busy
                         ? null
                         : () {
-                            Navigator.pop(context);
-                            widget.onExport();
+                            Navigator.pop(context, 'export');
                           },
                     icon: const Icon(Icons.file_upload_outlined, size: 16),
                     label: Text(t.vaultExport),
@@ -91,8 +90,7 @@ class _VaultPreferencesDialogState extends State<_VaultPreferencesDialog> {
                     onPressed: widget.busy
                         ? null
                         : () {
-                            Navigator.pop(context);
-                            widget.onChangePassword();
+                            Navigator.pop(context, 'password');
                           },
                     icon: const Icon(Icons.key_outlined, size: 16),
                     label: Text(widget.workspacePassword ? t.projectWorkspacePassword : t.vaultChangePassword),

@@ -1,3 +1,5 @@
+import '../../shared/configuration/configuration_page.dart';
+
 import 'package:flutter/material.dart';
 
 import '../../../i18n/translations.g.dart';
@@ -39,7 +41,7 @@ class _VaultNameDialogState extends State<VaultNameDialog> {
   }
 
   @override
-  Widget build(BuildContext context) => AlertDialog(
+  Widget build(BuildContext context) => ConfigurationPage(
     title: Text(widget.title),
     scrollable: true,
     content: Form(

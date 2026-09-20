@@ -64,6 +64,8 @@ void main() {
     var privacy = false;
     var copies = 0;
     var blurs = 0;
+    var available = true;
+    var focusReturns = 0;
     final vault = await VaultCipher.create(collectionPassword);
     addTearDown(vault.lock);
     await saveRevision(vault, [VaultEntry.authenticator(title: 'Synthetic', totp: 'GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ')]);
@@ -103,6 +105,10 @@ void main() {
         return true;
       }
       if (call.method == 'detach') detaches++;
+      if (call.method == 'returnFocus') {
+        focusReturns++;
+        return true;
+      }
       return null;
     });
     messenger.setMockMethodCallHandler(
@@ -174,6 +180,8 @@ void main() {
     expect(copies, 1);
     await invoke('blur');
     expect(blurs, 1);
+    expect(await invoke('closing'), isTrue);
+    expect(focusReturns, 1);
     privacy = false;
     expect(await invoke('privacy', 123), isFalse);
     expect(await invoke('read'), isNull);
@@ -187,7 +195,7 @@ void main() {
     privacy = true;
     final next = TotpSession(
       vault: vault,
-      isValid: () => true,
+      isValid: () => available,
       activity: () {},
       copy: (_) async => true,
       clearClipboard: () async {},
@@ -199,7 +207,11 @@ void main() {
     epoch = 3;
     expect(await invoke('privacy', 123), isTrue);
     expect(await invoke('read'), isA<Map>());
-    manager.close();
+    available = false;
+    expect(await invoke('read'), isNull);
+    expect(await invoke('closed'), isTrue);
+    expect(manager.isOpen, isFalse);
+    available = true;
     activation = Completer<bool>();
     final pending = TotpSession(
       vault: vault,

@@ -34,9 +34,9 @@ int64_t Integer(const Map& args, const char* key) {
 
 class DesktopNoticePlugin : public flutter::Plugin {
  public:
-  explicit DesktopNoticePlugin(flutter::PluginRegistrarWindows* registrar)
-      : view_(registrar->GetView()->GetNativeWindow()),
-        channel_(registrar->messenger(), "skysecret/desktop_notice", &flutter::StandardMethodCodec::GetInstance()) {
+  DesktopNoticePlugin(HWND view, flutter::BinaryMessenger* messenger)
+      : view_(view),
+        channel_(messenger, "skysecret/desktop_notice", &flutter::StandardMethodCodec::GetInstance()) {
     channel_.SetMethodCallHandler([this](const auto& call, auto result) {
       if (call.method_name() == "hide") {
         Hide();
@@ -83,8 +83,12 @@ class DesktopNoticePlugin : public flutter::Plugin {
   }
 
   ~DesktopNoticePlugin() override {
-    channel_.SetMethodCallHandler(nullptr);
-    if (window_) DestroyWindow(window_);
+    shown_ = false;
+    if (window_) {
+      KillTimer(window_, 1);
+      SetWindowLongPtrW(window_, GWLP_USERDATA, 0);
+      DestroyWindow(window_);
+    }
     if (title_font_) DeleteObject(title_font_);
     if (body_font_) DeleteObject(body_font_);
   }
@@ -173,7 +177,7 @@ class DesktopNoticePlugin : public flutter::Plugin {
     text_height_ = text.bottom;
     const auto height = std::min<LONG>(text_height_ + Scale(58),
         std::min<LONG>(Scale(260), monitor.rcWork.bottom - monitor.rcWork.top));
-    const auto rect = DesktopNoticeBounds(monitor.rcWork, {width, height}, Scale(12));
+    const auto rect = DesktopNoticeBounds(monitor.rcWork, {width, height});
     RECT previous{};
     GetWindowRect(window_, &previous);
     if (!EqualRect(&previous, &rect)) {
@@ -296,5 +300,5 @@ class DesktopNoticePlugin : public flutter::Plugin {
 void RegisterDesktopNotice(FlutterDesktopPluginRegistrarRef core_registrar) {
   auto* registrar = flutter::PluginRegistrarManager::GetInstance()
       ->GetRegistrar<flutter::PluginRegistrarWindows>(core_registrar);
-  registrar->AddPlugin(std::make_unique<DesktopNoticePlugin>(registrar));
+  registrar->AddPlugin(std::make_unique<DesktopNoticePlugin>(registrar->GetView()->GetNativeWindow(), registrar->messenger()));
 }

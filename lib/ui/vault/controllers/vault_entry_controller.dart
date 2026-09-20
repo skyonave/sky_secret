@@ -34,6 +34,34 @@ class VaultEntryController {
     return true;
   }
 
+  Map<String, TextEditingController> get _fields => {
+    'title': title,
+    'username': username,
+    'password': password,
+    'notes': notes,
+    'totp': totp,
+    'host': sshHost,
+    'port': sshPort,
+  };
+
+  Map<String, dynamic> get configuration => {
+    for (final field in _fields.entries) field.key: field.value.text,
+    'folder': folderId,
+  };
+
+  void applyConfiguration(Map data) {
+    final folder = data['folder'];
+    if (folder != null && (folder is! String || folder.length > 64)) throw const EntryValidationException('format');
+    for (final field in _fields.entries) {
+      final value = data[field.key];
+      if (value is! String || value.length > 65536) throw const EntryValidationException('format');
+    }
+    for (final field in _fields.entries) {
+      field.value.text = data[field.key] as String;
+    }
+    folderId = folder as String?;
+  }
+
   void start({
     VaultEntry? entry,
     String? parentId,

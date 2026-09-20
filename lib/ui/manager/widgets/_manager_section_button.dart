@@ -5,17 +5,19 @@ class _ManagerSectionButton extends StatelessWidget {
   final bool projects;
   final ValueChanged<bool> onSectionChanged;
   final bool projectsSelected;
+  final bool enabled;
 
   const _ManagerSectionButton({
     required this.label,
     required this.projects,
     required this.onSectionChanged,
     required this.projectsSelected,
+    this.enabled = true,
   });
 
   @override
   Widget build(BuildContext context) => TextButton(
-    onPressed: () => onSectionChanged(projects),
+    onPressed: enabled ? () => onSectionChanged(projects) : null,
     style: TextButton.styleFrom(
       minimumSize: const Size(0, 30),
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),

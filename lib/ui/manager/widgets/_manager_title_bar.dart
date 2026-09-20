@@ -4,8 +4,14 @@ class _ManagerTitleBar extends StatelessWidget {
   final DesktopActions desktop;
   final ValueChanged<bool> onSectionChanged;
   final bool projectsSelected;
+  final bool projectsAvailable;
 
-  const _ManagerTitleBar({required this.desktop, required this.onSectionChanged, required this.projectsSelected});
+  const _ManagerTitleBar({
+    required this.desktop,
+    required this.onSectionChanged,
+    required this.projectsSelected,
+    required this.projectsAvailable,
+  });
 
   @override
   Widget build(BuildContext context) => Container(
@@ -41,6 +47,7 @@ class _ManagerTitleBar extends StatelessWidget {
         const SizedBox(width: 4),
         _ManagerSectionButton(
           label: t.projects,
+          enabled: projectsAvailable,
           projects: true,
           onSectionChanged: onSectionChanged,
           projectsSelected: projectsSelected,

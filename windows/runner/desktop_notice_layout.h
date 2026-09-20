@@ -4,11 +4,11 @@
 #include <windows.h>
 #include <algorithm>
 
-inline RECT DesktopNoticeBounds(RECT work, SIZE size, int gap) {
+inline RECT DesktopNoticeBounds(RECT work, SIZE size) {
   const auto width = std::min(size.cx, work.right - work.left);
   const auto height = std::min(size.cy, work.bottom - work.top);
   const auto x = work.left + (work.right - work.left - width) / 2;
-  const auto y = std::max(work.top, work.bottom - height - std::max(0, gap));
+  const auto y = work.top + (work.bottom - work.top - height) / 2;
   return {x, y, x + width, y + height};
 }
 

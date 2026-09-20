@@ -1,3 +1,5 @@
+import '../../shared/configuration/configuration_page.dart';
+
 import 'package:flutter/material.dart';
 
 import '../../../core/crypto/crypto.dart';
@@ -53,7 +55,7 @@ class _VaultPasswordDialogState extends State<VaultPasswordDialog> {
   }
 
   @override
-  Widget build(BuildContext context) => AlertDialog(
+  Widget build(BuildContext context) => ConfigurationPage(
     title: Text(
       widget.create
           ? t.projectExportPassword
