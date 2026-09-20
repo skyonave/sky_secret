@@ -7,18 +7,15 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:skysecret/app.dart';
-import 'package:skysecret/core/os/windows/desktop_controller.dart';
-import 'package:skysecret/core/settings/shortcut_settings.dart';
+import 'package:skysecret/core/os/windows/controllers/desktop_controller.dart';
+import 'package:skysecret/core/settings/repositories/shortcut_settings.dart';
 import 'package:skysecret/i18n/translations.g.dart';
 import 'package:window_manager/window_manager.dart';
 
 import '../test/support/password_preview_assertions.dart';
 
 final _keyEvent = DynamicLibrary.open('user32.dll')
-    .lookupFunction<
-      Void Function(Uint8, Uint8, Uint32, UintPtr),
-      void Function(int, int, int, int)
-    >('keybd_event');
+    .lookupFunction<Void Function(Uint8, Uint8, Uint32, UintPtr), void Function(int, int, int, int)>('keybd_event');
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
@@ -66,8 +63,7 @@ void main() {
         final image = await boundary.toImage(pixelRatio: 1);
         final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
         final output = Directory('build/qa')..createSync(recursive: true);
-        File('${output.path}/$name.png')
-            .writeAsBytesSync(bytes!.buffer.asUint8List());
+        File('${output.path}/$name.png').writeAsBytesSync(bytes!.buffer.asUint8List());
         image.dispose();
       }
 
@@ -87,9 +83,7 @@ void main() {
           await tester.pumpAndSettle();
           expectPasswordFullyVisible(tester);
           final content = find.byKey(const Key('manager-content'));
-          final scroll = find
-              .descendant(of: content, matching: find.byType(Scrollable))
-              .first;
+          final scroll = find.descendant(of: content, matching: find.byType(Scrollable)).first;
           expect(
             tester.state<ScrollableState>(scroll).position.maxScrollExtent,
             0,
@@ -135,7 +129,7 @@ void main() {
       await tester.tap(find.text(t.save));
       await tester.pumpAndSettle();
       expect(find.text('Ctrl + F8'), findsOneWidget);
-      expect(shortcutLabel(desktop.shortcut), 'Ctrl + F8');
+      expect(SystemShortcuts.label(desktop.shortcut), 'Ctrl + F8');
       await desktop.hide();
       await windowManager.setPosition(const Offset(100, 100));
       await desktop.show();

@@ -33,7 +33,8 @@ class ObservedStore extends VaultStore {
     List<VaultEntry> entries, {
     List<VaultFolder>? folders,
     String? name,
-  }) => saving = super.save(session, entries, folders: folders, name: name);
+    List<VaultProject>? projects,
+  }) => saving = super.save(session, entries, folders: folders, name: name, projects: projects);
 }
 
 void main() {

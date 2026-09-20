@@ -5,7 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hotkey_manager/hotkey_manager.dart';
 import 'package:skysecret/core/desktop/system_shortcut.dart';
-import 'package:skysecret/core/settings/shortcut_settings.dart';
+import 'package:skysecret/core/settings/repositories/shortcut_settings.dart';
 
 void main() {
   final binding = TestWidgetsFlutterBinding.ensureInitialized();
@@ -39,7 +39,7 @@ void main() {
     final key = HotKey(key: PhysicalKeyboardKey.keyF);
     expect(key.toJson()['modifiers'], isNull);
     var presses = 0;
-    await registerSystemShortcut(key, keyDownHandler: (_) => presses++);
+    await SystemShortcut.register(key, keyDownHandler: (_) => presses++);
     final args = calls.single.arguments as Map;
     expect(args['modifiers'], isEmpty);
     expect(args['keyCode'], 0x46);
@@ -71,8 +71,13 @@ void main() {
       }),
     );
     final loaded = (await ShortcutStore(file: file).load())!;
-    for (final key in [loaded, defaultSearchShortcut(), defaultShortcut(), HotKey(key: PhysicalKeyboardKey.keyK)]) {
-      await registerSystemShortcut(key, keyDownHandler: (_) {});
+    for (final key in [
+      loaded,
+      SystemShortcuts.defaultSearch(),
+      SystemShortcuts.defaultManager(),
+      HotKey(key: PhysicalKeyboardKey.keyK),
+    ]) {
+      await SystemShortcut.register(key, keyDownHandler: (_) {});
       expect((calls.last.arguments as Map)['modifiers'], key.toJson()['modifiers'] ?? []);
       await hotKeyManager.unregister(key);
     }

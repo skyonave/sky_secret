@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:skysecret/ui/shared/native_file_drop_target.dart';
+import 'package:skysecret/ui/shared/files/native_file_drop_target.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skysecret/app.dart';

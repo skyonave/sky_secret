@@ -16,7 +16,7 @@ class CancellableWorker<T> {
   Future<void> _start(Future<T> Function() operation) async {
     try {
       final isolate = await Isolate.spawn(
-        _execute<T>,
+        CancellableWorker._execute<T>,
         (_port.sendPort, operation),
         paused: true,
         onExit: _port.sendPort,
@@ -62,13 +62,13 @@ class CancellableWorker<T> {
     _isolate = null;
     _port.close();
   }
-}
 
-Future<void> _execute<T>((SendPort, Future<T> Function()) request) async {
-  try {
-    final value = await request.$2();
-    Isolate.exit(request.$1, [true, value]);
-  } catch (error, stack) {
-    request.$1.send([false, error, stack]);
+  static Future<void> _execute<T>((SendPort, Future<T> Function()) request) async {
+    try {
+      final value = await request.$2();
+      Isolate.exit(request.$1, [true, value]);
+    } catch (error, stack) {
+      request.$1.send([false, error, stack]);
+    }
   }
 }

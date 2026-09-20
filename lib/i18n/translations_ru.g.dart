@@ -33,6 +33,84 @@ class Translations with BaseTranslations<AppLocale, Translations> {
   Translations $copyWith({TranslationMetadata<AppLocale, Translations>? meta}) =>
       Translations(meta: meta ?? this.$meta);
 
+  String get noticeError => 'Ошибка';
+
+  String get noticeWarning => 'Обратите внимание';
+
+  String get noticeSuccess => 'Готово';
+
+  String get noticeInformation => 'Информация';
+
+  String get noticeDismiss => 'Закрыть уведомление';
+
+  String get general => 'Общее';
+
+  String get projects => 'Проекты';
+
+  String get projectCreate => 'Создать проект';
+
+  String get projectName => 'Название проекта';
+
+  String get projectShared => 'Открывать с workspace';
+
+  String get projectSharedHelp =>
+      'Открывать через этот общий сейф. Снимите флажок для отдельного мастер-пароля проекта.';
+
+  String get projectSeparate => 'Отдельный мастер-пароль';
+
+  String get projectsEmpty => 'Здесь пока нет проектов. Повседневные секреты остаются в «Общее».';
+
+  String get projectUnlockWorkspace => 'Откройте общий сейф для доступа к его проектам.';
+
+  String get projectSelectWorkspace =>
+      'Откройте общий сейф, которому принадлежит этот проект, затем выберите его в «Проекты».';
+
+  String get projectLockWorkspace => 'Заблокировать workspace и проекты';
+
+  String get projectOpen => 'Открыть проект';
+
+  String get projectFinishEditing =>
+      'Сохраните или отмените редактирование либо очистите поля пароля перед переключением.';
+
+  String get projectRestore => 'Восстановить проект из файла';
+
+  String get projectRestoreHelp =>
+      'Если на этом устройстве нет файла проекта, восстановите его зашифрованную копию. Это действие не заменяет существующие файлы.';
+
+  String get projectConflict => 'Конфликт настроек проекта';
+
+  String projectResolveQuestion({required Object name}) =>
+      'Использовать настройки «${name}»? Другие конфликтующие версии останутся в архиве с сохранёнными данными доступа.';
+
+  String get projectDeleteWorkspaceHelp =>
+      'Если этому сейфу принадлежат проекты, при удалении исчезнут и настройки их общего открытия. Сначала экспортируйте такие проекты с независимыми паролями. Файлы проектов этим действием не удаляются.';
+
+  String get projectRemove => 'Архивировать проект';
+
+  String projectRemoveQuestion({required Object name}) =>
+      'Архивировать «${name}»? Зашифрованный файл и настройки доступа сохранятся. Проект можно вернуть из архива.';
+
+  String get projectArchive => 'Архив проектов';
+
+  String get projectArchiveEmpty => 'В архиве пока нет проектов.';
+
+  String get projectUnarchive => 'Вернуть из архива';
+
+  String projectUnarchiveQuestion({required Object name}) => 'Вернуть «${name}» в список проектов?';
+
+  String get projectExportPassword => 'Пароль экспортируемого проекта';
+
+  String get projectExportPasswordHelp =>
+      'Задайте пароль для независимой копии. Рабочий проект продолжит открываться через workspace. Сохраните пароль экспорта отдельно.';
+
+  String get projectWorkspacePassword => 'Сменить пароль workspace';
+
+  String get projectBackupHelp =>
+      'Эта копия содержит каталог проектов и настройки общего доступа. Экспортируйте также каждый проект: его содержимое хранится в отдельном файле.';
+
+  String get projectRestoreRevision =>
+      'Восстановить эту версию проекта? Текущее содержимое будет заменено выбранной версией и останется в локальной истории.';
+
   String get generatorOpen => 'Генератор…';
 
   String get generatorAgain => 'Сгенерировать ещё';
@@ -177,7 +255,38 @@ class Translations with BaseTranslations<AppLocale, Translations> {
 
   String vaultDropHere({required Object name}) => 'Перетащите запись в «${name}»';
 
-  String get vaultEntryHint => 'Нажмите, чтобы скопировать пароль · перетащите для переноса или сортировки';
+  String get vaultEntryHint =>
+      'Нажмите, чтобы скопировать пароль · перетащите в поле: логин, в скрытое — пароль · внутри окна — сортировка';
+
+  String get vaultSecretDragUnsupported =>
+      'Не удалось распознать доступное для заполнения поле. Это поле может не поддерживать заполнение из SkySecret.';
+
+  String get vaultSecretDragMissingValue =>
+      'У записи нет значения для этого поля: нужен логин для обычного поля или пароль для скрытого.';
+
+  String get vaultSecretDragFailed =>
+      'Не удалось заполнить поле. Повторите перетаскивание или используйте копирование.';
+
+  String get vaultSecretDragHover => 'Наведите на поле · Esc — отмена';
+
+  String get vaultSecretDragLogin => 'Вставить логин';
+
+  String get vaultSecretDragPassword => 'Вставить пароль';
+
+  String get vaultSecretDragPair => 'Вставить логин и пароль';
+
+  String get vaultSecretDragPartial =>
+      'Логин передан, но пароль вставить не удалось. Проверьте поля и перетащите запись в поле пароля ещё раз.';
+
+  String get vaultSecretDragNoLogin => 'В записи нет логина';
+
+  String get vaultSecretDragNoPassword => 'В записи нет пароля';
+
+  String get vaultSecretDragTargetLost =>
+      'Поле распознано, но стало недоступно перед вставкой. Наведите курсор на поле и повторите перетаскивание.';
+
+  String get vaultSecretDragTargetChanged =>
+      'Не удалось подтвердить, что перед вставкой выбрано то же поле. Значение не передано. Повторите перетаскивание.';
 
   String get appName => 'SkySecret';
 
@@ -777,6 +886,45 @@ class Translations with BaseTranslations<AppLocale, Translations> {
 extension on Translations {
   dynamic _flatMapFunction(String path) {
     return switch (path) {
+      'noticeError' => 'Ошибка',
+      'noticeWarning' => 'Обратите внимание',
+      'noticeSuccess' => 'Готово',
+      'noticeInformation' => 'Информация',
+      'noticeDismiss' => 'Закрыть уведомление',
+      'general' => 'Общее',
+      'projects' => 'Проекты',
+      'projectCreate' => 'Создать проект',
+      'projectName' => 'Название проекта',
+      'projectShared' => 'Открывать с workspace',
+      'projectSharedHelp' => 'Открывать через этот общий сейф. Снимите флажок для отдельного мастер-пароля проекта.',
+      'projectSeparate' => 'Отдельный мастер-пароль',
+      'projectsEmpty' => 'Здесь пока нет проектов. Повседневные секреты остаются в «Общее».',
+      'projectUnlockWorkspace' => 'Откройте общий сейф для доступа к его проектам.',
+      'projectSelectWorkspace' =>
+        'Откройте общий сейф, которому принадлежит этот проект, затем выберите его в «Проекты».',
+      'projectLockWorkspace' => 'Заблокировать workspace и проекты',
+      'projectOpen' => 'Открыть проект',
+      'projectFinishEditing' => 'Сохраните или отмените редактирование либо очистите поля пароля перед переключением.',
+      'projectRestore' => 'Восстановить проект из файла',
+      'projectRestoreHelp' => 'Если на этом устройстве нет файла проекта, восстановите его зашифрованную копию. Это действие не заменяет существующие файлы.',
+      'projectConflict' => 'Конфликт настроек проекта',
+      'projectResolveQuestion' => ({
+        required Object name,
+      }) => 'Использовать настройки «${name}»? Другие конфликтующие версии останутся в архиве с сохранёнными данными доступа.',
+      'projectDeleteWorkspaceHelp' => 'Если этому сейфу принадлежат проекты, при удалении исчезнут и настройки их общего открытия. Сначала экспортируйте такие проекты с независимыми паролями. Файлы проектов этим действием не удаляются.',
+      'projectRemove' => 'Архивировать проект',
+      'projectRemoveQuestion' => ({
+        required Object name,
+      }) => 'Архивировать «${name}»? Зашифрованный файл и настройки доступа сохранятся. Проект можно вернуть из архива.',
+      'projectArchive' => 'Архив проектов',
+      'projectArchiveEmpty' => 'В архиве пока нет проектов.',
+      'projectUnarchive' => 'Вернуть из архива',
+      'projectUnarchiveQuestion' => ({required Object name}) => 'Вернуть «${name}» в список проектов?',
+      'projectExportPassword' => 'Пароль экспортируемого проекта',
+      'projectExportPasswordHelp' => 'Задайте пароль для независимой копии. Рабочий проект продолжит открываться через workspace. Сохраните пароль экспорта отдельно.',
+      'projectWorkspacePassword' => 'Сменить пароль workspace',
+      'projectBackupHelp' => 'Эта копия содержит каталог проектов и настройки общего доступа. Экспортируйте также каждый проект: его содержимое хранится в отдельном файле.',
+      'projectRestoreRevision' => 'Восстановить эту версию проекта? Текущее содержимое будет заменено выбранной версией и останется в локальной истории.',
       'generatorOpen' => 'Генератор…',
       'generatorAgain' => 'Сгенерировать ещё',
       'generatorChooseGroup' => 'Выберите хотя бы одну группу символов.',
@@ -853,7 +1001,24 @@ extension on Translations {
       'vaultName' => 'Название сейфа',
       'vaultNameOptional' => 'Название сейфа (необязательно)',
       'vaultDropHere' => ({required Object name}) => 'Перетащите запись в «${name}»',
-      'vaultEntryHint' => 'Нажмите, чтобы скопировать пароль · перетащите для переноса или сортировки',
+      'vaultEntryHint' =>
+        'Нажмите, чтобы скопировать пароль · перетащите в поле: логин, в скрытое — пароль · внутри окна — сортировка',
+      'vaultSecretDragUnsupported' =>
+        'Не удалось распознать доступное для заполнения поле. Это поле может не поддерживать заполнение из SkySecret.',
+      'vaultSecretDragMissingValue' =>
+        'У записи нет значения для этого поля: нужен логин для обычного поля или пароль для скрытого.',
+      'vaultSecretDragFailed' => 'Не удалось заполнить поле. Повторите перетаскивание или используйте копирование.',
+      'vaultSecretDragHover' => 'Наведите на поле · Esc — отмена',
+      'vaultSecretDragLogin' => 'Вставить логин',
+      'vaultSecretDragPassword' => 'Вставить пароль',
+      'vaultSecretDragPair' => 'Вставить логин и пароль',
+      'vaultSecretDragPartial' =>
+        'Логин передан, но пароль вставить не удалось. Проверьте поля и перетащите запись в поле пароля ещё раз.',
+      'vaultSecretDragNoLogin' => 'В записи нет логина',
+      'vaultSecretDragNoPassword' => 'В записи нет пароля',
+      'vaultSecretDragTargetLost' =>
+        'Поле распознано, но стало недоступно перед вставкой. Наведите курсор на поле и повторите перетаскивание.',
+      'vaultSecretDragTargetChanged' => 'Не удалось подтвердить, что перед вставкой выбрано то же поле. Значение не передано. Повторите перетаскивание.',
       'appName' => 'SkySecret',
       'windowsOnly' => 'SkySecret работает в Windows.',
       'clipboardBusy' => 'Буфер обмена занят. Попробуйте ещё раз.',

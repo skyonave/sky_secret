@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skysecret/core/desktop/search_session.dart';
+import 'package:skysecret/core/desktop/search/controllers/search_session.dart';
 
 void main() {
   test('selection belongs to the latest nonempty query and active vault session', () {

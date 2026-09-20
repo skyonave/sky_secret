@@ -2,8 +2,8 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skysecret/core/crypto/generator_options.dart';
-import 'package:skysecret/core/settings/generator_preferences.dart';
+import 'package:skysecret/core/crypto/generator/models/generator_options.dart';
+import 'package:skysecret/core/settings/repositories/generator_preferences.dart';
 
 void main() {
   late Directory directory;

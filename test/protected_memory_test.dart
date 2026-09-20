@@ -12,6 +12,7 @@ void main() {
     lifetime.revoke();
     lifetime.revoke();
     expect(text.read, throwsStateError);
+    expect(text.copyProtectedMemory, throwsStateError);
     expect(() => text.isEmpty, throwsStateError);
     expect(bytes.read, throwsStateError);
     expect(bytes.copyProtectedMemory, throwsStateError);
@@ -22,6 +23,7 @@ void main() {
     final standalone = ProtectedText('Synthetic');
     standalone.destroy();
     expect(standalone.read, throwsStateError);
+    expect(standalone.copyProtectedMemory, throwsStateError);
   });
 
   test('Windows protected bytes preserve padding and chunk boundaries', () {

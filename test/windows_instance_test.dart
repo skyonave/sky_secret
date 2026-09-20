@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skysecret/core/os/windows/windows_instance.dart';
+import 'package:skysecret/core/os/windows/services/windows_instance.dart';
 
 void main() {
   test(

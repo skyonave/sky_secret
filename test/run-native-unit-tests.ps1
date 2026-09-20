@@ -7,13 +7,19 @@ $cache = Get-Content -LiteralPath (Join-Path $buildRoot 'CMakeCache.txt')
 $command = @($cache | Where-Object { $_.StartsWith('CMAKE_COMMAND:INTERNAL=') })
 if ($command.Count -ne 1) { throw 'Build Windows before running native unit tests' }
 $cmake = $command[0].Substring('CMAKE_COMMAND:INTERNAL='.Length)
-& $cmake --build $buildRoot --config Release --target desktop_window_focus_test desktop_window_focus_baseline window_layout_test window_layout_baseline companion_window_test virtual_file_data_test
+& $cmake --build $buildRoot --config Release --target desktop_window_focus_test desktop_window_focus_baseline window_layout_test window_layout_baseline companion_window_test virtual_file_data_test secret_fill_test desktop_notice_layout_test desktop_notice_surface_test
 if ($LASTEXITCODE -ne 0) { throw 'Native unit build failed' }
 
 $previousPath = $env:PATH
 try {
     $runtime = Join-Path $buildRoot 'runner/Release'
     $env:PATH = "$runtime;$env:PATH"
+    & (Join-Path $runtime 'desktop_notice_layout_test.exe')
+    if ($LASTEXITCODE -ne 0) { throw 'Desktop notification placement checks failed' }
+    & (Join-Path $runtime 'desktop_notice_surface_test.exe')
+    if ($LASTEXITCODE -ne 0) { throw 'Desktop notification border checks failed' }
+    & (Join-Path $runtime 'secret_fill_test.exe')
+    if ($LASTEXITCODE -ne 0) { throw 'Secret fill unit checks failed' }
     & (Join-Path $runtime 'virtual_file_data_test.exe')
     if ($LASTEXITCODE -ne 0) { throw 'Virtual file transfer unit checks failed' }
     & (Join-Path $runtime 'companion_window_test.exe')

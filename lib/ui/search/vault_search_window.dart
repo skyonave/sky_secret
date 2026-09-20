@@ -9,46 +9,14 @@ import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:window_manager/window_manager.dart';
 
-import '../../core/desktop/windows/hidden_window_frame.dart';
-import '../../core/desktop/clipboard/sensitive_clipboard_boundary.dart';
-import '../../core/os/windows/totp_window_region.dart';
+import '../../core/os/windows/window/hidden_window_frame.dart';
+import '../../core/desktop/clipboard/services/sensitive_clipboard_boundary.dart';
+import '../../core/os/windows/window/totp_window_region.dart';
 import '../../i18n/translations.g.dart';
 import '../shared/app_theme.dart';
 import '../shared/input/sensitive_text_editing.dart';
 
-part '_search_suggestion.dart';
-
-Future<bool> runSearchWindowIfNeeded({required SensitiveClipboardBoundary clipboardBoundary}) async {
-  final controller = await WindowController.fromCurrentEngine();
-  if (controller.arguments.isEmpty) return false;
-  final args = jsonDecode(controller.arguments);
-  if (args is! Map || args['type'] != 'search') return false;
-  await LocaleSettings.setLocale(args['locale'] == 'en' ? AppLocale.en : AppLocale.ru);
-  await windowManager.ensureInitialized();
-  await windowManager.setPreventClose(true);
-  await windowManager.waitUntilReadyToShow(
-    WindowOptions(
-      size: const Size(360, 64),
-      backgroundColor: Colors.transparent,
-      title: t.browserSearch,
-      titleBarStyle: TitleBarStyle.hidden,
-      skipTaskbar: true,
-      alwaysOnTop: true,
-    ),
-  );
-  await windowManager.setAsFrameless();
-  await windowManager.setResizable(false);
-  await windowManager.setHasShadow(false);
-  runApp(
-    TranslationProvider(
-      child: VaultSearchWindow(
-        channel: WindowMethodChannel(args['channel'] as String),
-        clipboardBoundary: clipboardBoundary,
-      ),
-    ),
-  );
-  return true;
-}
+part 'widgets/_search_suggestion.dart';
 
 class VaultSearchWindow extends StatefulWidget {
   final WindowMethodChannel channel;
@@ -56,6 +24,38 @@ class VaultSearchWindow extends StatefulWidget {
   const VaultSearchWindow({super.key, required this.channel, required this.clipboardBoundary});
   @override
   State<VaultSearchWindow> createState() => _VaultSearchWindowState();
+
+  static Future<bool> runIfNeeded({required SensitiveClipboardBoundary clipboardBoundary}) async {
+    final controller = await WindowController.fromCurrentEngine();
+    if (controller.arguments.isEmpty) return false;
+    final args = jsonDecode(controller.arguments);
+    if (args is! Map || args['type'] != 'search') return false;
+    await LocaleSettings.setLocale(args['locale'] == 'en' ? AppLocale.en : AppLocale.ru);
+    await windowManager.ensureInitialized();
+    await windowManager.setPreventClose(true);
+    await windowManager.waitUntilReadyToShow(
+      WindowOptions(
+        size: const Size(360, 64),
+        backgroundColor: Colors.transparent,
+        title: t.browserSearch,
+        titleBarStyle: TitleBarStyle.hidden,
+        skipTaskbar: true,
+        alwaysOnTop: true,
+      ),
+    );
+    await windowManager.setAsFrameless();
+    await windowManager.setResizable(false);
+    await windowManager.setHasShadow(false);
+    runApp(
+      TranslationProvider(
+        child: VaultSearchWindow(
+          channel: WindowMethodChannel(args['channel'] as String),
+          clipboardBoundary: clipboardBoundary,
+        ),
+      ),
+    );
+    return true;
+  }
 }
 
 class _VaultSearchWindowState extends State<VaultSearchWindow> with WindowListener {
@@ -84,7 +84,7 @@ class _VaultSearchWindowState extends State<VaultSearchWindow> with WindowListen
   Future<void> _connect() async {
     try {
       _windowId = await windowManager.getId();
-      configureTotpWindowFrame(_windowId);
+      WindowRegion.configureTotpFrame(_windowId);
       await widget.channel.setMethodCallHandler((call) async {
         switch (call.method) {
           case 'activate':
@@ -103,7 +103,7 @@ class _VaultSearchWindowState extends State<VaultSearchWindow> with WindowListen
         await _shutdown();
         return;
       }
-      await prepareHiddenWindowFrame();
+      await HiddenWindowFrame.prepare();
       await widget.channel.invokeMethod('ready');
     } catch (_) {
       await _shutdown();
@@ -120,7 +120,7 @@ class _VaultSearchWindowState extends State<VaultSearchWindow> with WindowListen
       if (!mounted || _epoch != epoch) return false;
       setState(() {});
       await _resize(epoch);
-      await prepareHiddenWindowFrame();
+      await HiddenWindowFrame.prepare();
       if (_epoch != epoch) return false;
       await windowManager.show();
       if (_epoch != epoch) {
@@ -158,7 +158,7 @@ class _VaultSearchWindowState extends State<VaultSearchWindow> with WindowListen
       final size = Size(360, height);
       await windowManager.setSize(size);
       if (_epoch != epoch) return;
-      setRoundedWindowRegion(_windowId, size, 10);
+      WindowRegion.setRounded(_windowId, size, 10);
       if (await widget.channel.invokeMethod<bool>('position', {'epoch': epoch}) != true && _epoch == epoch) {
         await _hide();
       }
@@ -294,7 +294,7 @@ class _VaultSearchWindowState extends State<VaultSearchWindow> with WindowListen
   @override
   Widget build(BuildContext context) => MaterialApp(
     debugShowCheckedModeBanner: false,
-    theme: buildAppTheme(),
+    theme: AppTheme.theme,
     locale: TranslationProvider.of(context).flutterLocale,
     supportedLocales: AppLocaleUtils.supportedLocales,
     localizationsDelegates: GlobalMaterialLocalizations.delegates,
@@ -309,85 +309,86 @@ class _VaultSearchWindowState extends State<VaultSearchWindow> with WindowListen
         onPointerSignal: (_) => _activity(),
         child: Scaffold(
           backgroundColor: Colors.transparent,
-          body: _epoch == null
-              ? const SizedBox.shrink()
-              : Material(
-                  color: AppColors.background,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
-                    side: const BorderSide(color: AppColors.border),
-                  ),
-                  clipBehavior: Clip.antiAlias,
-                  child: Column(
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.all(8),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: SensitiveTextEditing(
-                                controller: _query,
-                                enabled: !_selecting,
-                                copy: _copyQuery,
-                                builder: (context, menuBuilder) => TextField(
-                                  key: const Key('vault-search-query'),
-                                  controller: _query,
-                                  focusNode: _focus,
-                                  enabled: !_selecting,
-                                  maxLength: 256,
-                                  enableIMEPersonalizedLearning: false,
-                                  autocorrect: false,
-                                  enableSuggestions: false,
-                                  contextMenuBuilder: menuBuilder,
-                                  onChanged: (query) => unawaited(_changed(query)),
-                                  onSubmitted: (_) => unawaited(_choose(_selected)),
-                                  decoration: InputDecoration(
-                                    hintText: t.browserSearchHint,
-                                    counterText: '',
-                                    isDense: true,
-                                    prefixIcon: const Icon(Icons.search_rounded, size: 20),
-                                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                                  ),
-                                ),
+          body: Visibility(
+            visible: _epoch != null,
+            child: Material(
+              color: AppColors.background,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+                side: const BorderSide(color: AppColors.border),
+              ),
+              clipBehavior: Clip.antiAlias,
+              child: Column(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.all(8),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: SensitiveTextEditing(
+                            controller: _query,
+                            enabled: !_selecting,
+                            copy: _copyQuery,
+                            builder: (context, menuBuilder) => TextField(
+                              key: const Key('vault-search-query'),
+                              controller: _query,
+                              focusNode: _focus,
+                              enabled: !_selecting,
+                              maxLength: 256,
+                              enableIMEPersonalizedLearning: false,
+                              autocorrect: false,
+                              enableSuggestions: false,
+                              contextMenuBuilder: menuBuilder,
+                              onChanged: (query) => unawaited(_changed(query)),
+                              onSubmitted: (_) => unawaited(_choose(_selected)),
+                              decoration: InputDecoration(
+                                hintText: t.browserSearchHint,
+                                counterText: '',
+                                isDense: true,
+                                prefixIcon: const Icon(Icons.search_rounded, size: 20),
+                                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                               ),
                             ),
-                            const SizedBox(width: 4),
-                            DesktopIconButton(
-                              tooltip: t.browserCloseSearch,
-                              onPressed: () => unawaited(_dismiss()),
-                              padding: const EdgeInsets.all(10),
-                              icon: const Icon(Icons.close_rounded, size: 18),
-                            ),
-                          ],
+                          ),
                         ),
-                      ),
-                      if (_query.text.isNotEmpty)
-                        Expanded(
-                          child: _results.isEmpty
-                              ? Center(
-                                  child: _loading
-                                      ? const SizedBox(
-                                          width: 16,
-                                          height: 16,
-                                          child: CircularProgressIndicator(strokeWidth: 2),
-                                        )
-                                      : Text(t.browserNoResults),
-                                )
-                              : ListView.builder(
-                                  padding: const EdgeInsets.symmetric(horizontal: 4),
-                                  controller: _scroll,
-                                  itemExtent: 48,
-                                  itemCount: _results.length,
-                                  itemBuilder: (context, index) => _SearchSuggestion(
-                                    result: _results[index],
-                                    selected: index == _selected,
-                                    onSelect: () => unawaited(_choose(index)),
-                                  ),
-                                ),
+                        const SizedBox(width: 4),
+                        DesktopIconButton(
+                          tooltip: t.browserCloseSearch,
+                          onPressed: () => unawaited(_dismiss()),
+                          padding: const EdgeInsets.all(10),
+                          icon: const Icon(Icons.close_rounded, size: 18),
                         ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
+                  if (_query.text.isNotEmpty)
+                    Expanded(
+                      child: _results.isEmpty
+                          ? Center(
+                              child: _loading
+                                  ? const SizedBox(
+                                      width: 16,
+                                      height: 16,
+                                      child: CircularProgressIndicator(strokeWidth: 2),
+                                    )
+                                  : Text(t.browserNoResults),
+                            )
+                          : ListView.builder(
+                              padding: const EdgeInsets.symmetric(horizontal: 4),
+                              controller: _scroll,
+                              itemExtent: 48,
+                              itemCount: _results.length,
+                              itemBuilder: (context, index) => _SearchSuggestion(
+                                result: _results[index],
+                                selected: index == _selected,
+                                onSelect: () => unawaited(_choose(index)),
+                              ),
+                            ),
+                    ),
+                ],
+              ),
+            ),
+          ),
         ),
       ),
     ),

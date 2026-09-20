@@ -2,8 +2,8 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skysecret/core/crypto/crypto.dart';
-import 'package:skysecret/core/files/text_document.dart';
-import 'package:skysecret/core/files/vault_text_file.dart';
+import 'package:skysecret/core/files/text/models/text_document.dart';
+import 'package:skysecret/core/files/text/services/vault_text_file.dart';
 
 void main() {
   test('normalizes txt extension and rejects unsafe or empty names', () {

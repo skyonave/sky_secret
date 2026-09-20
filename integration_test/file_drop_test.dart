@@ -9,9 +9,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:skysecret/app.dart';
 import 'package:skysecret/core/crypto/crypto.dart';
-import 'package:skysecret/core/os/windows/desktop_controller.dart';
-import 'package:skysecret/core/settings/shortcut_settings.dart';
-import 'package:skysecret/core/settings/vault_preferences.dart';
+import 'package:skysecret/core/os/windows/controllers/desktop_controller.dart';
+import 'package:skysecret/core/settings/repositories/shortcut_settings.dart';
+import 'package:skysecret/core/settings/repositories/vault_preferences.dart';
 import 'package:skysecret/i18n/translations.g.dart';
 import 'package:window_manager/window_manager.dart';
 
@@ -54,8 +54,7 @@ void main() {
     await windowManager.setSize(const Size(400, 520));
     await tester.pumpAndSettle();
     expect(
-      await const MethodChannel('skysecret/file_drop')
-          .invokeMethod<bool>('ready'),
+      await const MethodChannel('skysecret/file_drop').invokeMethod<bool>('ready'),
       isTrue,
     );
     Future<void> emit(String method, [List<String> paths = const []]) async {
@@ -82,24 +81,20 @@ void main() {
       final boundary = tester.renderObject<RenderRepaintBoundary>(
         find.byKey(capture),
       );
-      final image = await boundary
-          .toImage(pixelRatio: 1)
-          .timeout(const Duration(seconds: 10));
+      final image = await boundary.toImage(pixelRatio: 1).timeout(const Duration(seconds: 10));
       final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
       await Directory('build/qa').create(recursive: true);
-      await File('build/qa/file-drop-${locale.name}-400.png')
-          .writeAsBytes(bytes!.buffer.asUint8List());
+      await File('build/qa/file-drop-${locale.name}-400.png').writeAsBytes(bytes!.buffer.asUint8List());
       image.dispose();
       await emit('exited');
     }
-    final windowId = await const MethodChannel('window_manager')
-        .invokeMethod<int>('getId');
+    final windowId = await const MethodChannel('window_manager').invokeMethod<int>('getId');
     final delivery = await Process.start(
       'build/native_drop_tests/Debug/native_drop_tests.exe',
       [windowId.toString(), source.path],
     );
-      final int deliveryExit;
-      final output = delivery.stdout.transform(const SystemEncoding().decoder).join();
+    final int deliveryExit;
+    final output = delivery.stdout.transform(const SystemEncoding().decoder).join();
     try {
       deliveryExit = await delivery.exitCode.timeout(
         const Duration(seconds: 8),
@@ -110,7 +105,7 @@ void main() {
     expect(
       deliveryExit,
       0,
-        reason: 'Synthetic source must complete a real OLE COPY: ${await output}',
+      reason: 'Synthetic source must complete a real OLE COPY: ${await output}',
     );
     await tester.pumpAndSettle();
     await emit('entered');

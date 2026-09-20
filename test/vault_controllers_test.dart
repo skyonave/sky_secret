@@ -7,7 +7,7 @@ import 'package:skysecret/ui/vault/controllers/vault_browser_controller.dart';
 import 'package:skysecret/ui/vault/controllers/vault_entry_controller.dart';
 import 'package:skysecret/ui/vault/controllers/vault_session_controller.dart';
 import 'package:skysecret/ui/vault/controllers/vault_sync_controller.dart';
-import 'package:skysecret/core/sync/github/github_backup.dart';
+import 'package:skysecret/core/sync/github/controllers/github_backup.dart';
 
 import 'github_test.dart' show FakeGitHub, MemoryStorage, seed;
 import 'vault_sync_test.dart' show RacingGitHub;

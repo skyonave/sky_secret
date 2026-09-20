@@ -7,7 +7,7 @@ class _VaultBrowser extends StatelessWidget {
   final Set<String> collapsed;
   final VoidCallback onCollapsedChanged;
   final Widget tree;
-  final Widget Function(VaultEntry) entryCard;
+  final _VaultEntryPresenter entryPresenter;
 
   const _VaultBrowser({
     required this.session,
@@ -16,7 +16,7 @@ class _VaultBrowser extends StatelessWidget {
     required this.collapsed,
     required this.onCollapsedChanged,
     required this.tree,
-    required this.entryCard,
+    required this.entryPresenter,
   });
 
   @override
@@ -61,7 +61,7 @@ class _VaultBrowser extends StatelessWidget {
             ),
           ),
           if (!collapsed.contains('@favorites'))
-            for (final entry in favorites) entryCard(entry),
+            for (final entry in favorites) _VaultEntryItem(entry: entry, entryPresenter: entryPresenter),
           const SizedBox(height: 6),
         ],
         tree,

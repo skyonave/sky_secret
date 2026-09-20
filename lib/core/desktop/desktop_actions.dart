@@ -1,7 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:hotkey_manager/hotkey_manager.dart';
 
-import '../settings/shortcut_settings.dart';
+import '../settings/repositories/shortcut_settings.dart';
 
 abstract class DesktopActions extends ChangeNotifier {
   VoidCallback? onBeforeHide;
@@ -13,8 +13,8 @@ abstract class DesktopActions extends ChangeNotifier {
 
   Future<void> drag();
 
-  HotKey get shortcut => defaultShortcut();
-  HotKey get searchShortcut => defaultSearchShortcut();
+  HotKey get shortcut => SystemShortcuts.defaultManager();
+  HotKey get searchShortcut => SystemShortcuts.defaultSearch();
 
   void setSearchHandler(VoidCallback? handler) {}
 

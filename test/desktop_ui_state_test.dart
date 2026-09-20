@@ -2,7 +2,7 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skysecret/core/crypto/crypto.dart';
-import 'package:skysecret/core/settings/vault_tree_preferences.dart';
+import 'package:skysecret/core/settings/repositories/vault_tree_preferences.dart';
 import 'package:skysecret/ui/vault/controllers/vault_deletion_controller.dart';
 
 void main() {

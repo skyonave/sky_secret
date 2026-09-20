@@ -5,36 +5,12 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 
-import '../../core/os/windows/browser.dart';
-import '../../core/sync/github/github_api.dart';
-import '../../core/sync/github/github_backup.dart';
+import '../../core/os/windows/services/browser.dart';
+import '../../core/sync/github/services/github_api.dart';
+import '../../core/sync/github/controllers/github_backup.dart';
 import '../../i18n/translations.g.dart';
 import '../shared/input/sensitive_text_editing.dart';
-
-String githubStatusLabel(GitHubBackup backup) => switch (backup.status) {
-  BackupStatus.disconnected => t.githubDisconnected,
-  BackupStatus.ready => t.githubReady,
-  BackupStatus.pending => t.githubPending,
-  BackupStatus.working => t.githubWorking,
-  BackupStatus.synced => t.githubSynced,
-  BackupStatus.conflict => t.githubConflict,
-  BackupStatus.failed => t.githubFailed,
-};
-
-String githubProblemLabel(GitHubProblem problem) => switch (problem) {
-  GitHubProblem.network => t.githubNetworkError,
-  GitHubProblem.authorization => t.githubAuthError,
-  GitHubProblem.denied => t.githubAccessError,
-  GitHubProblem.missing => t.githubMissingError,
-  GitHubProblem.conflict => t.githubConflictHelp,
-  GitHubProblem.repositoryChanged => t.githubRepositoryChangedError,
-  GitHubProblem.repositorySetup => t.githubRepositorySetupError,
-  GitHubProblem.format => t.githubFormatError,
-  GitHubProblem.storage => t.githubStorageError,
-  GitHubProblem.identity => t.githubIdentityError,
-  GitHubProblem.configuration => t.githubConfigurationError,
-  GitHubProblem.cancelled => t.cancel,
-};
+part 'widgets/_git_hub_tile_surface.dart';
 
 class GitHubDialog extends StatefulWidget {
   final bool restoreSeparately;
@@ -77,13 +53,6 @@ class _GitHubDialogState extends State<GitHubDialog> {
   late bool _linkForSync = widget.restoreSeparately == false;
   String? _error;
 
-  Widget _tileSurface(Widget child) => Material(
-    type: MaterialType.transparency,
-    shape: _controlShape,
-    clipBehavior: Clip.antiAlias,
-    child: child,
-  );
-
   InputDecoration _fieldDecoration(String label, {String? hint}) => InputDecoration(
     labelText: label,
     hintText: hint,
@@ -108,7 +77,7 @@ class _GitHubDialogState extends State<GitHubDialog> {
 
   Future<void> _openBrowser(String url) async {
     try {
-      if (!openBrowser(url) && mounted) {
+      if (!SystemBrowser.open(url) && mounted) {
         setState(() => _error = t.githubBrowserError);
       }
     } catch (_) {
@@ -194,13 +163,13 @@ class _GitHubDialogState extends State<GitHubDialog> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Text(
-                  githubStatusLabel(backup),
+                  GitHubLabels.status(backup),
                   style: Theme.of(context).textTheme.titleSmall,
                 ),
                 const SizedBox(height: 10),
                 if (backup.problem != null) ...[
                   Text(
-                    githubProblemLabel(backup.problem!),
+                    GitHubLabels.problem(backup.problem!),
                     style: const TextStyle(color: Color(0xFFFFCB8A)),
                   ),
                   const SizedBox(height: 10),
@@ -328,8 +297,8 @@ class _GitHubDialogState extends State<GitHubDialog> {
                     ),
                   ),
                   const SizedBox(height: 16),
-                  _tileSurface(
-                    CheckboxListTile(
+                  _GitHubTileSurface(
+                    child: CheckboxListTile(
                       value: _restrictedToken,
                       onChanged: disabled || widget.restoreSeparately
                           ? null
@@ -347,8 +316,8 @@ class _GitHubDialogState extends State<GitHubDialog> {
                     ),
                   ),
                   const SizedBox(height: 12),
-                  _tileSurface(
-                    CheckboxListTile(
+                  _GitHubTileSurface(
+                    child: CheckboxListTile(
                       value: _initializeRepository,
                       onChanged: disabled
                           ? null
@@ -450,8 +419,8 @@ class _GitHubDialogState extends State<GitHubDialog> {
                     style: const TextStyle(fontSize: 12, height: 1.4),
                   ),
                   const SizedBox(height: 12),
-                  _tileSurface(
-                    CheckboxListTile(
+                  _GitHubTileSurface(
+                    child: CheckboxListTile(
                       value: _linkForSync,
                       onChanged: disabled ? null : (value) => setState(() => _linkForSync = value ?? true),
                       contentPadding: const EdgeInsets.all(12),
@@ -569,4 +538,31 @@ class _GitHubDialogState extends State<GitHubDialog> {
       );
     },
   );
+}
+
+abstract final class GitHubLabels {
+  static String status(GitHubBackup backup) => switch (backup.status) {
+    BackupStatus.disconnected => t.githubDisconnected,
+    BackupStatus.ready => t.githubReady,
+    BackupStatus.pending => t.githubPending,
+    BackupStatus.working => t.githubWorking,
+    BackupStatus.synced => t.githubSynced,
+    BackupStatus.conflict => t.githubConflict,
+    BackupStatus.failed => t.githubFailed,
+  };
+
+  static String problem(GitHubProblem problem) => switch (problem) {
+    GitHubProblem.network => t.githubNetworkError,
+    GitHubProblem.authorization => t.githubAuthError,
+    GitHubProblem.denied => t.githubAccessError,
+    GitHubProblem.missing => t.githubMissingError,
+    GitHubProblem.conflict => t.githubConflictHelp,
+    GitHubProblem.repositoryChanged => t.githubRepositoryChangedError,
+    GitHubProblem.repositorySetup => t.githubRepositorySetupError,
+    GitHubProblem.format => t.githubFormatError,
+    GitHubProblem.storage => t.githubStorageError,
+    GitHubProblem.identity => t.githubIdentityError,
+    GitHubProblem.configuration => t.githubConfigurationError,
+    GitHubProblem.cancelled => t.cancel,
+  };
 }

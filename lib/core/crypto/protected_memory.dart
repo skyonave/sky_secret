@@ -24,7 +24,9 @@ class ProtectedBytes {
   SecretLifetime? _lifetime;
   bool _destroyed = false;
 
-  ProtectedBytes(List<int> bytes) : length = bytes.length, _ciphertext = _transform(bytes, decrypt: false);
+  ProtectedBytes(List<int> bytes)
+    : length = bytes.length,
+      _ciphertext = _MemoryProtection._transform(bytes, decrypt: false);
 
   ProtectedBytes._copy(ProtectedBytes source, this._lifetime)
     : length = source.length,
@@ -44,7 +46,7 @@ class ProtectedBytes {
 
   Uint8List read() {
     _check();
-    final padded = _transform(_ciphertext, decrypt: true);
+    final padded = _MemoryProtection._transform(_ciphertext, decrypt: true);
     try {
       return Uint8List.fromList(Uint8List.sublistView(padded, 0, length));
     } finally {
@@ -81,6 +83,8 @@ class ProtectedText {
 
   void destroy() => _value.destroy();
 
+  ({int size, Uint8List data}) copyProtectedMemory() => (size: _value.length, data: _value.copyProtectedMemory());
+
   bool get isEmpty {
     _value._check();
     return _value.length == 0;
@@ -96,67 +100,80 @@ class ProtectedText {
   }
 }
 
-const _chunkSize = 16 * 1024;
-const _sameProcess = 0;
-final _kernel = DynamicLibrary.open('kernel32.dll');
-final _crypt = DynamicLibrary.open('crypt32.dll');
-final _allocate = _kernel
-    .lookupFunction<
-      Pointer<Void> Function(Pointer<Void>, IntPtr, Uint32, Uint32),
-      Pointer<Void> Function(Pointer<Void>, int, int, int)
-    >('VirtualAlloc');
-final _release = _kernel
-    .lookupFunction<Int32 Function(Pointer<Void>, IntPtr, Uint32), int Function(Pointer<Void>, int, int)>(
-      'VirtualFree',
-    );
-final _lock = _kernel.lookupFunction<Int32 Function(Pointer<Void>, IntPtr), int Function(Pointer<Void>, int)>(
-  'VirtualLock',
-);
-final _unlock = _kernel.lookupFunction<Int32 Function(Pointer<Void>, IntPtr), int Function(Pointer<Void>, int)>(
-  'VirtualUnlock',
-);
-final _protect = _crypt
-    .lookupFunction<Int32 Function(Pointer<Void>, Uint32, Uint32), int Function(Pointer<Void>, int, int)>(
-      'CryptProtectMemory',
-    );
-final _unprotect = _crypt
-    .lookupFunction<Int32 Function(Pointer<Void>, Uint32, Uint32), int Function(Pointer<Void>, int, int)>(
-      'CryptUnprotectMemory',
-    );
+abstract final class _MemoryProtection {
+  static const _chunkSize = 16 * 1024;
 
-Uint8List _transform(List<int> source, {required bool decrypt}) {
-  if (!Platform.isWindows) throw const MemoryProtectionException();
-  if (source.isEmpty) return Uint8List(0);
-  final paddedLength = ((source.length + 15) ~/ 16) * 16;
-  final capacity = min(_chunkSize, paddedLength);
-  final pointer = _allocate(nullptr, capacity, 0x3000, 0x04);
-  if (pointer == nullptr) throw const MemoryProtectionException();
-  final scratch = pointer.cast<Uint8>().asTypedList(capacity);
-  var locked = false;
-  final result = Uint8List(paddedLength);
-  try {
-    locked = _lock(pointer, capacity) != 0;
-    if (!locked) throw const MemoryProtectionException();
-    for (var offset = 0; offset < paddedLength; offset += capacity) {
-      final count = min(capacity, paddedLength - offset);
-      final available = min(count, source.length - offset);
-      scratch.fillRange(0, capacity, 0);
-      scratch.setRange(0, available, source, offset);
-      final success = (decrypt ? _unprotect : _protect)(
-        pointer,
-        count,
-        _sameProcess,
+  static const _sameProcess = 0;
+
+  static final _kernel = DynamicLibrary.open('kernel32.dll');
+
+  static final _crypt = DynamicLibrary.open('crypt32.dll');
+
+  static final _allocate = _MemoryProtection._kernel
+      .lookupFunction<
+        Pointer<Void> Function(Pointer<Void>, IntPtr, Uint32, Uint32),
+        Pointer<Void> Function(Pointer<Void>, int, int, int)
+      >('VirtualAlloc');
+
+  static final _release = _MemoryProtection._kernel
+      .lookupFunction<Int32 Function(Pointer<Void>, IntPtr, Uint32), int Function(Pointer<Void>, int, int)>(
+        'VirtualFree',
       );
-      if (success == 0) throw const MemoryProtectionException();
-      result.setRange(offset, offset + count, scratch);
+
+  static final _lock = _MemoryProtection._kernel
+      .lookupFunction<Int32 Function(Pointer<Void>, IntPtr), int Function(Pointer<Void>, int)>(
+        'VirtualLock',
+      );
+
+  static final _unlock = _MemoryProtection._kernel
+      .lookupFunction<Int32 Function(Pointer<Void>, IntPtr), int Function(Pointer<Void>, int)>(
+        'VirtualUnlock',
+      );
+
+  static final _protect = _MemoryProtection._crypt
+      .lookupFunction<Int32 Function(Pointer<Void>, Uint32, Uint32), int Function(Pointer<Void>, int, int)>(
+        'CryptProtectMemory',
+      );
+
+  static final _unprotect = _MemoryProtection._crypt
+      .lookupFunction<Int32 Function(Pointer<Void>, Uint32, Uint32), int Function(Pointer<Void>, int, int)>(
+        'CryptUnprotectMemory',
+      );
+
+  static Uint8List _transform(List<int> source, {required bool decrypt}) {
+    if (!Platform.isWindows) throw const MemoryProtectionException();
+    if (source.isEmpty) return Uint8List(0);
+    final paddedLength = ((source.length + 15) ~/ 16) * 16;
+    final capacity = min(_MemoryProtection._chunkSize, paddedLength);
+    final pointer = _MemoryProtection._allocate(nullptr, capacity, 0x3000, 0x04);
+    if (pointer == nullptr) throw const MemoryProtectionException();
+    final scratch = pointer.cast<Uint8>().asTypedList(capacity);
+    var locked = false;
+    final result = Uint8List(paddedLength);
+    try {
+      locked = _MemoryProtection._lock(pointer, capacity) != 0;
+      if (!locked) throw const MemoryProtectionException();
+      for (var offset = 0; offset < paddedLength; offset += capacity) {
+        final count = min(capacity, paddedLength - offset);
+        final available = min(count, source.length - offset);
+        scratch.fillRange(0, capacity, 0);
+        scratch.setRange(0, available, source, offset);
+        final success = (decrypt ? _MemoryProtection._unprotect : _MemoryProtection._protect)(
+          pointer,
+          count,
+          _MemoryProtection._sameProcess,
+        );
+        if (success == 0) throw const MemoryProtectionException();
+        result.setRange(offset, offset + count, scratch);
+      }
+      return result;
+    } catch (_) {
+      result.fillRange(0, result.length, 0);
+      rethrow;
+    } finally {
+      scratch.fillRange(0, capacity, 0);
+      if (locked) _MemoryProtection._unlock(pointer, capacity);
+      _MemoryProtection._release(pointer, 0, 0x8000);
     }
-    return result;
-  } catch (_) {
-    result.fillRange(0, result.length, 0);
-    rethrow;
-  } finally {
-    scratch.fillRange(0, capacity, 0);
-    if (locked) _unlock(pointer, capacity);
-    _release(pointer, 0, 0x8000);
   }
 }

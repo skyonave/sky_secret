@@ -8,10 +8,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:skysecret/app.dart';
 import 'package:skysecret/core/crypto/crypto.dart';
-import 'package:skysecret/core/desktop/windows/hidden_window_frame.dart';
-import 'package:skysecret/core/os/windows/desktop_controller.dart';
-import 'package:skysecret/core/settings/shortcut_settings.dart';
-import 'package:skysecret/core/settings/vault_preferences.dart';
+import 'package:skysecret/core/os/windows/window/hidden_window_frame.dart';
+import 'package:skysecret/core/os/windows/controllers/desktop_controller.dart';
+import 'package:skysecret/core/settings/repositories/shortcut_settings.dart';
+import 'package:skysecret/core/settings/repositories/vault_preferences.dart';
 import 'package:skysecret/i18n/translations.g.dart';
 import 'package:window_manager/window_manager.dart';
 
@@ -26,7 +26,7 @@ void main() {
     final desktop = DesktopController(settings: ShortcutStore(file: File('${directory.path}/settings.json')));
     addTearDown(() async {
       await desktop.hide();
-      await prepareHiddenWindowFrame();
+      await HiddenWindowFrame.prepare();
       await tester.pumpWidget(const SizedBox.shrink());
       await desktop.releaseResources();
       await directory.delete(recursive: true);
@@ -48,7 +48,7 @@ void main() {
       final deadline = DateTime.now().add(const Duration(seconds: 20));
       while (await condition() == false) {
         if (DateTime.now().isAfter(deadline)) fail(description);
-        await prepareHiddenWindowFrame();
+        await HiddenWindowFrame.prepare();
         await tester.pump(const Duration(milliseconds: 50));
       }
     }
@@ -82,7 +82,7 @@ void main() {
       await tester.sendKeyEvent(LogicalKeyboardKey.escape);
       await waitFor(() async => await windowManager.isVisible() == false, 'Escape left manager visible');
       await waitFor(
-          () async => await windowManager.getSize() == managerBounds.size,
+        () async => await windowManager.getSize() == managerBounds.size,
         'Search did not restore manager size',
       );
     }

@@ -1,9 +1,9 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skysecret/core/crypto/generator_options.dart';
-import 'package:skysecret/core/crypto/passphrase_words.dart';
-import 'package:skysecret/core/crypto/password_generator.dart';
+import 'package:skysecret/core/crypto/generator/models/generator_options.dart';
+import 'package:skysecret/core/crypto/generator/services/passphrase_words.dart';
+import 'package:skysecret/core/crypto/generator/services/password_generator.dart';
 
 void main() {
   final generator = PasswordGenerator();

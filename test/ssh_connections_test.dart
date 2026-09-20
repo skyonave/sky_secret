@@ -4,7 +4,7 @@ import 'dart:convert';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skysecret/core/crypto/crypto.dart';
-import 'package:skysecret/core/os/windows/ssh_connections.dart';
+import 'package:skysecret/core/os/windows/services/ssh_connections.dart';
 
 VaultEntry connection() => VaultEntry.create(
   title: 'Synthetic SSH',

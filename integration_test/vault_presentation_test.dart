@@ -7,8 +7,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:skysecret/app.dart';
 import 'package:skysecret/core/crypto/crypto.dart';
-import 'package:skysecret/core/os/windows/desktop_controller.dart';
-import 'package:skysecret/core/settings/shortcut_settings.dart';
+import 'package:skysecret/core/os/windows/controllers/desktop_controller.dart';
+import 'package:skysecret/core/settings/repositories/shortcut_settings.dart';
 import 'package:skysecret/i18n/translations.g.dart';
 import 'package:window_manager/window_manager.dart';
 
@@ -50,8 +50,7 @@ void main() {
         final image = await boundary.toImage(pixelRatio: 1);
         final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
         final output = Directory('build/qa')..createSync(recursive: true);
-        await File('${output.path}/$name.png')
-            .writeAsBytes(bytes!.buffer.asUint8List());
+        await File('${output.path}/$name.png').writeAsBytes(bytes!.buffer.asUint8List());
         image.dispose();
       }
 
@@ -156,8 +155,7 @@ void main() {
       await screenshot('vault-settings-ru-400');
       await tap('auto-lock-switch');
       await tap('save-vault-preferences');
-      final preferences = await File('${directory.path}/vault_preferences.json')
-          .readAsString();
+      final preferences = await File('${directory.path}/vault_preferences.json').readAsString();
       expect(preferences, contains('"autoLockEnabled":false'));
       await tap('vault-switcher');
       final menuMouse = await tester.createGesture(

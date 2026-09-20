@@ -2,8 +2,8 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skysecret/core/crypto/crypto.dart';
-import 'package:skysecret/core/sync/github/github_api.dart';
-import 'package:skysecret/core/sync/github/github_backup.dart';
+import 'package:skysecret/core/sync/github/services/github_api.dart';
+import 'package:skysecret/core/sync/github/controllers/github_backup.dart';
 
 import 'github_test.dart' show FakeGitHub, MemoryStorage, seed, syntheticPassword, syntheticToken;
 
@@ -473,7 +473,7 @@ void main() {
       final before = sa.persistedBytes;
       final old = api.remote.values.single;
       final bytes = sb.persistedBytes;
-      final hash = await gitBlobHash(bytes);
+      final hash = await GitBlob.hash(bytes);
       api.blobs[hash] = bytes;
       api.remote[old.id] = RemoteVault(old.id, hash, bytes.length);
       await syncA();
@@ -522,7 +522,7 @@ void main() {
       expect(attackerEpoch2.revision.keyEpoch, 2);
       expect(sa.revision.keyEpoch, 1);
       final malicious = attackerEpoch2.persistedBytes;
-      final hash = await gitBlobHash(malicious);
+      final hash = await GitBlob.hash(malicious);
       api.blobs[hash] = malicious;
       api.remote[remoteId] = RemoteVault(remoteId, hash, malicious.length);
       final before = sa.persistedBytes;

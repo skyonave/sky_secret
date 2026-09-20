@@ -3,7 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:hotkey_manager/hotkey_manager.dart';
 
 import '../../core/desktop/desktop_actions.dart';
-import '../../core/settings/shortcut_settings.dart';
+import '../../core/settings/repositories/shortcut_settings.dart';
 import '../../i18n/translations.g.dart';
 
 class ShortcutDialog extends StatefulWidget {
@@ -24,8 +24,9 @@ class _ShortcutDialogState extends State<ShortcutDialog> {
   List<HotKeyModifier> _pressedModifiers = [];
   bool _awaitingKey = false;
 
-  String get _display =>
-      _awaitingKey ? [..._pressedModifiers.map((m) => modifierLabels[m]!), '…'].join(' + ') : shortcutLabel(_candidate);
+  String get _display => _awaitingKey
+      ? [..._pressedModifiers.map((m) => SystemShortcuts.modifierLabels[m]!), '…'].join(' + ')
+      : SystemShortcuts.label(_candidate);
 
   @override
   void initState() {
@@ -42,12 +43,13 @@ class _ShortcutDialogState extends State<ShortcutDialog> {
 
   KeyEventResult _record(FocusNode _, KeyEvent event) {
     if (_saving) return KeyEventResult.ignored;
-    if (event.logicalKey == LogicalKeyboardKey.escape && !supportedModifiers.any((m) => m.isModifierPressed)) {
+    if (event.logicalKey == LogicalKeyboardKey.escape &&
+        !SystemShortcuts.supportedModifiers.any((m) => m.isModifierPressed)) {
       if (event is KeyDownEvent) Navigator.of(context).pop();
       return KeyEventResult.handled;
     }
     if (event is KeyRepeatEvent) return KeyEventResult.handled;
-    final modifiers = supportedModifiers.where((m) => m.isModifierPressed).toList();
+    final modifiers = SystemShortcuts.supportedModifiers.where((m) => m.isModifierPressed).toList();
     if (HotKeyModifier.values.any(
       (m) => m.physicalKeys.contains(event.physicalKey),
     )) {
@@ -68,7 +70,7 @@ class _ShortcutDialogState extends State<ShortcutDialog> {
     setState(() {
       _candidate = candidate;
       _awaitingKey = false;
-      _error = validShortcut(candidate) ? null : t.unsupportedKey;
+      _error = SystemShortcuts.isValid(candidate) ? null : t.unsupportedKey;
     });
     return KeyEventResult.handled;
   }
@@ -123,7 +125,7 @@ class _ShortcutDialogState extends State<ShortcutDialog> {
                 child: Row(
                   children: [
                     Expanded(child: Text(search ? t.browserSearch : t.shortcutManager)),
-                    Text(shortcutLabel(search ? widget.desktop.searchShortcut : widget.desktop.shortcut)),
+                    Text(SystemShortcuts.label(search ? widget.desktop.searchShortcut : widget.desktop.shortcut)),
                   ],
                 ),
               ),
@@ -204,7 +206,7 @@ class _ShortcutDialogState extends State<ShortcutDialog> {
             onPressed: _saving
                 ? null
                 : () => setState(() {
-                    _candidate = _editingSearch ? defaultSearchShortcut() : defaultShortcut();
+                    _candidate = _editingSearch ? SystemShortcuts.defaultSearch() : SystemShortcuts.defaultManager();
                     _awaitingKey = false;
                     _error = null;
                   }),
@@ -219,7 +221,7 @@ class _ShortcutDialogState extends State<ShortcutDialog> {
         child: Text(t.cancel),
       ),
       FilledButton(
-        onPressed: _saving || _awaitingKey || !validShortcut(_candidate) ? null : _save,
+        onPressed: _saving || _awaitingKey || !SystemShortcuts.isValid(_candidate) ? null : _save,
         child: Text(_saving ? t.saving : t.save),
       ),
     ],

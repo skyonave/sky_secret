@@ -11,6 +11,7 @@
 #include "win32_window.h"
 #include "file_drop_target.h"
 #include "file_drag_source.h"
+#include "secret_drag_source.h"
 #include "ssh_bridge.h"
 #include "companion_window.h"
 
@@ -42,6 +43,8 @@ class FlutterWindow : public Win32Window {
   bool session_notifications_ = false;
   FileDropTarget* file_drop_ = nullptr;
   std::shared_ptr<FileDragSource> file_drag_;
+  std::shared_ptr<SecretDragSource> secret_drag_;
+  std::unique_ptr<flutter::MethodChannel<flutter::EncodableValue>> secret_drag_channel_;
   std::unique_ptr<flutter::MethodChannel<flutter::EncodableValue>> file_drag_channel_;
   std::unique_ptr<flutter::MethodChannel<flutter::EncodableValue>> file_drop_channel_;
 };

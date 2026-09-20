@@ -4,37 +4,43 @@ import 'dart:convert';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skysecret/core/crypto/crypto.dart';
-import 'package:skysecret/core/desktop/totp_session.dart';
-import 'package:skysecret/core/desktop/totp_window_layout.dart';
-import 'package:skysecret/core/desktop/windows/totp_window_manager.dart';
+import 'package:skysecret/core/desktop/totp/controllers/totp_session.dart';
+import 'package:skysecret/core/desktop/totp/services/totp_window_layout.dart';
+import 'package:skysecret/core/desktop/totp/controllers/totp_window_manager.dart';
 
 import 'vault_collection_test.dart' show collectionPassword, saveRevision;
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  test('compact tiles keep a fixed width and grow upward within the work area', () {
+  test('compact code panel reserves its header and fits rows within the work area', () {
     const work = Rect.fromLTWH(-1920, 0, 1920, 1040);
     for (final left in [-1950.0, -1600.0, -1000.0, -500.0]) {
-      final size = totpWindowSize(Rect.fromLTWH(left, 350, 454, 602), work);
-      expect(size, const Size(230, 56));
+      final size = TotpWindowLayout.windowSize(Rect.fromLTWH(left, 350, 454, 602), work);
+      expect(size, const Size(230, 88));
     }
     for (final width in [400.0, 460.0, 1600.0, 8000.0]) {
-      expect(totpWindowSize(Rect.fromLTWH(-1000, 350, width, 602), work).width, 230);
+      expect(TotpWindowLayout.windowSize(Rect.fromLTWH(-1000, 350, width, 602), work).width, 230);
     }
-    final many = totpWindowSize(const Rect.fromLTWH(-500, 350, 454, 602), work, count: 100);
-    final tiles = totpTileRects(many);
-    expect(tiles.first.bottom, many.height);
+    final many = TotpWindowLayout.windowSize(const Rect.fromLTWH(-500, 350, 454, 602), work, count: 100);
+    final tiles = TotpWindowLayout.tileRects(many);
+    expect(tiles.first.top, TotpWindowLayout.headerHeight);
+    expect(tiles.last.bottom, many.height);
+    expect(TotpWindowLayout.visibleSlots(0), 0);
+    expect(TotpWindowLayout.visibleSlots(32), 0);
+    expect(TotpWindowLayout.visibleSlots(87), 0);
+    expect(TotpWindowLayout.visibleSlots(88), 1);
+    expect(TotpWindowLayout.visibleSlots(144), 2);
     expect(many.height, lessThanOrEqualTo(952));
     for (var i = 1; i < tiles.length; i++) {
-      expect(tiles[i - 1].top - tiles[i].bottom, totpTileGap);
+      expect(tiles[i].top - tiles[i - 1].bottom, TotpWindowLayout.tileGap);
     }
     expect(
-      totpWindowSize(const Rect.fromLTWH(0, -700, 454, 602), work, count: 100),
-      const Size(230, 56),
+      TotpWindowLayout.windowSize(const Rect.fromLTWH(0, -700, 454, 602), work, count: 100),
+      const Size(230, 88),
     );
     expect(
-      totpWindowSize(const Rect.fromLTWH(0, 0, 454, 2000), work, count: 100).height,
+      TotpWindowLayout.windowSize(const Rect.fromLTWH(0, 0, 454, 2000), work, count: 100).height,
       lessThanOrEqualTo(work.height),
     );
   });
@@ -157,7 +163,7 @@ void main() {
     await opening;
     final data = await invoke('read') as Map;
     expect(data['width'], 230.0);
-    expect(data['height'], 56.0);
+    expect(data['height'], 88.0);
     expect(data.containsKey('x'), isFalse);
     expect(data.containsKey('y'), isFalse);
     expect(await invoke('position'), isTrue);

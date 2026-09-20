@@ -37,14 +37,19 @@ class _VaultEntryEditor extends StatelessWidget {
           padding: const EdgeInsets.only(bottom: 12),
           child: locationSelector,
         ),
-        _field(draft.title, t.vaultEntryTitle, 'entry-title'),
+        _VaultField(busy: busy, controller: draft.title, label: t.vaultEntryTitle, fieldKey: 'entry-title'),
         if (isSsh) ...[
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(flex: 3, child: _field(draft.sshHost, t.sshHost, 'ssh-host')),
+              Expanded(
+                flex: 3,
+                child: _VaultField(busy: busy, controller: draft.sshHost, label: t.sshHost, fieldKey: 'ssh-host'),
+              ),
               const SizedBox(width: 10),
-              Expanded(child: _field(draft.sshPort, t.sshPort, 'ssh-port')),
+              Expanded(
+                child: _VaultField(busy: busy, controller: draft.sshPort, label: t.sshPort, fieldKey: 'ssh-port'),
+              ),
             ],
           ),
           Padding(
@@ -53,13 +58,14 @@ class _VaultEntryEditor extends StatelessWidget {
           ),
         ],
         if (draft.isTotp == false) ...[
-          _field(draft.username, t.vaultUsername, 'entry-username'),
+          _VaultField(busy: busy, controller: draft.username, label: t.vaultUsername, fieldKey: 'entry-username'),
           ValueListenableBuilder<TextEditingValue>(
             valueListenable: draft.password,
-            builder: (context, value, _) => _field(
-              draft.password,
-              t.vaultPasswordLength(length: value.text.characters.length),
-              'entry-password',
+            builder: (context, value, _) => _VaultField(
+              busy: busy,
+              controller: draft.password,
+              label: t.vaultPasswordLength(length: value.text.characters.length),
+              fieldKey: 'entry-password',
               secret: true,
             ),
           ),
@@ -84,10 +90,10 @@ class _VaultEntryEditor extends StatelessWidget {
               ],
             ),
           ),
-          _field(draft.notes, t.vaultNotes, 'entry-notes', lines: 3),
+          _VaultField(busy: busy, controller: draft.notes, label: t.vaultNotes, fieldKey: 'entry-notes', lines: 3),
         ],
         if (draft.isTotp) ...[
-          _field(draft.totp, t.totpSecret, 'entry-totp', secret: true),
+          _VaultField(busy: busy, controller: draft.totp, label: t.totpSecret, fieldKey: 'entry-totp', secret: true),
           Padding(
             padding: const EdgeInsets.only(bottom: 12),
             child: Text(t.totpSetupHelp, style: Theme.of(context).textTheme.bodySmall),
@@ -119,26 +125,5 @@ class _VaultEntryEditor extends StatelessWidget {
         ),
       ],
     ),
-  );
-
-  Widget _field(
-    TextEditingController controller,
-    String label,
-    String key, {
-    bool secret = false,
-    int lines = 1,
-
-    TextInputAction? textInputAction,
-    VoidCallback? onSubmit,
-  }) => _VaultField(
-    controller: controller,
-    label: label,
-    fieldKey: key,
-    busy: busy,
-    secret: secret,
-    lines: lines,
-
-    textInputAction: textInputAction,
-    onSubmit: onSubmit,
   );
 }

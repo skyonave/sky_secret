@@ -8,7 +8,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:skysecret/app.dart';
 import 'package:skysecret/core/crypto/crypto.dart';
-import 'package:skysecret/core/settings/vault_preferences.dart';
+import 'package:skysecret/core/settings/repositories/vault_preferences.dart';
 import 'package:skysecret/i18n/translations.g.dart';
 import 'package:window_manager/window_manager.dart';
 
@@ -72,10 +72,8 @@ void main() {
       final image = await boundary.toImage(pixelRatio: 1);
       try {
         final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
-        final output = Directory('build/qa/skysecret')
-          ..createSync(recursive: true);
-        await File('${output.path}/$name.png')
-            .writeAsBytes(bytes!.buffer.asUint8List());
+        final output = Directory('build/qa/skysecret')..createSync(recursive: true);
+        await File('${output.path}/$name.png').writeAsBytes(bytes!.buffer.asUint8List());
       } finally {
         image.dispose();
       }

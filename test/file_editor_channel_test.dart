@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:desktop_multi_window/desktop_multi_window.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skysecret/core/desktop/windows/file_editor_channel.dart';
+import 'package:skysecret/core/desktop/editor/services/file_editor_channel.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -36,7 +36,7 @@ void main() {
       messenger.setMockMethodCallHandler(native, null);
     });
 
-    final connected = connectFileEditor(
+    final connected = FileEditorChannel.connect(
       channel: channel,
       getWindowId: () async {
         windowRequested = true;
@@ -61,7 +61,7 @@ void main() {
     });
     addTearDown(() => messenger.setMockMethodCallHandler(native, null));
     await expectLater(
-      connectFileEditor(
+      FileEditorChannel.connect(
         channel: channel,
         getWindowId: () async {
           windowRequested = true;
@@ -103,7 +103,7 @@ void main() {
       messenger.setMockMethodCallHandler(native, null);
     });
     expect(
-      await connectFileEditor(
+      await FileEditorChannel.connect(
         channel: channel,
         getWindowId: () async => 123,
         onLock: () async {

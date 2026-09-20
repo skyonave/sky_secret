@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 
 import '../../../i18n/translations.g.dart';
+import '../notifications/desktop_notice.dart';
 import 'sensitive_text_actions.dart';
 import 'sensitive_text_transfer.dart';
+part 'widgets/_sensitive_text_context_menu.dart';
 
 class SensitiveClipboardScope extends InheritedTheme {
   final Future<bool> Function(String) copy;
@@ -67,18 +69,9 @@ class _SensitiveTextEditingState extends State<SensitiveTextEditing> {
       );
     } catch (_) {
       if (mounted) {
-        ScaffoldMessenger.maybeOf(context)?.showSnackBar(SnackBar(content: Text(t.clipboardBusy)));
+        DesktopNoticeHost.show(context, t.clipboardBusy);
       }
     }
-  }
-
-  Widget _contextMenu(BuildContext context, EditableTextState state) {
-    final items = SensitiveTextActions.menuItems(
-      original: state.contextMenuButtonItems,
-      transfer: _transfer,
-      hideToolbar: state.hideToolbar,
-    );
-    return AdaptiveTextSelectionToolbar.buttonItems(anchors: state.contextMenuAnchors, buttonItems: items);
   }
 
   @override
@@ -86,6 +79,9 @@ class _SensitiveTextEditingState extends State<SensitiveTextEditing> {
     actions: {
       CopySelectionTextIntent: SensitiveTextActions.copyAction(_transfer),
     },
-    child: Builder(builder: (context) => widget.builder(context, _contextMenu)),
+    child: Builder(
+      builder: (context) =>
+          widget.builder(context, (context, state) => _SensitiveTextContextMenu(state: state, onTransfer: _transfer)),
+    ),
   );
 }

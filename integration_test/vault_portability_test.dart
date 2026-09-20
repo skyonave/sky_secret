@@ -17,8 +17,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:skysecret/app.dart';
 import 'package:skysecret/core/crypto/crypto.dart';
-import 'package:skysecret/core/os/windows/desktop_controller.dart';
-import 'package:skysecret/core/settings/shortcut_settings.dart';
+import 'package:skysecret/core/os/windows/controllers/desktop_controller.dart';
+import 'package:skysecret/core/settings/repositories/shortcut_settings.dart';
 import 'package:skysecret/i18n/translations.g.dart';
 import 'package:win32/win32.dart' as win32;
 import 'package:window_manager/window_manager.dart';
@@ -39,10 +39,9 @@ win32.HWND ownRunnerWindow() {
         )
       >('EnumWindows');
   final className = user
-      .lookupFunction<
-        Int32 Function(IntPtr, Pointer<Utf16>, Int32),
-        int Function(int, Pointer<Utf16>, int)
-      >('GetClassNameW');
+      .lookupFunction<Int32 Function(IntPtr, Pointer<Utf16>, Int32), int Function(int, Pointer<Utf16>, int)>(
+        'GetClassNameW',
+      );
   var found = 0;
   final callback = NativeCallable<Int32 Function(IntPtr, IntPtr)>.isolateLocal((
     int id,
@@ -56,8 +55,7 @@ win32.HWND ownRunnerWindow() {
       );
       final name = arena<Uint16>(256).cast<Utf16>();
       className(id, name, 256);
-      if (owner.value == win32.GetCurrentProcessId() &&
-          name.toDartString() == 'FLUTTER_RUNNER_WIN32_WINDOW') {
+      if (owner.value == win32.GetCurrentProcessId() && name.toDartString() == 'FLUTTER_RUNNER_WIN32_WINDOW') {
         found = id;
         return 0;
       }
@@ -110,12 +108,8 @@ Future<void> exerciseEditorWindow() async {
     await waitFor(
       () => find.byKey(const Key('file-editor-text')).evaluate().isNotEmpty,
     );
-    final field =
-        find.byKey(const Key('file-editor-text')).evaluate().single.widget
-            as TextField;
-    final initial = mode == 'lock'
-        ? 'Synthetic original\ntext'
-        : 'Synthetic updated\ntext';
+    final field = find.byKey(const Key('file-editor-text')).evaluate().single.widget as TextField;
+    final initial = mode == 'lock' ? 'Synthetic original\ntext' : 'Synthetic updated\ntext';
     if (field.controller!.text != initial) {
       throw StateError('Editor did not load the synthetic source');
     }
@@ -141,29 +135,18 @@ Future<void> exerciseEditorWindow() async {
     }
     field.controller!.text = 'Synthetic updated\ntext';
     await waitFor(
-      () =>
-          (find.byKey(const Key('file-editor-save')).evaluate().single.widget
-                  as FilledButton)
-              .onPressed !=
-          null,
+      () => (find.byKey(const Key('file-editor-save')).evaluate().single.widget as FilledButton).onPressed != null,
     );
-    (find.byKey(const Key('file-editor-save')).evaluate().single.widget
-            as FilledButton)
-        .onPressed!();
+    (find.byKey(const Key('file-editor-save')).evaluate().single.widget as FilledButton).onPressed!();
     await waitFor(() => find.text(t.fileEditorStored).evaluate().isNotEmpty);
     await windowManager.show();
     await windowManager.focus();
     await Future<void>.delayed(const Duration(milliseconds: 300));
-    final boundary =
-        find.byType(RepaintBoundary).evaluate().first.renderObject!
-            as RenderRepaintBoundary;
-    final image = await boundary
-        .toImage(pixelRatio: 1)
-        .timeout(const Duration(seconds: 10));
+    final boundary = find.byType(RepaintBoundary).evaluate().first.renderObject! as RenderRepaintBoundary;
+    final image = await boundary.toImage(pixelRatio: 1).timeout(const Duration(seconds: 10));
     final png = await image.toByteData(format: ui.ImageByteFormat.png);
     await Directory('build/qa').create(recursive: true);
-    await File('build/qa/file-editor-native.png')
-        .writeAsBytes(png!.buffer.asUint8List());
+    await File('build/qa/file-editor-native.png').writeAsBytes(png!.buffer.asUint8List());
     image.dispose();
     field.controller!.text = 'Synthetic unsaved';
     await windowManager.close();
@@ -195,7 +178,7 @@ void main([List<String> args = const []]) {
   if (args.firstOrNull == 'multi_window') {
     WidgetsFlutterBinding.ensureInitialized();
     unawaited(() async {
-      await runFileEditorIfNeeded();
+      await FileEditorWindow.runIfNeeded();
       debugPrint('Synthetic editor started');
       await exerciseEditorWindow();
     }());
@@ -242,8 +225,7 @@ void main([List<String> args = const []]) {
       await windowManager.setSize(const Size(400, 520));
       await tester.pumpAndSettle();
       expect(
-        await const MethodChannel('skysecret/system_lock')
-            .invokeMethod<bool>('ready'),
+        await const MethodChannel('skysecret/system_lock').invokeMethod<bool>('ready'),
         isTrue,
       );
       final hwnd = ownRunnerWindow();
@@ -281,13 +263,10 @@ void main([List<String> args = const []]) {
         final boundary = tester.renderObject<RenderRepaintBoundary>(
           find.byKey(capture),
         );
-        final image = await boundary
-            .toImage(pixelRatio: 1)
-            .timeout(const Duration(seconds: 10));
+        final image = await boundary.toImage(pixelRatio: 1).timeout(const Duration(seconds: 10));
         final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
         await Directory('build/qa').create(recursive: true);
-        await File('build/qa/$name.png')
-            .writeAsBytes(bytes!.buffer.asUint8List());
+        await File('build/qa/$name.png').writeAsBytes(bytes!.buffer.asUint8List());
         image.dispose();
       }
 
@@ -417,11 +396,7 @@ void main([List<String> args = const []]) {
       final edited = await imported.store.unlock('Synthetic new password');
       expect(
         utf8.decode(
-          edited.entries
-              .singleWhere((e) => e.title == 'synthetic.txt')
-              .attachments
-              .single
-              .bytes,
+          edited.entries.singleWhere((e) => e.title == 'synthetic.txt').attachments.single.bytes,
         ),
         'Synthetic updated\r\ntext',
       );
@@ -438,11 +413,7 @@ void main([List<String> args = const []]) {
         await tester.pumpAndSettle();
         expect(find.byKey(const Key('vault-master')), findsOneWidget);
         if (event.$1 == 0x02B1) {
-          for (
-            var i = 0;
-            i < 30 && (await WindowController.getAll()).length > 1;
-            i++
-          ) {
+          for (var i = 0; i < 30 && (await WindowController.getAll()).length > 1; i++) {
             await tester.pump(const Duration(milliseconds: 100));
           }
           expect((await WindowController.getAll()).length, 1);
@@ -464,26 +435,16 @@ void main([List<String> args = const []]) {
           await editorResult.future.timeout(const Duration(seconds: 45)),
           isTrue,
         );
-        for (
-          var i = 0;
-          i < 100 && (await WindowController.getAll()).length > 1;
-          i++
-        ) {
+        for (var i = 0; i < 100 && (await WindowController.getAll()).length > 1; i++) {
           await tester.pump(const Duration(milliseconds: 100));
         }
         expect((await WindowController.getAll()).length, 1);
         final saved = await imported.store.unlock('Synthetic new password');
         expect(
           utf8.decode(
-            saved.entries
-                .singleWhere((e) => e.title == 'synthetic.txt')
-                .attachments
-                .single
-                .bytes,
+            saved.entries.singleWhere((e) => e.title == 'synthetic.txt').attachments.single.bytes,
           ),
-          scenario == 'save'
-              ? 'Synthetic close-save'
-              : 'Synthetic updated\r\ntext',
+          scenario == 'save' ? 'Synthetic close-save' : 'Synthetic updated\r\ntext',
         );
         saved.lock();
         debugPrint('Synthetic close-$scenario verified');

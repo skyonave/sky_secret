@@ -12,7 +12,7 @@ void main() {
 
   test('fresh install selects SkySecret without creating data', () {
     expect(
-      appDataDirectory(root: root.path).path,
+      AppDataDirectory.resolve(root: root.path).path,
       '${root.path}${Platform.pathSeparator}SkySecret',
     );
     expect(root.listSync(), isEmpty);
@@ -24,7 +24,7 @@ void main() {
     ).create();
     final vault = await File('${legacy.path}/vault.smv').writeAsBytes([1, 2, 3]);
     await Directory('${root.path}/SkySecret').create();
-    expect(appDataDirectory(root: root.path).path, legacy.path);
+    expect(AppDataDirectory.resolve(root: root.path).path, legacy.path);
     expect(await vault.readAsBytes(), [1, 2, 3]);
   });
 
@@ -33,7 +33,7 @@ void main() {
     () async {
       await File('${root.path}/SecretManager').writeAsString('placeholder');
       expect(
-        () => appDataDirectory(root: root.path),
+        () => AppDataDirectory.resolve(root: root.path),
         throwsA(isA<FileSystemException>()),
       );
     },
@@ -42,14 +42,14 @@ void main() {
   test('invalid current path fails', () async {
     await File('${root.path}/SkySecret').writeAsString('placeholder');
     expect(
-      () => appDataDirectory(root: root.path),
+      () => AppDataDirectory.resolve(root: root.path),
       throwsA(isA<FileSystemException>()),
     );
   });
 
   test('missing app data root fails', () {
     expect(
-      () => appDataDirectory(root: ''),
+      () => AppDataDirectory.resolve(root: ''),
       throwsA(isA<FileSystemException>()),
     );
   });

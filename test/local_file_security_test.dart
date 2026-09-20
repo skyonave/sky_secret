@@ -2,8 +2,8 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skysecret/core/settings/shortcut_settings.dart';
-import 'package:skysecret/core/settings/vault_preferences.dart';
+import 'package:skysecret/core/settings/repositories/shortcut_settings.dart';
+import 'package:skysecret/core/settings/repositories/vault_preferences.dart';
 import 'package:skysecret/core/storage/local_file.dart';
 
 class GrowingHandle extends Fake implements RandomAccessFile {
@@ -41,13 +41,13 @@ void main() {
     final directory = await Directory.systemTemp.createTemp('sky-file-audit-');
     addTearDown(() => directory.delete(recursive: true));
     final file = File('${directory.path}/data');
-    expect(await readBoundedFile(file, maxBytes: 16), isNull);
+    expect(await LocalFile.readBounded(file, maxBytes: 16), isNull);
     await file.writeAsBytes(Uint8List(17));
-    await expectLater(readBoundedFile(file, maxBytes: 16), throwsA(isA<FileSystemException>()));
-    await expectLater(readBoundedFile(File(directory.path), maxBytes: 16), throwsA(isA<FileSystemException>()));
+    await expectLater(LocalFile.readBounded(file, maxBytes: 16), throwsA(isA<FileSystemException>()));
+    await expectLater(LocalFile.readBounded(File(directory.path), maxBytes: 16), throwsA(isA<FileSystemException>()));
     final handle = GrowingHandle();
     await expectLater(
-      readBoundedFile(GrowingFile(file.path, handle), maxBytes: 16),
+      LocalFile.readBounded(GrowingFile(file.path, handle), maxBytes: 16),
       throwsA(isA<FileSystemException>()),
     );
     expect(handle.requested, 17);
@@ -76,7 +76,7 @@ void main() {
     await VaultPreferences(file: file).save(true, lockWhenHidden: true);
     expect(await unrelated.readAsString(), 'synthetic unrelated file');
     expect(await VaultPreferences(file: file).loadAutoLock(), isTrue);
-    await ShortcutStore(file: file).save(defaultShortcut());
+    await ShortcutStore(file: file).save(SystemShortcuts.defaultManager());
     expect(await unrelated.readAsString(), 'synthetic unrelated file');
     expect(await ShortcutStore(file: file).load(), isNotNull);
     expect((await directory.list().toList()).whereType<Directory>(), isEmpty);

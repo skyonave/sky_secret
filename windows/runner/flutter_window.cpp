@@ -1,4 +1,5 @@
 #include "flutter_window.h"
+#include "desktop_notice.h"
 
 #include <optional>
 #include <wtsapi32.h>
@@ -28,10 +29,12 @@ bool FlutterWindow::OnCreate() {
     return false;
   }
   RegisterPlugins(flutter_controller_->engine());
+  RegisterDesktopNotice(flutter_controller_->engine()->GetRegistrarForPlugin("DesktopNoticePlugin"));
   ssh_bridge_ = std::make_unique<SshBridge>(flutter_controller_->engine()->messenger());
   DesktopMultiWindowSetWindowCreatedCallback([](void* controller) {
     auto* view_controller = reinterpret_cast<flutter::FlutterViewController*>(controller);
     RegisterPlugins(view_controller->engine());
+    RegisterDesktopNotice(view_controller->engine()->GetRegistrarForPlugin("DesktopNoticePlugin"));
   });
   SetChildContent(flutter_controller_->view()->GetNativeWindow());
   companion_ = std::make_unique<CompanionWindow>(GetHandle());
@@ -122,6 +125,26 @@ bool FlutterWindow::OnCreate() {
       result->NotImplemented();
     }
   });
+  secret_drag_ = std::make_shared<SecretDragSource>(GetHandle());
+  secret_drag_channel_ = std::make_unique<flutter::MethodChannel<flutter::EncodableValue>>(
+      flutter_controller_->engine()->messenger(), "skysecret/secret_drag",
+      &flutter::StandardMethodCodec::GetInstance());
+  secret_drag_channel_->SetMethodCallHandler([this](const auto& call, auto result) {
+    const auto source = secret_drag_;
+    if (call.method_name() == "prepare") {
+      result->Success(flutter::EncodableValue(source->Prepare()));
+    } else if (call.method_name() == "start") {
+      source->Start(call.arguments(), result.get());
+    } else if (call.method_name() == "cancel") {
+      const auto* value = call.arguments();
+      if (value && (std::holds_alternative<int32_t>(*value) || std::holds_alternative<int64_t>(*value))) {
+        source->Cancel(value->LongValue());
+      }
+      result->Success();
+    } else {
+      result->NotImplemented();
+    }
+  });
   session_notifications_ = WTSRegisterSessionNotification(GetHandle(), NOTIFY_FOR_THIS_SESSION) != FALSE;
   security_channel_->SetMethodCallHandler([this](const auto& call, auto result) {
     if (call.method_name() == "ready") {
@@ -142,6 +165,9 @@ bool FlutterWindow::OnCreate() {
 }
 
 void FlutterWindow::OnDestroy() {
+  if (secret_drag_) secret_drag_->Stop();
+  secret_drag_channel_.reset();
+  secret_drag_.reset();
   if (file_drag_) file_drag_->Stop();
   file_drag_channel_.reset();
   file_drag_.reset();
@@ -180,6 +206,7 @@ FlutterWindow::MessageHandler(HWND hwnd, UINT const message,
   if (companion_) companion_->OnMessage(message, wparam, lparam);
   if (search_companion_) search_companion_->OnMessage(message, wparam, lparam);
   if (message == WM_SHOWWINDOW && !wparam && file_drop_) {
+    if (secret_drag_) secret_drag_->Revoke();
     if (file_drag_) file_drag_->Revoke();
     file_drop_->DragLeave();
   }
@@ -187,6 +214,7 @@ FlutterWindow::MessageHandler(HWND hwnd, UINT const message,
   if (file_drag_ && ((message == WM_WTSSESSION_CHANGE && wparam == WTS_SESSION_UNLOCK) ||
       (message == WM_POWERBROADCAST && (wparam == PBT_APMRESUMEAUTOMATIC || wparam == PBT_APMRESUMESUSPEND)))) {
     file_drag_->SetSuspended(false);
+    if (secret_drag_) secret_drag_->SetSuspended(false);
   }
 
   if (security_channel_ &&
@@ -197,6 +225,11 @@ FlutterWindow::MessageHandler(HWND hwnd, UINT const message,
         (wparam == PBT_APMSUSPEND || wparam == PBT_APMRESUMEAUTOMATIC ||
          wparam == PBT_APMRESUMESUSPEND)))) {
     if (ssh_bridge_) ssh_bridge_->Revoke();
+    if (secret_drag_) {
+      const bool suspended = message == WM_WTSSESSION_CHANGE || wparam == PBT_APMSUSPEND;
+      if (suspended) secret_drag_->SetSuspended(true);
+      else secret_drag_->Revoke();
+    }
     if (file_drag_) {
       const bool suspended = message == WM_WTSSESSION_CHANGE || wparam == PBT_APMSUSPEND;
       if (suspended) file_drag_->SetSuspended(true);

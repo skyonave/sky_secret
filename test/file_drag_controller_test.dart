@@ -3,7 +3,7 @@ import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skysecret/core/crypto/crypto.dart';
-import 'package:skysecret/core/desktop/file_drag_controller.dart';
+import 'package:skysecret/core/desktop/drag/controllers/file_drag_controller.dart';
 
 void main() {
   VaultAttachment attachment() => VaultAttachment.create('synthetic.txt', List.generate(17001, (index) => index % 251));

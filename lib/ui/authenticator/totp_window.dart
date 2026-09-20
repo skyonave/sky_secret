@@ -10,36 +10,14 @@ import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:window_manager/window_manager.dart';
 
-import '../../core/desktop/totp_window_layout.dart';
-import '../../core/desktop/windows/hidden_window_frame.dart';
-import '../../core/os/windows/totp_window_region.dart';
+import '../../core/desktop/totp/services/totp_window_layout.dart';
+import '../../core/os/windows/window/hidden_window_frame.dart';
+import '../../core/os/windows/window/totp_window_region.dart';
 import '../../i18n/translations.g.dart';
 import '../shared/app_theme.dart';
-
-Future<bool> runTotpWindowIfNeeded() async {
-  final controller = await WindowController.fromCurrentEngine();
-  if (controller.arguments.isEmpty) return false;
-  final args = jsonDecode(controller.arguments);
-  if (args is! Map || args['type'] != 'totp') return false;
-  await LocaleSettings.setLocale(args['locale'] == 'en' ? AppLocale.en : AppLocale.ru);
-  await windowManager.ensureInitialized();
-  await windowManager.setPreventClose(true);
-  await windowManager.waitUntilReadyToShow(
-    WindowOptions(
-      size: const Size(230, totpTileHeight),
-      backgroundColor: Colors.transparent,
-      title: t.totpTitle,
-      titleBarStyle: TitleBarStyle.hidden,
-      skipTaskbar: true,
-      alwaysOnTop: true,
-    ),
-  );
-  await windowManager.setAsFrameless();
-  await windowManager.setResizable(false);
-  await windowManager.setHasShadow(false);
-  runApp(TranslationProvider(child: TotpWindow(channel: WindowMethodChannel(args['channel'] as String))));
-  return true;
-}
+part 'widgets/_totp_panel.dart';
+part 'widgets/_totp_row.dart';
+part 'widgets/_totp_page_button.dart';
 
 class TotpWindow extends StatefulWidget {
   final WindowMethodChannel channel;
@@ -48,6 +26,31 @@ class TotpWindow extends StatefulWidget {
 
   @override
   State<TotpWindow> createState() => _TotpWindowState();
+
+  static Future<bool> runIfNeeded() async {
+    final controller = await WindowController.fromCurrentEngine();
+    if (controller.arguments.isEmpty) return false;
+    final args = jsonDecode(controller.arguments);
+    if (args is! Map || args['type'] != 'totp') return false;
+    await LocaleSettings.setLocale(args['locale'] == 'en' ? AppLocale.en : AppLocale.ru);
+    await windowManager.ensureInitialized();
+    await windowManager.setPreventClose(true);
+    await windowManager.waitUntilReadyToShow(
+      WindowOptions(
+        size: const Size(TotpWindowLayout.tileWidth, TotpWindowLayout.headerHeight + TotpWindowLayout.tileHeight),
+        backgroundColor: Colors.transparent,
+        title: t.totpTitle,
+        titleBarStyle: TitleBarStyle.hidden,
+        skipTaskbar: true,
+        alwaysOnTop: true,
+      ),
+    );
+    await windowManager.setAsFrameless();
+    await windowManager.setResizable(false);
+    await windowManager.setHasShadow(false);
+    runApp(TranslationProvider(child: TotpWindow(channel: WindowMethodChannel(args['channel'] as String))));
+    return true;
+  }
 }
 
 class _TotpWindowState extends State<TotpWindow> with WindowListener {
@@ -76,7 +79,7 @@ class _TotpWindowState extends State<TotpWindow> with WindowListener {
   Future<void> _connect() async {
     try {
       _windowId = await windowManager.getId();
-      configureTotpWindowFrame(_windowId);
+      WindowRegion.configureTotpFrame(_windowId);
       await widget.channel.setMethodCallHandler((call) async {
         switch (call.method) {
           case 'activate':
@@ -95,7 +98,7 @@ class _TotpWindowState extends State<TotpWindow> with WindowListener {
         await _shutdown();
         return;
       }
-      await prepareHiddenWindowFrame();
+      await HiddenWindowFrame.prepare();
       await widget.channel.invokeMethod('ready');
     } catch (_) {
       await _shutdown();
@@ -114,7 +117,7 @@ class _TotpWindowState extends State<TotpWindow> with WindowListener {
       }
       await _read(epoch);
       if (_epoch != epoch) return false;
-      await prepareHiddenWindowFrame();
+      await HiddenWindowFrame.prepare();
       if (_epoch != epoch) return false;
       await windowManager.show(inactive: true);
       if (_epoch != epoch) {
@@ -153,7 +156,7 @@ class _TotpWindowState extends State<TotpWindow> with WindowListener {
       if (_size != size || _scale != scale) {
         await windowManager.setSize(size);
         if (_epoch != epoch || !mounted) return;
-        setTotpWindowRegion(_windowId, size);
+        WindowRegion.setTotp(_windowId, size);
         _size = size;
         _scale = scale;
       }
@@ -175,7 +178,7 @@ class _TotpWindowState extends State<TotpWindow> with WindowListener {
     }
   }
 
-  int get _slots => _size == null ? 1 : totpVisibleSlots(_size!.height);
+  int get _slots => _size == null ? 1 : TotpWindowLayout.visibleSlots(_size!.height);
   int get _maxPage => (_rows.length - _slots).clamp(0, _rows.length);
 
   void _movePage(int step) {
@@ -255,7 +258,7 @@ class _TotpWindowState extends State<TotpWindow> with WindowListener {
   @override
   Widget build(BuildContext context) => MaterialApp(
     debugShowCheckedModeBanner: false,
-    theme: buildAppTheme(),
+    theme: AppTheme.theme,
     locale: TranslationProvider.of(context).flutterLocale,
     supportedLocales: AppLocaleUtils.supportedLocales,
     localizationsDelegates: GlobalMaterialLocalizations.delegates,
@@ -266,176 +269,29 @@ class _TotpWindowState extends State<TotpWindow> with WindowListener {
         child: Listener(
           onPointerDown: (_) => _activity(),
           onPointerSignal: (event) {
-            if (event is PointerScrollEvent) _movePage(event.scrollDelta.dy < 0 ? 1 : -1);
+            if (event is PointerScrollEvent) _movePage(event.scrollDelta.dy > 0 ? 1 : -1);
           },
           child: Scaffold(
             backgroundColor: Colors.transparent,
-            body: _epoch == null
-                ? const SizedBox.shrink()
-                : LayoutBuilder(
-                    builder: (context, constraints) {
-                      final rects = totpTileRects(constraints.biggest);
-                      return Stack(
-                        children: [
-                          for (
-                            var slot = 0;
-                            slot < rects.length && (_rows.isEmpty || _page + slot < _rows.length);
-                            slot++
-                          )
-                            Positioned.fromRect(
-                              rect: rects[slot],
-                              child: _rows.isEmpty
-                                  ? _empty()
-                                  : _card(_rows[_page + slot], navigation: slot == rects.length - 1),
-                            ),
-                        ],
-                      );
-                    },
-                  ),
-          ),
-        ),
-      ),
-    ),
-  );
-
-  Widget _empty() => Material(
-    color: AppColors.background,
-    clipBehavior: Clip.antiAlias,
-    shape: RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(totpTileRadius),
-      side: const BorderSide(color: AppColors.border),
-    ),
-    child: Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      child: Row(
-        children: [
-          Expanded(
-            child: Text(
-              t.totpEmpty,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontSize: 11),
-            ),
-          ),
-          DesktopIconButton(
-            tooltip: t.totpClose,
-            onPressed: () => unawaited(_dismiss()),
-            icon: const Icon(Icons.close, size: 18),
-          ),
-        ],
-      ),
-    ),
-  );
-
-  Widget _card(Map row, {required bool navigation}) {
-    final now = DateTime.now().millisecondsSinceEpoch;
-    final remaining = ((row['expires'] as int) - now).clamp(0, (row['period'] as int) * 1000);
-    final valid = remaining > 0 && now >= (row['expires'] as int) - (row['period'] as int) * 1000;
-    final code = row['code'] as String;
-    final midpoint = code.length ~/ 2;
-    final copied = _copied == row['id'] && now < _copiedUntil;
-    return Material(
-      color: AppColors.background,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(totpTileRadius),
-        side: const BorderSide(color: AppColors.border),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: Padding(
-        padding: const EdgeInsets.all(4),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(totpTileRadius - 4),
-          onTap: valid && !_copying ? () => _copy(row['id'] as String) : null,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        row['title'] as String,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(fontSize: 11, color: AppColors.muted),
-                      ),
-                      const SizedBox(height: 2),
-                      FittedBox(
-                        fit: BoxFit.scaleDown,
-                        alignment: Alignment.centerLeft,
-                        child: Text(
-                          valid ? '${code.substring(0, midpoint)} ${code.substring(midpoint)}' : '—',
-                          maxLines: 1,
-                          style: const TextStyle(
-                            fontSize: 20,
-                            fontFamily: 'Consolas',
-                            letterSpacing: 2,
-                            color: AppColors.accent,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                DesktopTooltip(
-                  message: _error ?? (copied ? t.copied : t.totpCopy),
-                  child: Icon(
-                    _error != null
-                        ? Icons.error_outline
-                        : copied
-                        ? Icons.check_rounded
-                        : Icons.copy_rounded,
-                    size: 14,
-                    color: AppColors.muted,
-                  ),
-                ),
-                const SizedBox(width: 10),
-                SizedBox(
-                  width: 26,
-                  height: 26,
-                  child: Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      CircularProgressIndicator(
-                        value: remaining / ((row['period'] as int) * 1000),
-                        strokeWidth: 2,
-                        backgroundColor: AppColors.border,
-                      ),
-                      Text(
-                        '${(remaining / 1000).ceil()}',
-                        style: const TextStyle(fontSize: 10, color: AppColors.muted),
-                      ),
-                    ],
-                  ),
-                ),
-                if (navigation && _maxPage > 0) ...[
-                  const SizedBox(width: 6),
-                  Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      _pageButton(Icons.keyboard_arrow_up, _page < _maxPage ? () => _movePage(1) : null),
-                      const SizedBox(height: 4),
-                      _pageButton(Icons.keyboard_arrow_down, _page > 0 ? () => _movePage(-1) : null),
-                    ],
-                  ),
-                ],
-              ],
+            body: Visibility(
+              visible: _epoch != null,
+              child: _TotpPanel(
+                maxPage: _maxPage,
+                page: _page,
+                onMovePage: _movePage,
+                onDismiss: _dismiss,
+                rows: _rows,
+                slots: _slots,
+                copied: _copied,
+                copiedUntil: _copiedUntil,
+                copying: _copying,
+                onCopy: _copy,
+                error: _error,
+              ),
             ),
           ),
         ),
       ),
-    );
-  }
-
-  Widget _pageButton(IconData icon, VoidCallback? action) => DesktopIconButton(
-    tooltip: '${_page + 1}–${_page + _slots} / ${_rows.length}',
-    style: IconButton.styleFrom(minimumSize: const Size(20, 20), tapTargetSize: MaterialTapTargetSize.shrinkWrap),
-    constraints: const BoxConstraints.tightFor(width: 20, height: 20),
-    padding: const EdgeInsets.all(3),
-    onPressed: action,
-    icon: Icon(icon, size: 14),
+    ),
   );
 }

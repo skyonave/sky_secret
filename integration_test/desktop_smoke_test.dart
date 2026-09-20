@@ -10,19 +10,16 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:skysecret/app.dart';
 import 'package:skysecret/core/crypto/crypto.dart';
-import 'package:skysecret/core/os/windows/desktop_controller.dart';
-import 'package:skysecret/core/settings/shortcut_settings.dart';
-import 'package:skysecret/core/os/windows/windows_sensitive_clipboard.dart';
+import 'package:skysecret/core/os/windows/controllers/desktop_controller.dart';
+import 'package:skysecret/core/settings/repositories/shortcut_settings.dart';
+import 'package:skysecret/core/os/windows/services/windows_sensitive_clipboard.dart';
 import 'package:skysecret/i18n/translations.g.dart';
 import 'package:win32/win32.dart' as win32;
 import 'package:tray_manager/tray_manager.dart';
 import 'package:window_manager/window_manager.dart';
 
 final _keyEvent = DynamicLibrary.open('user32.dll')
-    .lookupFunction<
-      Void Function(Uint8, Uint8, Uint32, UintPtr),
-      void Function(int, int, int, int)
-    >('keybd_event');
+    .lookupFunction<Void Function(Uint8, Uint8, Uint32, UintPtr), void Function(int, int, int, int)>('keybd_event');
 
 Future<void> shortcut({bool hold = false}) async {
   _keyEvent(0x10, 0, 0, 0);
@@ -92,8 +89,7 @@ void main() {
     final image = await boundary.toImage(pixelRatio: 1.5);
     final png = await image.toByteData(format: ui.ImageByteFormat.png);
     final output = Directory('build/qa')..createSync(recursive: true);
-    File('${output.path}/manager.png')
-        .writeAsBytesSync(png!.buffer.asUint8List());
+    File('${output.path}/manager.png').writeAsBytesSync(png!.buffer.asUint8List());
     image.dispose();
 
     await tester.runAsync(() => shortcut());
@@ -202,7 +198,7 @@ void main() {
       modifiers: [HotKeyModifier.control, HotKeyModifier.alt],
     );
     expect(await desktop.updateShortcut(candidate), isNull);
-    expect(sameShortcut((await store.load())!, candidate), isTrue);
+    expect(SystemShortcuts.same((await store.load())!, candidate), isTrue);
     final blocker = HotKey(
       key: PhysicalKeyboardKey.keyJ,
       modifiers: [HotKeyModifier.control, HotKeyModifier.alt],
@@ -210,7 +206,7 @@ void main() {
     await hotKeyManager.register(blocker);
     try {
       expect(await desktop.updateShortcut(blocker), t.shortcutBusy);
-      expect(sameShortcut(desktop.shortcut, candidate), isTrue);
+      expect(SystemShortcuts.same(desktop.shortcut, candidate), isTrue);
     } finally {
       await hotKeyManager.unregister(blocker);
     }

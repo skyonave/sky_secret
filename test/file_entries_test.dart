@@ -4,7 +4,7 @@ import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skysecret/core/crypto/crypto.dart';
-import 'package:skysecret/core/files/text_document.dart';
+import 'package:skysecret/core/files/text/models/text_document.dart';
 
 import 'vault_sections_test.dart' show fixture;
 

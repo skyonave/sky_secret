@@ -1,8 +1,8 @@
 import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skysecret/core/desktop/clipboard/sensitive_clipboard.dart';
-import 'package:skysecret/core/desktop/clipboard/sensitive_clipboard_controller.dart';
+import 'package:skysecret/core/desktop/clipboard/services/sensitive_clipboard.dart';
+import 'package:skysecret/core/desktop/clipboard/controllers/sensitive_clipboard_controller.dart';
 
 class MemoryClipboard implements SensitiveClipboard {
   String? text;

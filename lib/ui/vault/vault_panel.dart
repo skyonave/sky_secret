@@ -10,33 +10,35 @@ import 'package:flutter/services.dart';
 import 'package:window_manager/window_manager.dart';
 
 import '../../core/crypto/crypto.dart';
-import '../../core/desktop/windows/file_viewer_manager.dart';
-import '../../core/desktop/windows/totp_window_manager.dart';
-import '../../core/desktop/totp_session.dart';
-import '../../core/desktop/file_drag_controller.dart';
-import '../../core/os/windows/ssh_connections.dart';
-import '../../core/settings/vault_preferences.dart';
-import '../../core/settings/vault_tree_preferences.dart';
-import '../../core/settings/shortcut_settings.dart';
+import '../../core/desktop/editor/controllers/file_viewer_manager.dart';
+import '../../core/desktop/totp/controllers/totp_window_manager.dart';
+import '../../core/desktop/totp/controllers/totp_session.dart';
+import '../../core/desktop/drag/controllers/file_drag_controller.dart';
+import '../../core/desktop/drag/controllers/secret_drag_controller.dart';
+import '../../core/os/windows/services/ssh_connections.dart';
+import '../../core/settings/repositories/vault_preferences.dart';
+import '../../core/settings/repositories/vault_tree_preferences.dart';
+import '../../core/settings/repositories/shortcut_settings.dart';
 
 import 'package:hotkey_manager/hotkey_manager.dart';
 
-import '../../core/os/windows/window_privacy.dart';
-import '../../core/files/text_document.dart';
-import '../../core/files/vault_file_import.dart';
-import '../../core/files/vault_text_file.dart';
-import '../../core/sync/github/github_backup.dart';
+import '../../core/os/windows/window/window_privacy.dart';
+import '../../core/files/text/models/text_document.dart';
+import '../../core/files/services/vault_file_import.dart';
+import '../../core/files/text/services/vault_text_file.dart';
+import '../../core/sync/github/controllers/github_backup.dart';
 import '../../i18n/translations.g.dart';
 import '../github/github_dialog.dart';
-import '../search/vault_search_presenter.dart';
-import '../shared/inset_menu_item.dart';
+import '../../core/desktop/search/controllers/vault_search_presenter.dart';
+import '../shared/menu/inset_menu_item.dart';
 import '../shared/desktop_option.dart';
-import '../shared/desktop_menu.dart';
-import '../shared/save_file_dialog.dart';
+import '../shared/notifications/desktop_notice.dart';
+import '../shared/menu/desktop_menu.dart';
+import '../shared/files/save_file_dialog.dart';
 import '../shared/input/sensitive_text_editing.dart';
 import '../generator/generator_dialog.dart';
-import '../generator/generator_service.dart';
-import '../../core/settings/generator_preferences.dart';
+import '../generator/services/generator_service.dart';
+import '../../core/settings/repositories/generator_preferences.dart';
 
 import 'dialogs/vault_name_dialog.dart';
 import 'dialogs/vault_password_dialog.dart';
@@ -47,19 +49,35 @@ import 'controllers/vault_browser_controller.dart';
 import 'controllers/vault_deletion_controller.dart';
 
 part 'widgets/_vault_tree.dart';
+part 'controllers/_vault_tree_controller.dart';
 part 'widgets/_vault_browser.dart';
 part 'widgets/_vault_create_actions.dart';
 part 'widgets/_vault_field.dart';
 part 'widgets/_vault_entry_editor.dart';
 part 'widgets/_vault_header.dart';
 part 'widgets/_vault_unlock_form.dart';
+part 'widgets/_projects_panel.dart';
+part 'dialogs/_project_create_dialog.dart';
 part 'dialogs/_vault_preferences_dialog.dart';
 part 'widgets/_vault_entry_card.dart';
 part 'dialogs/_vault_text_file_dialog.dart';
+part 'widgets/_vault_folder_selector.dart';
+part 'widgets/_vault_switcher.dart';
+part 'widgets/_vault_folder_tree.dart';
+part 'widgets/_vault_entry_item.dart';
+part 'controllers/_vault_entry_presenter.dart';
+part 'widgets/_vault_workspace.dart';
+part 'widgets/_vault_drop_target.dart';
+part 'widgets/_vault_draggable.dart';
+part 'widgets/_vault_entry_target.dart';
+part 'widgets/_vault_tree_children.dart';
+part 'widgets/_vault_folder_node.dart';
+part 'models/_vault_drag.dart';
 
 class VaultPanel extends StatefulWidget {
   final GeneratorService? generatorService;
   final bool active;
+  final ValueChanged<bool>? onSectionChanged;
   final VaultStore? store;
   final VaultCatalog? catalog;
   final VaultPreferences? preferences;
@@ -76,6 +94,7 @@ class VaultPanel extends StatefulWidget {
   const VaultPanel({
     super.key,
     this.active = true,
+    this.onSectionChanged,
     this.generatorService,
     this.store,
     this.catalog,
@@ -128,6 +147,10 @@ class VaultPanelState extends State<VaultPanel> {
   late final VaultSessionController _lifecycle;
   late final VaultSyncController _sync;
   bool _loading = true;
+  bool _projectsMode = false;
+  bool _archivedProjects = false;
+  bool get _showingProjects => _projectsMode && _lifecycle.project == null && _lifecycle.workspaceUnlocked;
+  bool get _contentActive => widget.active && !_showingProjects;
   bool _busy = false;
   bool _waitingForPassword = false;
   String? _error;
@@ -160,6 +183,7 @@ class VaultPanelState extends State<VaultPanel> {
   final _viewers = FileViewerManager();
   final _codesWindow = TotpWindowManager();
   late final _fileDrag = FileDragController(onActiveChanged: (active) => widget.onFileDragChanged?.call(active));
+  late final _secretDrag = SecretDragController(onActiveChanged: (active) => widget.onFileDragChanged?.call(active));
   ({int pointer, Offset origin, VaultEntry entry})? _externalDragCandidate;
   static const _systemLock = MethodChannel('skysecret/system_lock');
   bool _sensitiveDialogOpen = false;
@@ -172,6 +196,112 @@ class VaultPanelState extends State<VaultPanel> {
   VaultSession? get _session => _lifecycle.session;
   bool get _exists => _lifecycle.exists;
   int get _securityEpoch => _lifecycle.epoch;
+
+  void showSection(bool projects) {
+    if (_loading || _busy || _catalog == null) return;
+    if (_editor.active || _renamingVault || _master.text.isNotEmpty || _confirmation.text.isNotEmpty) {
+      _notice(t.projectFinishEditing, kind: DesktopNoticeKind.information);
+      return;
+    }
+    _lock(preserveWorkspace: true);
+    setState(() => _projectsMode = projects);
+    widget.onSectionChanged?.call(projects);
+  }
+
+  Future<void> _createProject() async {
+    if (_busy || !_lifecycle.workspaceUnlocked) return;
+    final epoch = _securityEpoch;
+    final draft = await showDialog<_ProjectDraft>(context: context, builder: (_) => const _ProjectCreateDialog());
+    if (!mounted || draft == null || epoch != _securityEpoch) return;
+    await _operation(() async {
+      final created = await _lifecycle.createProject(draft.name, password: draft.password);
+      if (created != null && mounted) setState(() => _archivedProjects = false);
+      _touchActivity();
+    });
+    if (mounted && _error != null) _notice(_errorText);
+  }
+
+  Future<void> _openProject(VaultProject project) async {
+    if (_busy || !_lifecycle.workspaceUnlocked) return;
+    if (project.conflictOf != null) {
+      final epoch = _securityEpoch;
+      if (!await _confirm(t.projectConflict, t.projectResolveQuestion(name: project.name)) ||
+          !mounted ||
+          epoch != _securityEpoch) {
+        return;
+      }
+      VaultProject? resolved;
+      await _operation(() async {
+        resolved = await _lifecycle.resolveProject(project);
+      });
+      if (resolved == null || !mounted || epoch != _securityEpoch) return;
+      project = resolved!;
+    }
+    _lock(preserveWorkspace: true);
+    setState(() {
+      _projectsMode = true;
+      _loading = true;
+    });
+    widget.onSectionChanged?.call(true);
+    final opening = _lifecycle.selectProject(project);
+    final epoch = _securityEpoch;
+    try {
+      await opening;
+      if (!mounted || epoch != _securityEpoch) return;
+      _touchActivity();
+      if (mounted) onWindowShown();
+    } on VaultUnlockException {
+      if (mounted && epoch == _securityEpoch) _error = 'unlock';
+    } catch (_) {
+      if (mounted && epoch == _securityEpoch) _error = 'io';
+    } finally {
+      if (mounted && epoch == _securityEpoch) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _toggleProjectArchive(VaultProject project) async {
+    if (_busy || !_lifecycle.workspaceUnlocked) return;
+    final epoch = _securityEpoch;
+    if (!await _confirm(
+          project.archived ? t.projectUnarchive : t.projectRemove,
+          project.archived
+              ? t.projectUnarchiveQuestion(name: project.name)
+              : t.projectRemoveQuestion(name: project.name),
+        ) ||
+        !mounted ||
+        epoch != _securityEpoch) {
+      return;
+    }
+    await _operation(() => _lifecycle.toggleProjectArchive(project));
+    if (mounted && _error != null) _notice(_errorText);
+  }
+
+  Future<void> _restoreProject() async {
+    if (_busy || _lifecycle.project == null) return;
+    final epoch = _securityEpoch;
+    await _operation(() async {
+      final source = await openFile(
+        acceptedTypeGroups: [
+          XTypeGroup(label: t.appName, extensions: ['smv']),
+        ],
+      );
+      if (!mounted || source == null || epoch != _securityEpoch) return;
+      if (_lifecycle.project!.unlockWithWorkspace) {
+        try {
+          if (await _lifecycle.restoreProject(File(source.path))) {
+            _touchActivity();
+            return;
+          }
+        } on VaultUnlockException {
+          if (!mounted || epoch != _securityEpoch) return;
+        }
+      }
+      final passwords = await _passwordPrompt();
+      if (!mounted || passwords == null || epoch != _securityEpoch) return;
+      await _lifecycle.restoreProject(File(source.path), password: passwords.password);
+      _touchActivity();
+    });
+  }
 
   Future<bool> _confirmSshHost(String prompt) async {
     if (!mounted || _session == null || _session!.isLocked || _sensitiveDialogOpen) {
@@ -217,7 +347,7 @@ class VaultPanelState extends State<VaultPanel> {
     try {
       await _sshConnections.start(_selectedVaultId ?? 'local', session, entry);
       if (mounted && _session == session && !session.isLocked) {
-        _notice(t.sshStarted);
+        _notice(t.sshStarted, kind: DesktopNoticeKind.success);
       }
     } on PlatformException catch (error) {
       if (!mounted || _session != session || session.isLocked) return;
@@ -238,7 +368,7 @@ class VaultPanelState extends State<VaultPanel> {
   Future<void> synchronize(GitHubBackup backup) async {
     if (_busy || _loading || backup.busy) return;
     if (_editor.active || _renamingVault || _viewers.hasOpenViewers) {
-      _notice(t.syncFinishEditing);
+      _notice(t.syncFinishEditing, kind: DesktopNoticeKind.information);
       return;
     }
     if (!backup.signedIn) {
@@ -247,7 +377,7 @@ class VaultPanelState extends State<VaultPanel> {
     }
     final session = _session;
     if (session == null || session.isLocked || _selectedVaultId == null) {
-      _notice(t.syncUnlock);
+      _notice(t.syncUnlock, kind: DesktopNoticeKind.information);
       await showGitHub(backup);
       return;
     }
@@ -292,7 +422,7 @@ class VaultPanelState extends State<VaultPanel> {
   String _synchronizationMessage(GitHubBackup backup, VaultSyncResult result) => switch (result) {
     VaultSyncResult.keyChanged => t.syncKeyChanged,
     VaultSyncResult.rollback => t.syncRollback,
-    VaultSyncResult.failed => backup.problem == null ? t.githubRestoreError : githubProblemLabel(backup.problem!),
+    VaultSyncResult.failed => backup.problem == null ? t.githubRestoreError : GitHubLabels.problem(backup.problem!),
     VaultSyncResult.cleanupPending => t.vaultSnapshotCleanupWarning,
     VaultSyncResult.conflicts => t.syncConflicts(count: backup.mergedConflicts),
     VaultSyncResult.done => t.syncDone,
@@ -333,30 +463,46 @@ class VaultPanelState extends State<VaultPanel> {
                         ? t.syncKeyChanged
                         : problem == null
                         ? t.syncUnlock
-                        : githubProblemLabel(problem),
+                        : GitHubLabels.problem(problem),
                   );
                   return false;
                 }
-                _notice(t.syncRelinkDone);
+                _notice(t.syncRelinkDone, kind: DesktopNoticeKind.success);
                 return true;
               },
         restore: (bytes, remote) async {
           if (remote != null) {
             final existing = backup.localForRemote(remote.id);
-            if (existing != null && (await _catalog!.list()).any((v) => v.id == existing)) {
-              await _selectVault(existing);
-              if (mounted) _notice(t.syncAlreadyLinked);
+            final reference = (await _catalog!.list()).where((v) => v.id == existing).firstOrNull;
+            if (reference != null) {
+              if (reference.isProject) {
+                final project = _lifecycle.projects.where((p) => p.vaultId == existing).firstOrNull;
+                if (project == null) {
+                  if (mounted) _notice(t.projectSelectWorkspace, kind: DesktopNoticeKind.information);
+                  return false;
+                }
+                await _openProject(project);
+              } else {
+                await _selectVault(existing);
+              }
+              if (mounted) _notice(t.syncAlreadyLinked, kind: DesktopNoticeKind.information);
               return true;
             }
           }
           final epoch = _securityEpoch;
-          final passwords = await _passwordPrompt();
+          final intoProject = !restoreSeparately && _lifecycle.project != null;
+          final shared = intoProject && _lifecycle.project!.unlockWithWorkspace;
+          final passwords = shared ? (current: '', password: '') : await _passwordPrompt();
           if (passwords == null || !mounted || epoch != _securityEpoch) {
             return false;
           }
           var restored = false;
           await _operation(() async {
-            if (await _sync.restore(backup, bytes, passwords.password, remote: remote) == false || !mounted) return;
+            if (await _sync.restore(backup, bytes, passwords.password, remote: remote, intoProject: intoProject) ==
+                    false ||
+                !mounted) {
+              return;
+            }
             _resetBrowser();
             _viewers.closeAll();
             _codesWindow.close();
@@ -389,6 +535,7 @@ class VaultPanelState extends State<VaultPanel> {
   }
 
   bool get canAcceptFileDrop =>
+      _contentActive &&
       !_loading &&
       _session != null &&
       !_session!.isLocked &&
@@ -409,7 +556,7 @@ class VaultPanelState extends State<VaultPanel> {
     String? folderId,
   }) async {
     if (_session != sessionToken || !canAcceptFileDrop) {
-      _notice(fileDropHint);
+      _notice(fileDropHint, kind: DesktopNoticeKind.information);
       return;
     }
     final session = _session!;
@@ -423,7 +570,7 @@ class VaultPanelState extends State<VaultPanel> {
     String? folderId,
   }) async {
     try {
-      final entries = await readVaultFiles(session, paths, folderId: folderId);
+      final entries = await VaultFileImport.read(session, paths, folderId: folderId);
       if (entries.isEmpty || !mounted || session.isLocked || _session != session) {
         return;
       }
@@ -432,7 +579,7 @@ class VaultPanelState extends State<VaultPanel> {
       if (await _lifecycle.save(organization.entries, folders: organization.folders) == false) return;
       if (mounted && !session.isLocked && _session == session) {
         setState(() => _collapsedFolders.remove(folderId ?? ''));
-        _notice(t.vaultFilesAdded(count: entries.length));
+        _notice(t.vaultFilesAdded(count: entries.length), kind: DesktopNoticeKind.success);
       }
     } on FileImportException catch (error) {
       if (!mounted || session.isLocked || _session != session) return;
@@ -449,6 +596,7 @@ class VaultPanelState extends State<VaultPanel> {
     _cancelPasswordGeneration();
     _externalDragCandidate = null;
     _fileDrag.cancel();
+    _secretDrag.cancel();
     _codesWindow.close();
     _searchWindow.close();
     DesktopMenuObserver.dismissAll();
@@ -458,10 +606,11 @@ class VaultPanelState extends State<VaultPanel> {
       return;
     }
     Navigator.of(context).popUntil((route) => route.isFirst);
-    _lock(clearClipboard: false);
+    _lock(clearClipboard: false, keepNotice: true);
   }
 
   void onWindowShown() {
+    if (!_contentActive) return;
     if (_session?.entries.any((entry) => entry.hasTotp && entry.isDeleted == false) == true) {
       unawaited(_openCodes());
     }
@@ -476,7 +625,12 @@ class VaultPanelState extends State<VaultPanel> {
       confirmHost: _confirmSshHost,
       onAuthorizationChanged: (pending) => widget.onSshAuthorizationChanged?.call(pending),
       onExit: (success) {
-        if (mounted) _notice(success ? t.sshClosed : t.sshFailed);
+        if (mounted) {
+          _notice(
+            success ? t.sshClosed : t.sshFailed,
+            kind: success ? DesktopNoticeKind.information : DesktopNoticeKind.error,
+          );
+        }
       },
     );
     HardwareKeyboard.instance.addHandler(_onKeyActivity);
@@ -499,7 +653,10 @@ class VaultPanelState extends State<VaultPanel> {
     super.didUpdateWidget(oldWidget);
     if (widget.active == false) _searchWindow.close();
     if (widget.active == false) _codesWindow.close();
-    if (widget.active == false) _fileDrag.cancel();
+    if (widget.active == false) {
+      _fileDrag.cancel();
+      _secretDrag.cancel();
+    }
     if (widget.active && oldWidget.active == false) onWindowShown();
   }
 
@@ -513,12 +670,8 @@ class VaultPanelState extends State<VaultPanel> {
     }
   }
 
-  void _notice(String message) {
-    if (mounted) {
-      ScaffoldMessenger.of(context)
-        ..clearSnackBars()
-        ..showSnackBar(SnackBar(content: Text(message)));
-    }
+  void _notice(String message, {DesktopNoticeKind kind = DesktopNoticeKind.error}) {
+    if (mounted) DesktopNoticeHost.show(context, message, kind: kind);
   }
 
   Future<VaultPasswords?> _passwordPrompt({
@@ -559,7 +712,7 @@ class VaultPanelState extends State<VaultPanel> {
     } on VaultFormatException {
       if (mounted && epoch == _securityEpoch) setState(() => _error = 'format');
     } on VaultConflictException {
-      if (mounted && epoch == _securityEpoch) _notice(t.vaultDestinationExists);
+      if (mounted && epoch == _securityEpoch) _notice(t.vaultDestinationExists, kind: DesktopNoticeKind.information);
     } catch (_) {
       if (mounted && epoch == _securityEpoch) setState(() => _error = 'io');
     } finally {
@@ -595,7 +748,7 @@ class VaultPanelState extends State<VaultPanel> {
       });
 
       _touchActivity();
-      _notice(t.vaultImportDone);
+      _notice(t.vaultImportDone, kind: DesktopNoticeKind.success);
     });
   }
 
@@ -603,21 +756,46 @@ class VaultPanelState extends State<VaultPanel> {
     final session = _session;
     if (session == null) return;
     await _operation(() async {
-      final destination = await selectSaveFile(
-        context: context,
-        suggestedName: 'vault-backup-${DateTime.now().millisecondsSinceEpoch}.smv',
-        requireExtension: true,
-        allowed: () => mounted && !session.isLocked && _session == session,
-      );
-      if (!mounted || destination == null || session.isLocked || _session != session) {
-        return;
+      VaultSession? exportCopy;
+      try {
+        if (_lifecycle.project?.unlockWithWorkspace == true) {
+          final epoch = _securityEpoch;
+          final password = await showDialog<VaultPasswords>(
+            context: context,
+            builder: (_) => const VaultPasswordDialog(create: true),
+          );
+          if (!mounted || password == null || epoch != _securityEpoch || session.isLocked) return;
+          exportCopy = await session.exportWithPassword(password.password);
+          if (!mounted || epoch != _securityEpoch || session.isLocked) return;
+        } else if (session.projects.isNotEmpty) {
+          if (!await _confirm(t.vaultExport, t.projectBackupHelp) || !mounted || session.isLocked) return;
+        }
+        final destination = await SaveFileDialog.select(
+          context: context,
+          suggestedName: 'vault-backup-${DateTime.now().millisecondsSinceEpoch}.smv',
+          requireExtension: true,
+          allowed: () => mounted && !session.isLocked && _session == session,
+        );
+        if (!mounted || destination == null || session.isLocked || _session != session) {
+          return;
+        }
+        await _store!.exportTo(
+          exportCopy ?? session,
+          destination,
+          allowed: () => mounted && !session.isLocked && _session == session,
+        );
+        if (mounted && !session.isLocked) _notice(t.vaultExportDone, kind: DesktopNoticeKind.success);
+      } finally {
+        if (exportCopy != null) session.closeRevision(exportCopy);
       }
-      await _store!.exportTo(session, destination);
-      if (mounted && !session.isLocked) _notice(t.vaultExportDone);
     });
   }
 
   Future<void> _changePassword() async {
+    if (_lifecycle.project?.unlockWithWorkspace == true) {
+      showSection(false);
+      if (_lifecycle.project != null) return;
+    }
     final session = _session;
     if (session == null || _busy) return;
     await _operation(() async {
@@ -633,7 +811,10 @@ class VaultPanelState extends State<VaultPanel> {
       unawaited(widget.clearClipboard());
 
       _touchActivity();
-      _notice(_store!.snapshotCleanupPending ? t.vaultSnapshotCleanupWarning : t.vaultPasswordChanged);
+      _notice(
+        _store!.snapshotCleanupPending ? t.vaultSnapshotCleanupWarning : t.vaultPasswordChanged,
+        kind: _store!.snapshotCleanupPending ? DesktopNoticeKind.warning : DesktopNoticeKind.success,
+      );
     });
   }
 
@@ -700,7 +881,7 @@ class VaultPanelState extends State<VaultPanel> {
     final session = _session;
     if (session == null) return;
     await _operation(() async {
-      final destination = await selectSaveFile(
+      final destination = await SaveFileDialog.select(
         context: context,
         suggestedName: attachment.name,
         allowed: () => mounted && !session.isLocked && _session == session,
@@ -709,7 +890,7 @@ class VaultPanelState extends State<VaultPanel> {
         return;
       }
       await VaultStore.extract(session, attachment, destination);
-      if (mounted && !session.isLocked) _notice(t.vaultAttachmentSaved);
+      if (mounted && !session.isLocked) _notice(t.vaultAttachmentSaved, kind: DesktopNoticeKind.success);
     });
   }
 
@@ -726,7 +907,7 @@ class VaultPanelState extends State<VaultPanel> {
     }
     final readable = document;
     if (readable == null) {
-      _notice(t.fileEditorUnsupported);
+      _notice(t.fileEditorUnsupported, kind: DesktopNoticeKind.information);
       await _extractAttachment(original);
       return;
     }
@@ -845,6 +1026,14 @@ class VaultPanelState extends State<VaultPanel> {
 
   Future<void> _open() async {
     if (_busy) return;
+    if (_lifecycle.project?.unlockWithWorkspace == true) {
+      await _operation(() async {
+        await _lifecycle.open(_lifecycle.project!.credential);
+        _touchActivity();
+      });
+      if (mounted) onWindowShown();
+      return;
+    }
     if (_master.text.isEmpty) {
       setState(() => _error = 'required');
       return;
@@ -865,14 +1054,19 @@ class VaultPanelState extends State<VaultPanel> {
       FocusManager.instance.primaryFocus?.unfocus();
       setState(_vaultName.clear);
       _touchActivity();
-      if (_store!.snapshotCleanupPending) _notice(t.vaultSnapshotCleanupWarning);
+      if (_store!.snapshotCleanupPending) _notice(t.vaultSnapshotCleanupWarning, kind: DesktopNoticeKind.warning);
     });
     if (_session?.entries.any((entry) => entry.hasTotp && entry.isDeleted == false) == true) unawaited(_openCodes());
   }
 
   bool _onKeyActivity(KeyEvent event) {
     _touchActivity();
-    if (widget.active == false || _session == null || _session!.isLocked || _busy || _editor.active || _renamingVault) {
+    if (_contentActive == false ||
+        _session == null ||
+        _session!.isLocked ||
+        _busy ||
+        _editor.active ||
+        _renamingVault) {
       return false;
     }
     if (event is KeyDownEvent && (ModalRoute.of(context)?.isCurrent ?? false)) {
@@ -880,7 +1074,7 @@ class VaultPanelState extends State<VaultPanel> {
       final focus = FocusManager.instance.primaryFocus?.context;
       final editingText = focus?.findAncestorStateOfType<EditableTextState>() != null;
       if (editingText) return false;
-      final shortcut = widget.searchShortcut?.call() ?? defaultSearchShortcut();
+      final shortcut = widget.searchShortcut?.call() ?? SystemShortcuts.defaultSearch();
       final modifiers = shortcut.modifiers ?? [];
       if (event.physicalKey == shortcut.physicalKey &&
           keyboard.isControlPressed == modifiers.contains(HotKeyModifier.control) &&
@@ -898,7 +1092,7 @@ class VaultPanelState extends State<VaultPanel> {
     final session = _session;
     if (session == null || session.isLocked || _busy || _editor.active || _renamingVault || _searching) return;
 
-    bool valid() => mounted && widget.active && _session == session && session.isLocked == false;
+    bool valid() => mounted && _contentActive && _session == session && session.isLocked == false;
     setState(() => _searching = true);
     widget.onSearchHandlerChanged?.call(null);
     try {
@@ -942,7 +1136,7 @@ class VaultPanelState extends State<VaultPanel> {
     final focus = FocusManager.instance.primaryFocus?.context;
     final editing = focus?.findAncestorStateOfType<EditableTextState>() != null;
     return mounted &&
-        widget.active &&
+        _contentActive &&
         _session?.isLocked == false &&
         !_busy &&
         !_editor.active &&
@@ -967,17 +1161,18 @@ class VaultPanelState extends State<VaultPanel> {
     );
   }
 
-  void _resetBrowser() {
+  void _resetBrowser({bool keepNotice = false}) {
     _cancelPasswordGeneration();
     _externalDragCandidate = null;
     _fileDrag.cancel();
+    _secretDrag.cancel();
     _searchWindow.close();
     _browser.clear();
     _deletions.clear();
     _deletedEntries.clear();
     _deletionTimer?.cancel();
     _deletionTimer = null;
-    ScaffoldMessenger.maybeOf(context)?.clearSnackBars();
+    if (!keepNotice) DesktopNoticeHost.clear(context);
   }
 
   void _onPointerActivity(PointerEvent event) {
@@ -998,15 +1193,20 @@ class VaultPanelState extends State<VaultPanel> {
     _externalDragCandidate = null;
     GestureBinding.instance.cancelPointer(event.pointer);
     scheduleMicrotask(() {
-      if (mounted) unawaited(_dragFileOut(candidate.entry));
+      if (!mounted) return;
+      if (candidate.entry.isFile) {
+        unawaited(_dragFileOut(candidate.entry));
+      } else {
+        unawaited(_dragSecretOut(candidate.entry));
+      }
     });
   }
 
   void _touchActivity() {
-    if (_session == null || !_autoLockEnabled) return;
+    if (!_lifecycle.hasOpenSession || !_autoLockEnabled) return;
     _idleTimer?.cancel();
     _idleTimer = Timer(const Duration(minutes: 2), () {
-      if (!mounted || _session == null) return;
+      if (!mounted || !_lifecycle.hasOpenSession) return;
       Navigator.of(context).popUntil((route) => route.isFirst);
       _lock();
     });
@@ -1022,6 +1222,7 @@ class VaultPanelState extends State<VaultPanel> {
         captureAllowed: previousCapture,
         canManageVault: _session != null,
         busy: _busy,
+        workspacePassword: _lifecycle.project?.unlockWithWorkspace == true,
         onExport: () => unawaited(_exportVault()),
         onChangePassword: () => unawaited(_changePassword()),
       ),
@@ -1051,9 +1252,7 @@ class VaultPanelState extends State<VaultPanel> {
         return;
       }
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(t.vaultPreferencesSaveFailed)));
+        _notice(t.vaultPreferencesSaveFailed);
       }
     } finally {
       if (mounted) setState(() => _savingPreferences = false);
@@ -1079,14 +1278,20 @@ class VaultPanelState extends State<VaultPanel> {
 
   Future<void> _showHistory() async {
     if (_busy || _editor.active || _catalog == null) return;
+    final epoch = _securityEpoch;
+    final project = _lifecycle.project;
+    final session = _session;
     late List<({VaultReference vault, File file, DateTime date})> snapshots;
     try {
       snapshots = await _catalog!.history();
+      snapshots = snapshots
+          .where((snapshot) => project == null ? !snapshot.vault.isProject : snapshot.vault.id == project.vaultId)
+          .toList();
     } catch (_) {
       _notice(t.vaultReadFailed);
       return;
     }
-    if (!mounted) return;
+    if (!mounted || epoch != _securityEpoch) return;
     final selected = await showDialog<File>(
       context: context,
       builder: (context) => AlertDialog(
@@ -1135,7 +1340,34 @@ class VaultPanelState extends State<VaultPanel> {
         ],
       ),
     );
-    if (selected != null && mounted) await _importVault(snapshot: selected);
+    if (selected == null || !mounted || epoch != _securityEpoch) return;
+    if (project == null) {
+      await _importVault(snapshot: selected);
+      return;
+    }
+    if (session == null ||
+        session.isLocked ||
+        !await _confirm(t.vaultHistory, t.projectRestoreRevision) ||
+        !mounted ||
+        epoch != _securityEpoch) {
+      return;
+    }
+    await _operation(() async {
+      final bytes = await VaultStore(file: selected).readEncryptedSnapshot();
+      if (epoch != _securityEpoch || session.isLocked) return;
+      final previous = await session.openRevision(bytes);
+      try {
+        _resetBrowser();
+        _viewers.closeAll();
+        _codesWindow.close();
+        _sshConnections.revoke();
+        await widget.clearClipboard();
+        if (epoch != _securityEpoch || session.isLocked) return;
+        await _store!.save(session, previous.entries, folders: previous.folders, projects: previous.projects);
+      } finally {
+        session.closeRevision(previous);
+      }
+    });
   }
 
   Future<void> _showConflicts() async {
@@ -1278,7 +1510,7 @@ class VaultPanelState extends State<VaultPanel> {
     final name = _session?.name ?? (reference == null ? t.vaultLocal : _vaultLabel(reference));
     if (!await _confirm(
           t.vaultDeleteVault,
-          t.vaultDeleteVaultQuestion(name: name),
+          '${t.vaultDeleteVaultQuestion(name: name)}\n\n${t.projectDeleteWorkspaceHelp}',
         ) ||
         !mounted ||
         _busy ||
@@ -1291,7 +1523,7 @@ class VaultPanelState extends State<VaultPanel> {
       await _lifecycle.deleteSelected();
       if (mounted) {
         setState(() => _loading = false);
-        _notice(t.vaultDeleted);
+        _notice(t.vaultDeleted, kind: DesktopNoticeKind.success);
       }
     });
   }
@@ -1300,138 +1532,32 @@ class VaultPanelState extends State<VaultPanel> {
       _knownVaultNames[vault.id] ??
       (vault.id == 'legacy' ? t.vaultPrimary : t.vaultIdentifier(id: vault.id.substring(0, 8)));
 
-  Widget _folderSelector(VaultSession session) => LayoutBuilder(
-    builder: (context, constraints) {
-      final selectedName = session.folders
-          .where((folder) => folder.id == _editor.folderId)
-          .map((folder) => _locationName(session, folder))
-          .firstOrNull;
-      return DesktopTooltip(
-        message: t.vaultLocation,
-        child: PopupMenuButton<String>(
-          key: ValueKey('entry-folder-${_editor.id ?? 'new'}'),
-          enabled: !_busy,
-          tooltip: '',
-          routeSettings: const RouteSettings(name: DesktopMenuObserver.routeName),
-          popUpAnimationStyle: AnimationStyle.noAnimation,
-          requestFocus: true,
-          onOpened: DesktopTooltip.dismissAll,
-          position: PopupMenuPosition.under,
-          offset: const Offset(0, 6),
-          borderRadius: BorderRadius.circular(4),
-          constraints: BoxConstraints.tightFor(width: constraints.maxWidth),
-          onSelected: (value) => setState(() => _editor.folderId = value.isEmpty ? null : value),
-          itemBuilder: (context) => [
-            InsetMenuItem(
-              value: '',
-              label: t.vaultRoot,
-              icon: Icons.folder_outlined,
-              selected: _editor.folderId == null,
-            ),
-            for (final folder in session.folders)
-              InsetMenuItem(
-                value: folder.id,
-                label: _locationName(session, folder),
-                icon: Icons.folder_outlined,
-                selected: _editor.folderId == folder.id,
-              ),
-          ],
-          child: InputDecorator(
-            decoration: InputDecoration(
-              labelText: t.vaultLocation,
-              enabled: !_busy,
-              isDense: true,
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(4)),
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    selectedName ?? t.vaultRoot,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                const Icon(Icons.expand_more_rounded, size: 20),
-              ],
-            ),
-          ),
-        ),
-      );
-    },
-  );
+  void _selectEntryFolder(String value) => setState(() => _editor.folderId = value.isEmpty ? null : value);
+
+  void _cancelEntryEditor() => setState(() {
+    _clearEditor();
+    _error = null;
+  });
+
+  void _refreshTreeState() {
+    setState(() {});
+    _saveTreeState();
+  }
+
+  void _startExternalDrag(PointerDownEvent event, VaultEntry entry) {
+    if (_busy == false &&
+        (entry.isFile || entry.kind == VaultEntryKind.text) &&
+        entry.isDeleted == false &&
+        event.kind == PointerDeviceKind.mouse &&
+        event.buttons == kPrimaryMouseButton) {
+      _externalDragCandidate = (pointer: event.pointer, origin: event.position, entry: entry);
+    }
+  }
 
   String _locationName(VaultSession session, VaultFolder folder) {
     final parent = session.folders.where((item) => item.id == folder.parentId).firstOrNull;
     return parent == null ? folder.name : '${parent.name} / ${folder.name}';
   }
-
-  Widget _vaultSwitcher() => DesktopTooltip(
-    message: t.vaultChoose,
-    child: PopupMenuButton<String>(
-      key: const Key('vault-switcher'),
-      tooltip: '',
-      routeSettings: const RouteSettings(name: DesktopMenuObserver.routeName),
-      popUpAnimationStyle: AnimationStyle.noAnimation,
-      requestFocus: true,
-      onOpened: DesktopTooltip.dismissAll,
-      enabled: !_busy,
-      icon: const Icon(Icons.expand_more_rounded, size: 21),
-      position: PopupMenuPosition.under,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
-      constraints: const BoxConstraints(minWidth: 240, maxWidth: 300),
-      onSelected: (id) => switch (id) {
-        'import' => _importVault(),
-        'delete' => _deleteVault(),
-        'history' => _showHistory(),
-        'conflicts' => _showConflicts(),
-        _ => _selectVault(id == 'new' ? null : id),
-      },
-      itemBuilder: (_) => [
-        for (final vault in _vaults)
-          InsetMenuItem(
-            value: vault.id,
-            label: _vaultLabel(vault),
-            icon: vault.id == _selectedVaultId ? Icons.check_rounded : Icons.lock_outline_rounded,
-            selected: vault.id == _selectedVaultId,
-          ),
-        const PopupMenuDivider(),
-        InsetMenuItem(
-          key: const Key('new-vault'),
-          value: 'new',
-          label: t.vaultNew,
-          icon: Icons.add_rounded,
-        ),
-        InsetMenuItem(
-          value: 'import',
-          label: t.vaultImport,
-          icon: Icons.file_open_outlined,
-        ),
-        InsetMenuItem(
-          value: 'history',
-          label: t.vaultHistory,
-          icon: Icons.history_rounded,
-        ),
-        if (_session != null && !_editor.active)
-          InsetMenuItem(
-            value: 'conflicts',
-            label: t.syncReviewConflicts,
-            icon: Icons.difference_outlined,
-          ),
-        if (_exists && !_editor.active && !_renamingVault) ...[
-          const PopupMenuDivider(),
-          InsetMenuItem(
-            key: const Key('delete-vault'),
-            value: 'delete',
-            label: t.vaultDeleteVault,
-            icon: Icons.delete_outline_rounded,
-            destructive: true,
-          ),
-        ],
-      ],
-    ),
-  );
 
   void _clearEditor() {
     _generationRequest++;
@@ -1453,7 +1579,7 @@ class VaultPanelState extends State<VaultPanel> {
   Future<void> _passwordOptions() async {
     if (_busy || !_hasPasswordEditor) return;
     final epoch = _generatorEpoch;
-    final value = await showGenerator(
+    final value = await GeneratorDialog.show(
       context: context,
       service: _generatorService,
       copy: widget.copySecret,
@@ -1644,7 +1770,7 @@ class VaultPanelState extends State<VaultPanel> {
   void _startRenameVault() {
     if (_busy || _session == null) return;
     setState(() {
-      _renameName.text = _session!.name ?? t.vaultLocal;
+      _renameName.text = _lifecycle.project?.name ?? _session!.name ?? t.vaultLocal;
       _renameName.selection = TextSelection(
         baseOffset: 0,
         extentOffset: _renameName.text.length,
@@ -1660,6 +1786,11 @@ class VaultPanelState extends State<VaultPanel> {
     final name = _renameName.text.trim();
     if (name.isEmpty || name.length > 120) {
       setState(() => _renameInvalid = true);
+      return;
+    }
+    if (_lifecycle.project != null) {
+      await _operation(() => _lifecycle.renameProject(name));
+      if (mounted && _error == null) setState(() => _renamingVault = false);
       return;
     }
     if (await _persist(session.entries, name: name) && mounted) {
@@ -1765,10 +1896,15 @@ class VaultPanelState extends State<VaultPanel> {
     }
   }
 
-  void _lock({bool clearClipboard = true}) {
+  void _lock({
+    bool clearClipboard = true,
+    bool preserveWorkspace = false,
+    bool keepProject = false,
+    bool keepNotice = false,
+  }) {
     DesktopTooltip.dismissAll();
     DesktopMenuObserver.dismissAll();
-    _resetBrowser();
+    _resetBrowser(keepNotice: keepNotice);
     _sshConnections.revoke();
     if (_sensitiveDialogOpen && mounted) {
       Navigator.of(context).popUntil((route) => route.isFirst);
@@ -1776,7 +1912,15 @@ class VaultPanelState extends State<VaultPanel> {
     }
     _viewers.closeAll();
     _codesWindow.close();
-    _lifecycle.lock();
+    if (preserveWorkspace) {
+      if (keepProject) {
+        _lifecycle.lockProject();
+      } else {
+        _lifecycle.suspendContext();
+      }
+    } else {
+      _lifecycle.lock();
+    }
     _master.clear();
     _confirmation.clear();
     _vaultName.clear();
@@ -1795,12 +1939,14 @@ class VaultPanelState extends State<VaultPanel> {
       _renameName.clear();
     });
     if (_store == null) unawaited(_load());
+    if (preserveWorkspace) _touchActivity();
   }
 
   @override
   void dispose() {
     _cancelPasswordGeneration();
     _fileDrag.dispose();
+    _secretDrag.dispose();
     FocusManager.instance.removeListener(_updateSearchHandler);
     widget.onSearchHandlerChanged?.call(null);
     _searchWindow.dispose();
@@ -1864,26 +2010,6 @@ class VaultPanelState extends State<VaultPanel> {
     return pending;
   }
 
-  Widget _folderTree(VaultSession session) => _VaultTree(
-    key: _treeKey,
-    session: session,
-    busy: _busy,
-    collapsed: _collapsedFolders,
-    onCollapsedChanged: _saveTreeState,
-    entryCard: _entryCard,
-    pendingIds: _deletions.ids,
-    pendingEntries: _pendingEntries,
-    createFolder: (parentId) => _nameFolder(parentId: parentId),
-    renameFolder: (folder) => _nameFolder(folder: folder),
-    deleteFolder: _deleteFolder,
-    addEntry: (parentId) => _edit(null, parentId),
-    addFile: _addFile,
-    addSsh: (parentId) => _edit(null, parentId, true),
-    addTotp: (parentId) => _edit(null, parentId, false, true),
-    createTextFile: _createTextFile,
-    move: _moveItem,
-  );
-
   Future<void> _dragFileOut(VaultEntry entry) async {
     final session = _session;
     if (_busy || session == null || session.isLocked || entry.isDeleted || !entry.isFile) return;
@@ -1895,7 +2021,7 @@ class VaultPanelState extends State<VaultPanel> {
         attachment: entry.attachments.single,
         allowed: () =>
             mounted &&
-            widget.active &&
+            _contentActive &&
             !_busy &&
             _session == session &&
             !session.isLocked &&
@@ -1904,6 +2030,56 @@ class VaultPanelState extends State<VaultPanel> {
       );
     } catch (_) {
       if (mounted && _session == session && !session.isLocked) _notice(t.vaultFileDragFailed);
+    }
+  }
+
+  Future<void> _dragSecretOut(VaultEntry entry) async {
+    final session = _session;
+    if (_busy || _fileDrag.active || session == null || session.isLocked || entry.isDeleted) return;
+    DesktopTooltip.dismissAll();
+    DesktopMenuObserver.dismissAll();
+    _touchActivity();
+    bool allowed() =>
+        mounted &&
+        _contentActive &&
+        !_busy &&
+        _session == session &&
+        !session.isLocked &&
+        session.entries.contains(entry) &&
+        !entry.isDeleted;
+    try {
+      final result = await _secretDrag.start(
+        entry: entry,
+        allowed: allowed,
+        labels: {
+          'hover': t.vaultSecretDragHover,
+          'login': t.vaultSecretDragLogin,
+          'password': t.vaultSecretDragPassword,
+          'pair': t.vaultSecretDragPair,
+          'missingLogin': t.vaultSecretDragNoLogin,
+          'missingPassword': t.vaultSecretDragNoPassword,
+        },
+      );
+      if (!allowed()) return;
+      switch (result) {
+        case SecretDragResult.partial:
+          _notice(t.vaultSecretDragPartial, kind: DesktopNoticeKind.warning);
+        case SecretDragResult.unsupported:
+          _notice(t.vaultSecretDragUnsupported);
+        case SecretDragResult.targetLost:
+          _notice(t.vaultSecretDragTargetLost);
+        case SecretDragResult.targetChanged:
+          _notice(t.vaultSecretDragTargetChanged);
+        case SecretDragResult.missingValue:
+          _notice(t.vaultSecretDragMissingValue);
+        case SecretDragResult.failed:
+          _notice(t.vaultSecretDragFailed);
+        case SecretDragResult.filled:
+        case SecretDragResult.cancelled:
+          break;
+      }
+    } catch (_) {
+      if (allowed()) _notice(t.vaultSecretDragFailed);
     }
   }
 
@@ -1922,12 +2098,12 @@ class VaultPanelState extends State<VaultPanel> {
 
   Future<void> _openCodes() async {
     final session = _session;
-    if (!mounted || _busy || session == null || session.isLocked || widget.active == false) return;
+    if (!mounted || _busy || session == null || session.isLocked || _contentActive == false) return;
     try {
       await _codesWindow.open(
         session: TotpSession(
           vault: session,
-          isValid: () => mounted && widget.active && _session == session,
+          isValid: () => mounted && _contentActive && _session == session,
           copy: widget.copySecret,
           clearClipboard: widget.clearClipboard,
           activity: _touchActivity,
@@ -1940,89 +2116,10 @@ class VaultPanelState extends State<VaultPanel> {
     }
   }
 
-  Widget _entryCard(VaultEntry entry) {
-    final seconds = _deletions.remaining(entry.id, DateTime.now());
-    if (entry.isDeleted && seconds > 0) {
-      return _VaultEntryCard(
-        key: ValueKey('entry-card-${entry.id}'),
-        entry: entry,
-        status: t.browserDeleting(seconds: seconds),
-        trailing: TextButton.icon(
-          key: ValueKey('undo-delete-${entry.id}'),
-          style: TextButton.styleFrom(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-          ),
-          onPressed: _busy
-              ? null
-              : () {
-                  if (_deletions.remaining(entry.id, DateTime.now()) == 0) return;
-                  unawaited(
-                    _restoreEntry(entry.id, expectedSession: _session, deletedAt: _deletions.timestamp(entry.id)),
-                  );
-                },
-          icon: const Icon(Icons.undo_rounded, size: 18),
-          label: Text(t.browserUndo),
-        ),
-      );
-    }
-    final card = _VaultEntryCard(
-      entry: entry,
-      copied: _copyNotice == (session: _session, entryId: entry.id),
-      key: ValueKey('entry-card-${entry.id}'),
-      onTap: _busy || entry.isDeleted
-          ? null
-          : entry.isTotp
-          ? _openCodes
-          : entry.isFile
-          ? () => _openFile(entry)
-          : entry.isSsh
-          ? () => _connectSsh(entry)
-          : !entry.hasPassword
-          ? null
-          : () => _copyEntry(entry),
-      trailing: entry.isDeleted
-          ? const SizedBox(width: 32)
-          : DesktopIconButton(
-              tooltip: entry.isFavorite ? t.browserUnfavorite : t.browserFavorite,
-              constraints: const BoxConstraints.tightFor(width: 32, height: 32),
-              padding: const EdgeInsets.all(7),
-              onPressed: _busy ? null : () => _favoriteEntry(entry),
-              icon: Icon(entry.isFavorite ? Icons.star_rounded : Icons.star_outline_rounded, size: 18),
-            ),
-    );
-    return GestureDetector(
-      onSecondaryTapUp: (details) => _entryMenu(entry, details.globalPosition),
-      child: DesktopTooltip(
-        message: entry.isDeleted
-            ? t.browserTrashHelp
-            : entry.isTotp
-            ? t.totpTitle
-            : entry.isFile
-            ? t.vaultFileHint
-            : entry.isSsh
-            ? t.sshConnect
-            : t.vaultEntryHint,
-        child: Listener(
-          onPointerDown: (event) {
-            if (!_busy &&
-                entry.isFile &&
-                !entry.isDeleted &&
-                event.kind == PointerDeviceKind.mouse &&
-                event.buttons == kPrimaryMouseButton) {
-              _externalDragCandidate = (pointer: event.pointer, origin: event.position, entry: entry);
-            }
-          },
-          child: card,
-        ),
-      ),
-    );
-  }
-
   Future<void> _entryMenu(VaultEntry entry, Offset position) async {
     final session = _session;
     if (_busy || session == null || session.isLocked) return;
-    final action = await showDesktopMenu<String>(
+    final action = await DesktopMenu.show<String>(
       context: context,
       position: position,
       items: entry.isDeleted
@@ -2105,6 +2202,7 @@ class VaultPanelState extends State<VaultPanel> {
   }
 
   String get _heading {
+    if (_lifecycle.project case final project?) return project.name;
     if (_session case final session?) return session.name ?? t.vaultLocal;
     return _exists ? t.vaultLocked : t.emptyVault;
   }
@@ -2113,8 +2211,123 @@ class VaultPanelState extends State<VaultPanel> {
   Widget build(BuildContext context) {
     WidgetsBinding.instance.addPostFrameCallback((_) => _updateSearchHandler());
     if (_loading) return const Center(child: CircularProgressIndicator());
+    if (_showingProjects) {
+      return _ProjectsPanel(
+        archived: _archivedProjects,
+        onArchiveView: () => setState(() => _archivedProjects = !_archivedProjects),
+        projects: _lifecycle.projects.where((p) => p.archived == _archivedProjects).toList(),
+        busy: _busy,
+        onCreate: _createProject,
+        onOpen: _openProject,
+        onArchive: _toggleProjectArchive,
+        onLock: _lock,
+      );
+    }
     final session = _session;
-    final content = _workspace(session);
+    final entryPresenter = _VaultEntryPresenter(
+      busy: _busy,
+      deletions: _deletions,
+      onRestoreEntry: _restoreEntry,
+      activeSession: _session,
+      copyNotice: _copyNotice,
+      onOpenCodes: _openCodes,
+      onOpenFile: _openFile,
+      onConnectSsh: _connectSsh,
+      onCopyEntry: _copyEntry,
+      onFavoriteEntry: _favoriteEntry,
+      onEntryMenu: _entryMenu,
+      onStartExternalDrag: _startExternalDrag,
+    );
+    final content = _VaultWorkspace(
+      controller: session != null && _editor.active == false ? _browserScroll : _formScroll,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (_error == 'read') ...[
+            Text(_errorText),
+            TextButton(onPressed: _load, child: Text(t.retry)),
+          ] else if (session == null) ...[
+            if (_projectsMode && _lifecycle.project == null)
+              Padding(padding: const EdgeInsets.only(bottom: 12), child: Text(t.projectUnlockWorkspace)),
+            if (_lifecycle.project?.unlockWithWorkspace == true)
+              Align(
+                alignment: Alignment.centerRight,
+                child: FilledButton.icon(
+                  onPressed: _busy ? null : _open,
+                  icon: const Icon(Icons.lock_open_outlined, size: 16),
+                  label: Text(t.projectOpen),
+                ),
+              )
+            else
+              _VaultUnlockForm(
+                exists: _exists,
+                busy: _busy,
+                vaultName: _vaultName,
+                master: _master,
+                confirmation: _confirmation,
+                onOpen: _open,
+              ),
+            if (_lifecycle.project != null) ...[
+              const SizedBox(height: 12),
+              Text(t.projectRestoreHelp, style: const TextStyle(fontSize: 12)),
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton.icon(
+                  onPressed: _busy ? null : _restoreProject,
+                  icon: const Icon(Icons.file_open_outlined, size: 16),
+                  label: Text(t.projectRestore),
+                ),
+              ),
+            ],
+          ] else if (_editor.active)
+            _VaultEntryEditor(
+              draft: _editor,
+              busy: _busy,
+              isSsh: _editor.isSsh,
+              locationSelector: _VaultFolderSelector(
+                session: session,
+                editor: _editor,
+                onLocationName: _locationName,
+                busy: _busy,
+                onSelectEntryFolder: _selectEntryFolder,
+              ),
+              onSave: _save,
+              onCancel: _cancelEntryEditor,
+              onDelete: _editor.id == null
+                  ? null
+                  : () => _deleteEntry(session.entries.firstWhere((entry) => entry.id == _editor.id)),
+              onPasswordOptions: _passwordOptions,
+              onGenerate: () => unawaited(_generateEntryPassword()),
+            )
+          else ...[
+            _VaultBrowser(
+              pendingEntries: _pendingEntries,
+              collapsed: _collapsedFolders,
+              onCollapsedChanged: _refreshTreeState,
+              session: session,
+              tree: _VaultFolderTree(
+                session: session,
+                treeKey: _treeKey,
+                busy: _busy,
+                collapsedFolders: _collapsedFolders,
+                onSaveTreeState: _saveTreeState,
+                deletions: _deletions,
+                pendingEntries: _pendingEntries,
+                onNameFolder: _nameFolder,
+                onDeleteFolder: _deleteFolder,
+                onEdit: _edit,
+                onAddFile: _addFile,
+                onCreateTextFile: _createTextFile,
+                onMoveItem: _moveItem,
+                entryPresenter: entryPresenter,
+              ),
+              entryPresenter: entryPresenter,
+              pendingIds: _deletions.ids,
+            ),
+          ],
+        ],
+      ),
+    );
     return SensitiveClipboardScope(
       copy: widget.copySecret,
       child: Listener(
@@ -2137,7 +2350,23 @@ class VaultPanelState extends State<VaultPanel> {
                   savingPreferences: _savingPreferences,
                   showSettings: _editor.active == false && _renamingVault == false,
                   switcher: _catalog != null && _editor.active == false && _renamingVault == false
-                      ? _vaultSwitcher()
+                      ? _VaultSwitcher(
+                          busy: _busy,
+                          onShowSection: showSection,
+                          onImportVault: _importVault,
+                          onDeleteVault: _deleteVault,
+                          onShowHistory: _showHistory,
+                          onShowConflicts: _showConflicts,
+                          onSelectVault: _selectVault,
+                          lifecycle: _lifecycle,
+                          vaults: _vaults,
+                          onVaultLabel: _vaultLabel,
+                          selectedVaultId: _selectedVaultId,
+                          activeSession: _session,
+                          editor: _editor,
+                          exists: _exists,
+                          renamingVault: _renamingVault,
+                        )
                       : null,
                   onRename: _renameVault,
                   onStartRename: _startRenameVault,
@@ -2146,7 +2375,7 @@ class VaultPanelState extends State<VaultPanel> {
                     _renameName.clear();
                   }),
                   onSettings: _showPreferences,
-                  onLock: _lock,
+                  onLock: _lifecycle.project == null ? _lock : () => _lock(preserveWorkspace: true, keepProject: true),
                 ),
               ),
               if (session != null && _editor.active == false)
@@ -2173,61 +2402,4 @@ class VaultPanelState extends State<VaultPanel> {
       ),
     );
   }
-
-  Widget _workspace(VaultSession? session) => Scrollbar(
-    controller: session != null && _editor.active == false ? _browserScroll : _formScroll,
-    child: SingleChildScrollView(
-      controller: session != null && _editor.active == false ? _browserScroll : _formScroll,
-      key: const Key('vault-workspace'),
-      padding: const EdgeInsets.fromLTRB(12, 10, 14, 12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          if (_error == 'read') ...[
-            Text(_errorText),
-            TextButton(onPressed: _load, child: Text(t.retry)),
-          ] else if (session == null) ...[
-            _VaultUnlockForm(
-              exists: _exists,
-              busy: _busy,
-              vaultName: _vaultName,
-              master: _master,
-              confirmation: _confirmation,
-              onOpen: _open,
-            ),
-          ] else if (_editor.active)
-            _VaultEntryEditor(
-              draft: _editor,
-              busy: _busy,
-              isSsh: _editor.isSsh,
-              locationSelector: _folderSelector(session),
-              onSave: _save,
-              onCancel: () => setState(() {
-                _clearEditor();
-                _error = null;
-              }),
-              onDelete: _editor.id == null
-                  ? null
-                  : () => _deleteEntry(session.entries.firstWhere((entry) => entry.id == _editor.id)),
-              onPasswordOptions: _passwordOptions,
-              onGenerate: () => unawaited(_generateEntryPassword()),
-            )
-          else ...[
-            _VaultBrowser(
-              pendingEntries: _pendingEntries,
-              collapsed: _collapsedFolders,
-              onCollapsedChanged: () {
-                setState(() {});
-                _saveTreeState();
-              },
-              session: session,
-              tree: _folderTree(session),
-              entryCard: _entryCard,
-              pendingIds: _deletions.ids,
-            ),
-          ],
-        ],
-      ),
-    ),
-  );
 }

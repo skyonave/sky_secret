@@ -2,8 +2,8 @@ import 'dart:io';
 import 'dart:async';
 
 import 'package:skysecret/ui/generator/generator_dialog.dart';
-import 'package:skysecret/ui/generator/generator_service.dart';
-import 'package:skysecret/core/settings/generator_preferences.dart';
+import 'package:skysecret/ui/generator/services/generator_service.dart';
+import 'package:skysecret/core/settings/repositories/generator_preferences.dart';
 import 'package:skysecret/ui/vault/vault_panel.dart';
 import 'package:skysecret/ui/shared/input/sensitive_text_editing.dart';
 
@@ -14,8 +14,8 @@ import 'package:hotkey_manager/hotkey_manager.dart';
 import 'package:skysecret/app.dart';
 import 'package:skysecret/core/crypto/crypto.dart';
 import 'package:skysecret/core/desktop/desktop_actions.dart';
-import 'package:skysecret/core/desktop/clipboard/sensitive_clipboard.dart';
-import 'package:skysecret/core/settings/shortcut_settings.dart';
+import 'package:skysecret/core/desktop/clipboard/services/sensitive_clipboard.dart';
+import 'package:skysecret/core/settings/repositories/shortcut_settings.dart';
 import 'package:skysecret/i18n/translations.g.dart';
 
 class EmptyTestVaultStore extends VaultStore {
@@ -31,7 +31,7 @@ class FakeDesktop extends DesktopActions {
   @override
   String? notice;
   @override
-  HotKey shortcut = defaultShortcut();
+  HotKey shortcut = SystemShortcuts.defaultManager();
   @override
   void setShortcutCapture(bool capturing) => this.capturing = capturing;
   @override
@@ -102,7 +102,7 @@ void main() {
     expect(find.byKey(const Key('open-generator')), findsNothing);
     final context = tester.element(find.byType(VaultPanel));
     unawaited(
-      showGenerator(
+      GeneratorDialog.show(
         context: context,
         service: GeneratorService(GeneratorPreferences()),
         copy: (value) => SensitiveClipboardScope.copyText(context, value),
@@ -218,18 +218,18 @@ void main() {
     await tester.tap(find.text(t.save));
     await tester.pumpAndSettle();
     expect(find.text(t.shortcutBusy), findsOneWidget);
-    expect(sameShortcut(desktop.shortcut, defaultShortcut()), isTrue);
+    expect(SystemShortcuts.same(desktop.shortcut, SystemShortcuts.defaultManager()), isTrue);
     desktop.saveError = null;
     await tester.tap(find.text(t.save));
     await tester.pumpAndSettle();
     expect(desktop.capturing, isFalse);
-    expect(shortcutLabel(desktop.shortcut), 'Ctrl + Alt + K');
+    expect(SystemShortcuts.label(desktop.shortcut), 'Ctrl + Alt + K');
     await tester.tap(find.byKey(const Key('shortcut-settings')));
     await tester.pumpAndSettle();
     await tester.tap(find.text(t.resetShortcut));
     await tester.tap(find.text(t.cancel));
     await tester.pumpAndSettle();
-    expect(shortcutLabel(desktop.shortcut), 'Ctrl + Alt + K');
+    expect(SystemShortcuts.label(desktop.shortcut), 'Ctrl + Alt + K');
     expect(desktop.capturing, isFalse);
     expect(tester.takeException(), isNull);
   });

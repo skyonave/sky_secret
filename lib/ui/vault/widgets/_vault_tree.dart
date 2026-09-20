@@ -1,21 +1,5 @@
 part of '../vault_panel.dart';
 
-class _VaultDrag {
-  final VaultSession session;
-  final VaultItem item;
-
-  const _VaultDrag(this.session, this.item);
-}
-
-class _VaultInsertion {
-  final String? parentId;
-  final String? beforeKey;
-
-  const _VaultInsertion(this.parentId, this.beforeKey);
-
-  ({String? parentId, String? beforeKey}) get key => (parentId: parentId, beforeKey: beforeKey);
-}
-
 class _VaultTree extends StatefulWidget {
   final VaultSession session;
   final bool busy;
@@ -23,7 +7,7 @@ class _VaultTree extends StatefulWidget {
   final List<VaultEntry> pendingEntries;
   final Set<String> collapsed;
   final VoidCallback onCollapsedChanged;
-  final Widget Function(VaultEntry) entryCard;
+  final _VaultEntryPresenter entryPresenter;
   final void Function(String?) createFolder;
   final void Function(VaultFolder) renameFolder;
   final void Function(VaultFolder) deleteFolder;
@@ -42,7 +26,7 @@ class _VaultTree extends StatefulWidget {
     required this.pendingEntries,
     required this.collapsed,
     required this.onCollapsedChanged,
-    required this.entryCard,
+    required this.entryPresenter,
     required this.createFolder,
     required this.renameFolder,
     required this.deleteFolder,
@@ -59,281 +43,48 @@ class _VaultTree extends StatefulWidget {
 }
 
 class _VaultTreeState extends State<_VaultTree> {
-  Timer? _expandTimer;
-  String? _expandId;
-  EdgeDraggingAutoScroller? _scroller;
-  final _headerKeys = <String, GlobalKey>{};
-  String? _nativeFolderId;
-  bool _nativeHover = false;
-  final _gapKeys = <({String? parentId, String? beforeKey}), GlobalKey>{};
-  final _entryKeys = <String, GlobalKey>{};
-  _VaultInsertion? _insertion;
-  Offset _grabOffset = Offset.zero;
-  Offset? _insertionPointer;
-  double _dragHeight = 56;
-
-  VaultOrganization get _organization => VaultOrganization(
-    entries: [...widget.session.entries, ...widget.pendingEntries]
-        .where(
-          (entry) => (entry.isDeleted == false || widget.pendingIds.contains(entry.id)) && entry.isFavorite == false,
-        )
-        .toList(),
-    folders: widget.session.folders,
+  late final _controller = _VaultTreeController(
+    session: widget.session,
+    busy: widget.busy,
+    pendingIds: widget.pendingIds,
+    pendingEntries: widget.pendingEntries,
+    collapsed: widget.collapsed,
+    onCollapsedChanged: widget.onCollapsedChanged,
+    move: widget.move,
+    scrollable: () => Scrollable.of(context),
   );
 
-  void stopDragging() {
-    _expandTimer?.cancel();
-    _expandId = null;
-    _scroller?.stopAutoScroll();
+  @override
+  void initState() {
+    super.initState();
+    _controller.addListener(_refresh);
   }
+
+  void _refresh() => setState(() {});
 
   @override
   void didUpdateWidget(_VaultTree oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.session != widget.session || widget.busy || widget.session.isLocked) {
-      stopDragging();
-      _nativeFolderId = null;
-      _nativeHover = false;
-      _insertion = null;
-      _insertionPointer = null;
-    }
+    _controller.configure(
+      session: widget.session,
+      busy: widget.busy,
+      pendingIds: widget.pendingIds,
+      pendingEntries: widget.pendingEntries,
+      collapsed: widget.collapsed,
+      onCollapsedChanged: widget.onCollapsedChanged,
+      move: widget.move,
+    );
   }
+
+  String? get nativeFolderId => _controller.nativeFolderId;
+  void nativeHover(Offset? position) => _controller.nativeHover(position);
+  void stopDragging() => _controller.stopDragging();
 
   @override
   void dispose() {
-    stopDragging();
+    _controller.removeListener(_refresh);
+    _controller.dispose();
     super.dispose();
-  }
-
-  void _hoverFolder(String? id) {
-    if (id == _expandId) return;
-    _expandTimer?.cancel();
-    _expandId = id;
-    if (id == null || !widget.collapsed.contains(id)) return;
-    _expandTimer = Timer(const Duration(milliseconds: 700), () {
-      if (mounted && !widget.busy && !widget.session.isLocked) {
-        setState(() => widget.collapsed.remove(id));
-        widget.onCollapsedChanged();
-      }
-    });
-  }
-
-  void _scroll(Offset position) {
-    _scroller ??= EdgeDraggingAutoScroller(Scrollable.of(context), velocityScalar: 12);
-    _scroller!.startAutoScrollIfNecessary(Rect.fromCenter(center: position, width: 1, height: 1));
-  }
-
-  String? get nativeFolderId => _nativeFolderId;
-
-  void nativeHover(Offset? position) {
-    String? folderId;
-    if (position != null && !widget.busy && !widget.session.isLocked) {
-      for (final folder in widget.session.folders) {
-        final box = _headerKeys[folder.id]?.currentContext?.findRenderObject();
-        if (box is RenderBox && box.hasSize && (box.localToGlobal(Offset.zero) & box.size).contains(position)) {
-          folderId = folder.id;
-          break;
-        }
-      }
-      _scroll(position);
-    } else {
-      stopDragging();
-    }
-    _hoverFolder(folderId);
-    if (_nativeFolderId != folderId || _nativeHover != (position != null)) {
-      setState(() {
-        _nativeFolderId = folderId;
-        _nativeHover = position != null;
-      });
-    }
-  }
-
-  bool _accept(_VaultDrag drag, String? parentId) =>
-      !widget.busy &&
-      !widget.session.isLocked &&
-      identical(drag.session, widget.session) &&
-      _organization.canMove(drag.item, parentId);
-
-  void _hoverInsertion(_VaultInsertion insertion, DragTargetDetails<_VaultDrag> details) {
-    if (!_accept(details.data, insertion.parentId) || insertion.beforeKey == details.data.item.key) return;
-    if (_insertion?.key == insertion.key) return;
-    final pointer = details.offset + _grabOffset;
-    if (_keepInsertion(details)) return;
-    _hoverFolder(null);
-    setState(() {
-      _insertion = insertion;
-      _insertionPointer = pointer;
-    });
-  }
-
-  bool _keepInsertion(DragTargetDetails<_VaultDrag> details) {
-    if (_insertion == null) return false;
-    final pointer = details.offset + _grabOffset;
-    final gap = _gapKeys[_insertion!.key]?.currentContext?.findRenderObject();
-    if (gap is RenderBox && gap.hasSize) {
-      final bounds = (gap.localToGlobal(Offset.zero) & gap.size).inflate(6);
-      if (bounds.contains(pointer)) return true;
-    }
-    return _insertionPointer != null && (pointer - _insertionPointer!).distance < 8;
-  }
-
-  void _hoverDestination(String? parentId, DragTargetDetails<_VaultDrag> details) {
-    if (!_accept(details.data, parentId)) return;
-    if (_keepInsertion(details)) return;
-    _clearInsertion();
-    _hoverFolder(parentId);
-  }
-
-  void _clearInsertion() {
-    if (_insertion == null) return;
-    setState(() {
-      _insertion = null;
-      _insertionPointer = null;
-    });
-  }
-
-  void _dropInsertion(_VaultDrag drag) {
-    final insertion = _insertion;
-    if (insertion != null && _accept(drag, insertion.parentId)) {
-      unawaited(widget.move(drag.item, insertion.parentId, insertion.beforeKey));
-    }
-    _finishDrag();
-  }
-
-  Widget _target({
-    required String? parentId,
-    String? beforeKey,
-    required Widget child,
-    bool insertion = false,
-  }) => DragTarget<_VaultDrag>(
-    key: ValueKey((parentId: parentId, beforeKey: beforeKey, insertion: insertion)),
-    onWillAcceptWithDetails: (details) {
-      final accepted = _accept(details.data, parentId) && beforeKey != details.data.item.key;
-      if (accepted) {
-        if (insertion) {
-          _hoverInsertion(_VaultInsertion(parentId, beforeKey), details);
-        } else {
-          _hoverDestination(parentId, details);
-        }
-      }
-      return accepted;
-    },
-    onMove: (details) {
-      if (insertion) {
-        _hoverInsertion(_VaultInsertion(parentId, beforeKey), details);
-      } else {
-        _hoverDestination(parentId, details);
-      }
-    },
-    onLeave: (_) => _hoverFolder(null),
-    onAcceptWithDetails: (details) {
-      if (insertion || _keepInsertion(details)) {
-        _dropInsertion(details.data);
-        return;
-      }
-      if (_accept(details.data, parentId)) unawaited(widget.move(details.data.item, parentId, beforeKey));
-      _finishDrag();
-    },
-    builder: (context, candidates, rejected) {
-      final active =
-          (candidates.isNotEmpty && _insertion == null) || (!insertion && _nativeHover && _nativeFolderId == parentId);
-      final colors = Theme.of(context).colorScheme;
-      if (insertion) {
-        final slot = _VaultInsertion(parentId, beforeKey);
-        final opened = _insertion?.key == slot.key;
-        return AnimatedContainer(
-          key: _gapKeys.putIfAbsent(slot.key, GlobalKey.new),
-          duration: const Duration(milliseconds: 220),
-          curve: Curves.easeOutCubic,
-          height: opened ? _dragHeight + 4 : 4,
-          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 160),
-            decoration: BoxDecoration(
-              color: opened ? colors.primary.withValues(alpha: 0.045) : Colors.transparent,
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: opened ? colors.primary.withValues(alpha: 0.22) : Colors.transparent),
-            ),
-          ),
-        );
-      }
-      return Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 2),
-        child: Stack(
-          children: [
-            child,
-            Positioned.fill(
-              child: IgnorePointer(
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    color: active ? colors.primary.withValues(alpha: 0.08) : Colors.transparent,
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: active ? colors.primary.withValues(alpha: 0.55) : Colors.transparent),
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      );
-    },
-  );
-
-  Widget _draggable(VaultItem item, Widget child) => LayoutBuilder(
-    builder: (context, constraints) => Draggable<_VaultDrag>(
-      key: ValueKey('drag-${item.key}'),
-      data: _VaultDrag(widget.session, item),
-      maxSimultaneousDrags: widget.busy || widget.pendingIds.contains(item.entry?.id) ? 0 : 1,
-      dragAnchorStrategy: (draggable, context, position) {
-        _grabOffset = childDragAnchorStrategy(draggable, context, position);
-        _dragHeight = context.size!.height;
-        return _grabOffset;
-      },
-      onDragUpdate: (details) => _scroll(details.globalPosition),
-      onDragEnd: (_) {
-        _finishDrag();
-      },
-      onDragCompleted: _finishDrag,
-      onDraggableCanceled: (_, _) => _finishDrag(),
-      feedback: Builder(
-        builder: (context) => SizedBox(
-          width: constraints.maxWidth,
-          height: _dragHeight,
-          child: _VaultDragPreview(item: item),
-        ),
-      ),
-      childWhenDragging: Opacity(opacity: 0.5, child: child),
-      child: child,
-    ),
-  );
-
-  void _finishDrag() {
-    stopDragging();
-    if (mounted) _clearInsertion();
-  }
-
-  Widget _entryTarget(VaultItem item, String? nextKey) {
-    void hover(DragTargetDetails<_VaultDrag> details) {
-      if (details.data.item.key == item.key || !_accept(details.data, item.parentId)) return;
-      final box = _entryKeys[item.key]?.currentContext?.findRenderObject();
-      if (box is RenderBox && box.hasSize) {
-        final pointer = box.globalToLocal(details.offset + _grabOffset);
-        final before = pointer.dy < box.size.height / 2 ? item.key : nextKey;
-        _hoverInsertion(_VaultInsertion(item.parentId, before), details);
-      }
-    }
-
-    return DragTarget<_VaultDrag>(
-      key: _entryKeys.putIfAbsent(item.key, GlobalKey.new),
-      onWillAcceptWithDetails: (details) {
-        if (details.data.item.key == item.key || !_accept(details.data, item.parentId)) return false;
-        hover(details);
-        return true;
-      },
-      onMove: hover,
-      onAcceptWithDetails: (details) => _dropInsertion(details.data),
-      builder: (context, candidates, rejected) => _draggable(item, widget.entryCard(item.entry!)),
-    );
   }
 
   List<PopupMenuEntry<String>> _menu(VaultFolder? folder) => [
@@ -387,7 +138,7 @@ class _VaultTreeState extends State<_VaultTree> {
   Future<void> _contextMenu(Offset position, VaultFolder? folder) async {
     if (widget.busy || widget.session.isLocked) return;
     final session = widget.session;
-    final action = await showDesktopMenu<String>(
+    final action = await DesktopMenu.show<String>(
       context: context,
       position: position,
       items: _menu(folder),
@@ -395,104 +146,12 @@ class _VaultTreeState extends State<_VaultTree> {
     if (mounted && identical(session, widget.session) && action != null) _action(action, folder);
   }
 
-  Widget _children(String? parentId) {
-    final items = _organization.children(parentId);
-    return Column(
-      key: ValueKey('children-$parentId'),
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        for (var index = 0; index < items.length; index++) ...[
-          _target(parentId: parentId, beforeKey: items[index].key, insertion: true, child: const SizedBox.shrink()),
-          if (items[index].folder case final folder?)
-            _folder(folder)
-          else
-            _entryTarget(items[index], index + 1 < items.length ? items[index + 1].key : null),
-        ],
-        _target(
-          parentId: parentId,
-          insertion: items.isNotEmpty,
-          child: Padding(
-            padding: const EdgeInsets.all(12),
-            child: Text(
-              parentId == null ? t.vaultRootDropHint : t.vaultFolderDropHint,
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _folder(VaultFolder folder) {
-    final expanded = !widget.collapsed.contains(folder.id);
-    final header = GestureDetector(
-      key: _headerKeys.putIfAbsent(folder.id, GlobalKey.new),
-      onSecondaryTapUp: (details) => _contextMenu(details.globalPosition, folder),
-      child: Row(
-        children: [
-          Expanded(
-            child: Material(
-              color: Colors.transparent,
-              borderRadius: BorderRadius.circular(10),
-              clipBehavior: Clip.antiAlias,
-              child: InkWell(
-                key: ValueKey('folder-header-${folder.id}'),
-                onTap: widget.busy
-                    ? null
-                    : () => setState(() {
-                        if (expanded) {
-                          widget.collapsed.add(folder.id);
-                        } else {
-                          widget.collapsed.remove(folder.id);
-                        }
-                        widget.onCollapsedChanged();
-                      }),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
-                  child: Row(
-                    children: [
-                      Icon(expanded ? Icons.expand_more_rounded : Icons.chevron_right_rounded, size: 20),
-                      const SizedBox(width: 4),
-                      Icon(folder.isSection ? Icons.segment_rounded : Icons.folder_outlined, size: 18),
-                      const SizedBox(width: 8),
-                      Expanded(child: Text(folder.name, maxLines: 1, overflow: TextOverflow.ellipsis)),
-                      const SizedBox(width: 4),
-                      Text(
-                        '${_organization.children(folder.id).length}',
-                        style: Theme.of(context).textTheme.labelSmall,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-    return Column(
-      key: ValueKey('node-${folder.id}'),
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        _target(parentId: folder.id, child: _draggable(VaultItem.folder(folder), header)),
-        if (expanded)
-          Container(
-            margin: const EdgeInsets.only(left: 12, bottom: 6),
-            padding: const EdgeInsets.only(left: 6),
-            decoration: BoxDecoration(
-              border: Border(left: BorderSide(color: Theme.of(context).colorScheme.outlineVariant)),
-            ),
-            child: _children(folder.id),
-          ),
-      ],
-    );
-  }
-
   @override
   Widget build(BuildContext context) => Column(
     crossAxisAlignment: CrossAxisAlignment.stretch,
     children: [
-      _target(
+      _VaultDropTarget(
+        controller: _controller,
         parentId: null,
         child: GestureDetector(
           onSecondaryTapUp: (details) => _contextMenu(details.globalPosition, null),
@@ -518,7 +177,12 @@ class _VaultTreeState extends State<_VaultTree> {
           ),
         ),
       ),
-      _children(null),
+      _VaultTreeChildren(
+        controller: _controller,
+        parentId: null,
+        onContextMenu: _contextMenu,
+        entryPresenter: widget.entryPresenter,
+      ),
     ],
   );
 }

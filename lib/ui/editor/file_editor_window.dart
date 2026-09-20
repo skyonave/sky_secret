@@ -5,46 +5,17 @@ import 'package:desktop_multi_window/desktop_multi_window.dart';
 import 'package:flutter/material.dart';
 
 import '../shared/app_theme.dart';
+import '../shared/notifications/desktop_notice.dart';
 
 import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:window_manager/window_manager.dart';
 
-import '../../core/desktop/windows/file_editor_channel.dart';
-import '../../core/desktop/clipboard/sensitive_clipboard_boundary.dart';
-import '../../core/files/text_document.dart';
+import '../../core/desktop/editor/services/file_editor_channel.dart';
+import '../../core/desktop/clipboard/services/sensitive_clipboard_boundary.dart';
+import '../../core/files/text/models/text_document.dart';
 import '../../i18n/translations.g.dart';
 import '../shared/input/sensitive_text_editing.dart';
-
-Future<bool> runFileEditorIfNeeded({SensitiveClipboardBoundary? clipboardBoundary}) async {
-  final controller = await WindowController.fromCurrentEngine();
-  if (controller.arguments.isEmpty) return false;
-  final args = jsonDecode(controller.arguments);
-  if (args is! Map || args['type'] != 'file-editor') return false;
-  await LocaleSettings.setLocale(
-    args['locale'] == 'en' ? AppLocale.en : AppLocale.ru,
-  );
-  await windowManager.ensureInitialized();
-  await windowManager.setPreventClose(true);
-  await windowManager.waitUntilReadyToShow(
-    WindowOptions(
-      size: Size(860, 640),
-      minimumSize: Size(480, 360),
-      center: true,
-      backgroundColor: const Color(0xFF0B131B),
-      title: t.appName,
-    ),
-  );
-  runApp(
-    TranslationProvider(
-      child: FileEditorWindow(
-        clipboardBoundary: clipboardBoundary,
-        channel: WindowMethodChannel(args['channel'] as String),
-      ),
-    ),
-  );
-  return true;
-}
 
 class FileEditorWindow extends StatefulWidget {
   final WindowMethodChannel channel;
@@ -58,6 +29,36 @@ class FileEditorWindow extends StatefulWidget {
 
   @override
   State<FileEditorWindow> createState() => _FileEditorWindowState();
+
+  static Future<bool> runIfNeeded({SensitiveClipboardBoundary? clipboardBoundary}) async {
+    final controller = await WindowController.fromCurrentEngine();
+    if (controller.arguments.isEmpty) return false;
+    final args = jsonDecode(controller.arguments);
+    if (args is! Map || args['type'] != 'file-editor') return false;
+    await LocaleSettings.setLocale(
+      args['locale'] == 'en' ? AppLocale.en : AppLocale.ru,
+    );
+    await windowManager.ensureInitialized();
+    await windowManager.setPreventClose(true);
+    await windowManager.waitUntilReadyToShow(
+      WindowOptions(
+        size: Size(860, 640),
+        minimumSize: Size(480, 360),
+        center: true,
+        backgroundColor: const Color(0xFF0B131B),
+        title: t.appName,
+      ),
+    );
+    runApp(
+      TranslationProvider(
+        child: FileEditorWindow(
+          clipboardBoundary: clipboardBoundary,
+          channel: WindowMethodChannel(args['channel'] as String),
+        ),
+      ),
+    );
+    return true;
+  }
 }
 
 class _FileEditorWindowState extends State<FileEditorWindow> with WindowListener {
@@ -106,7 +107,7 @@ class _FileEditorWindowState extends State<FileEditorWindow> with WindowListener
 
   Future<void> _load() async {
     try {
-      final privacyApplied = await connectFileEditor(
+      final privacyApplied = await FileEditorChannel.connect(
         channel: widget.channel,
         getWindowId: windowManager.getId,
         onLock: _destroy,
@@ -244,6 +245,8 @@ class _FileEditorWindowState extends State<FileEditorWindow> with WindowListener
   Future<void> _destroy() async {
     if (_closing) return;
     _closing = true;
+    final noticeContext = _navigator.currentContext;
+    if (noticeContext != null) DesktopNoticeHost.clear(noticeContext);
     _timer?.cancel();
     _text.clear();
     _saved = '';
@@ -282,7 +285,8 @@ class _FileEditorWindowState extends State<FileEditorWindow> with WindowListener
     locale: TranslationProvider.of(context).flutterLocale,
     supportedLocales: AppLocaleUtils.supportedLocales,
     localizationsDelegates: GlobalMaterialLocalizations.delegates,
-    theme: buildAppTheme(),
+    theme: AppTheme.theme,
+    builder: (context, child) => DesktopNoticeHost(child: child!),
     home: CallbackShortcuts(
       bindings: {
         const SingleActivator(LogicalKeyboardKey.keyS, control: true): () => unawaited(_save()),
@@ -293,125 +297,126 @@ class _FileEditorWindowState extends State<FileEditorWindow> with WindowListener
         onPointerDown: (_) => _activity(),
         onPointerSignal: (_) => _activity(),
         child: Scaffold(
-          body: !_loaded
-              ? const SizedBox.shrink()
-              : Column(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 6,
+          body: Visibility(
+            visible: _loaded,
+            child: Column(
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
+                  color: AppColors.surface,
+                  child: Row(
+                    children: [
+                      const Icon(
+                        Icons.description_outlined,
+                        color: Color(0xFF6CDEFF),
+                        size: 17,
                       ),
-                      color: AppColors.surface,
-                      child: Row(
-                        children: [
-                          const Icon(
-                            Icons.description_outlined,
-                            color: Color(0xFF6CDEFF),
-                            size: 17,
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  _name,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-                                ),
-                                Text(
-                                  _dirty ? t.fileEditorModified : t.fileEditorStored,
-                                  style: const TextStyle(
-                                    fontSize: 12,
-                                    color: Color(0xFF8FA7B6),
-                                  ),
-                                ),
-                              ],
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              _name,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
                             ),
-                          ),
-                          const SizedBox(width: 12),
-                          FilledButton.icon(
-                            key: const Key('file-editor-save'),
-                            onPressed: _saving || !_dirty ? null : _save,
-                            icon: const Icon(Icons.save_outlined, size: 18),
-                            label: Text(_saving ? t.saving : t.save),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Expanded(
-                      child: Padding(
-                        padding: const EdgeInsets.all(8),
-                        child: SensitiveTextEditing(
-                          controller: _text,
-                          enabled: true,
-                          readOnly: _saving,
-                          obscureText: false,
-                          copy: _copyText,
-                          builder: (context, menuBuilder) => TextField(
-                            enableIMEPersonalizedLearning: false,
-                            key: const Key('file-editor-text'),
-                            controller: _text,
-                            expands: true,
-                            maxLines: null,
-                            minLines: null,
-                            maxLength: TextDocument.maxBytes,
-                            readOnly: _saving,
-                            autofocus: true,
-                            autocorrect: false,
-                            enableSuggestions: false,
-                            smartDashesType: SmartDashesType.disabled,
-                            smartQuotesType: SmartQuotesType.disabled,
-                            style: const TextStyle(
-                              fontFamily: 'Consolas',
-                              fontSize: 14,
-                              height: 1.5,
+                            Text(
+                              _dirty ? t.fileEditorModified : t.fileEditorStored,
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: Color(0xFF8FA7B6),
+                              ),
                             ),
-                            decoration: const InputDecoration(
-                              border: InputBorder.none,
-                              counterText: '',
-                              isCollapsed: true,
-                              contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                            ),
-                            contextMenuBuilder: menuBuilder,
-                          ),
+                          ],
                         ),
                       ),
-                    ),
-                    if (_error != null)
-                      Padding(
-                        padding: const EdgeInsets.all(12),
-                        child: Text(
-                          _error!,
-                          style: const TextStyle(color: Colors.redAccent),
-                        ),
+                      const SizedBox(width: 12),
+                      FilledButton.icon(
+                        key: const Key('file-editor-save'),
+                        onPressed: _saving || !_dirty ? null : _save,
+                        icon: const Icon(Icons.save_outlined, size: 18),
+                        label: Text(_saving ? t.saving : t.save),
                       ),
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(12, 6, 12, 8),
-                      child: Row(
-                        children: [
-                          Text(
-                            _encoding,
-                            style: const TextStyle(
-                              fontSize: 12,
-                              color: Color(0xFF8FA7B6),
-                            ),
-                          ),
-                          const Spacer(),
-                          Text(
-                            t.fileEditorShortcut,
-                            style: const TextStyle(
-                              fontSize: 12,
-                              color: Color(0xFF8FA7B6),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.all(8),
+                    child: SensitiveTextEditing(
+                      controller: _text,
+                      enabled: true,
+                      readOnly: _saving,
+                      obscureText: false,
+                      copy: _copyText,
+                      builder: (context, menuBuilder) => TextField(
+                        enableIMEPersonalizedLearning: false,
+                        key: const Key('file-editor-text'),
+                        controller: _text,
+                        expands: true,
+                        maxLines: null,
+                        minLines: null,
+                        maxLength: TextDocument.maxBytes,
+                        readOnly: _saving,
+                        autofocus: true,
+                        autocorrect: false,
+                        enableSuggestions: false,
+                        smartDashesType: SmartDashesType.disabled,
+                        smartQuotesType: SmartQuotesType.disabled,
+                        style: const TextStyle(
+                          fontFamily: 'Consolas',
+                          fontSize: 14,
+                          height: 1.5,
+                        ),
+                        decoration: const InputDecoration(
+                          border: InputBorder.none,
+                          counterText: '',
+                          isCollapsed: true,
+                          contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        ),
+                        contextMenuBuilder: menuBuilder,
+                      ),
+                    ),
+                  ),
+                ),
+                if (_error != null)
+                  Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Text(
+                      _error!,
+                      style: const TextStyle(color: Colors.redAccent),
+                    ),
+                  ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 6, 12, 8),
+                  child: Row(
+                    children: [
+                      Text(
+                        _encoding,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Color(0xFF8FA7B6),
+                        ),
+                      ),
+                      const Spacer(),
+                      Text(
+                        t.fileEditorShortcut,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Color(0xFF8FA7B6),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     ),

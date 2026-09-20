@@ -1,12 +1,12 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skysecret/core/files/file_save_target.dart';
+import 'package:skysecret/core/files/services/file_save_target.dart';
 
 void main() {
   test('renaming an attachment without a suffix retains its original extension', () async {
     expect(
-      await resolveFileSaveTarget(
+      await FileSaveTarget.resolve(
         selectedPath: r'C:\Exports\renamed',
         suggestedName: 'original.txt',
         exists: (_) async => false,
@@ -18,7 +18,7 @@ void main() {
 
   test('an existing corrected destination requires approval and cancel stops saving', () async {
     final checked = <String>[];
-    final result = await resolveFileSaveTarget(
+    final result = await FileSaveTarget.resolve(
       selectedPath: r'C:\Exports\renamed',
       suggestedName: 'original.pdf',
       exists: (path) async {
@@ -35,7 +35,7 @@ void main() {
   });
 
   test('replacement approval applies to the complete filename', () async {
-    final result = await resolveFileSaveTarget(
+    final result = await FileSaveTarget.resolve(
       selectedPath: r'C:\Exports\backup',
       suggestedName: 'vault.smv',
       requireExtension: true,
@@ -52,7 +52,7 @@ void main() {
       await Directory('${temporary.path}/folder.txt').create();
       for (final name in ['occupied', 'folder']) {
         var prompted = false;
-        final result = await resolveFileSaveTarget(
+        final result = await FileSaveTarget.resolve(
           selectedPath: '${temporary.path}/$name',
           suggestedName: 'attachment.txt',
           confirmReplacement: (_) async {
@@ -72,7 +72,7 @@ void main() {
   test('an explicitly entered attachment suffix is preserved without a second prompt', () async {
     for (final name in ['renamed.TXT', 'renamed.md']) {
       expect(
-        await resolveFileSaveTarget(
+        await FileSaveTarget.resolve(
           selectedPath: name,
           suggestedName: 'original.txt',
           exists: (_) async => fail('The native dialog confirmed this exact path'),
@@ -85,7 +85,7 @@ void main() {
 
   test('vault exports retain smv even when a different suffix was entered', () async {
     expect(
-      await resolveFileSaveTarget(
+      await FileSaveTarget.resolve(
         selectedPath: 'backup.other',
         suggestedName: 'vault.smv',
         requireExtension: true,
@@ -99,7 +99,7 @@ void main() {
   test('files without an extension and dotfiles do not acquire an invented type', () async {
     for (final name in ['LICENSE', '.env', 'name.']) {
       expect(
-        await resolveFileSaveTarget(
+        await FileSaveTarget.resolve(
           selectedPath: 'renamed',
           suggestedName: name,
           confirmReplacement: (_) async => fail('Unexpected prompt'),
@@ -110,11 +110,11 @@ void main() {
   });
 
   test('directory dots are ignored and trailing dots do not create a double suffix', () async {
-    expect(fileExtension(r'C:\directory.v1\file'), isEmpty);
-    expect(fileExtension('archive.tar.gz'), 'gz');
-    expect(fileExtension('name.t*xt'), isEmpty);
+    expect(FileSaveTarget.extension(r'C:\directory.v1\file'), isEmpty);
+    expect(FileSaveTarget.extension('archive.tar.gz'), 'gz');
+    expect(FileSaveTarget.extension('name.t*xt'), isEmpty);
     expect(
-      await resolveFileSaveTarget(
+      await FileSaveTarget.resolve(
         selectedPath: r'C:\directory.v1\renamed. ',
         suggestedName: 'original.txt',
         exists: (_) async => false,

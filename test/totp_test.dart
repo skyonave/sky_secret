@@ -3,7 +3,7 @@ import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skysecret/core/crypto/crypto.dart';
-import 'package:skysecret/core/desktop/totp_session.dart';
+import 'package:skysecret/core/desktop/totp/controllers/totp_session.dart';
 import 'package:skysecret/ui/vault/controllers/vault_entry_controller.dart';
 
 import 'vault_collection_test.dart' show collectionPassword, saveRevision;

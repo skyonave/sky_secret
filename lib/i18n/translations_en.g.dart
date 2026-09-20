@@ -37,6 +37,81 @@ class TranslationsEn extends Translations with BaseTranslations<AppLocale, Trans
       TranslationsEn(meta: meta ?? this.$meta);
 
   @override
+  String get noticeError => 'Error';
+  @override
+  String get noticeWarning => 'Attention';
+  @override
+  String get noticeSuccess => 'Done';
+  @override
+  String get noticeInformation => 'Information';
+  @override
+  String get noticeDismiss => 'Dismiss notification';
+  @override
+  String get general => 'General';
+  @override
+  String get projects => 'Projects';
+  @override
+  String get projectCreate => 'New project';
+  @override
+  String get projectName => 'Project name';
+  @override
+  String get projectShared => 'Unlock with workspace';
+  @override
+  String get projectSharedHelp => 'Open through this general vault. Turn off to require a separate project password.';
+  @override
+  String get projectSeparate => 'Separate master password';
+  @override
+  String get projectsEmpty => 'No projects here. Your everyday secrets remain in General.';
+  @override
+  String get projectUnlockWorkspace => 'Unlock the general vault to access its projects.';
+  @override
+  String get projectSelectWorkspace => 'Open the general vault that owns this project, then select it in Projects.';
+  @override
+  String get projectLockWorkspace => 'Lock workspace and projects';
+  @override
+  String get projectOpen => 'Open project';
+  @override
+  String get projectFinishEditing => 'Save or cancel the current edit, or clear the password fields before switching.';
+  @override
+  String get projectRestore => 'Restore project from file';
+  @override
+  String get projectRestoreHelp =>
+      'If the project file is missing on this device, restore its encrypted copy. Existing files are never replaced by this action.';
+  @override
+  String get projectConflict => 'Conflicting project settings';
+  @override
+  String projectResolveQuestion({required Object name}) =>
+      'Use the settings for “${name}”? Other conflicting versions will remain in the archive with their access settings preserved.';
+  @override
+  String get projectDeleteWorkspaceHelp =>
+      'If this vault owns projects, deleting it also removes their shared access settings. Export those projects with independent passwords first. Project files are not deleted by this action.';
+  @override
+  String get projectRemove => 'Archive project';
+  @override
+  String projectRemoveQuestion({required Object name}) =>
+      'Archive “${name}”? Its encrypted file and access settings will be kept. You can restore it from the project archive.';
+  @override
+  String get projectArchive => 'Project archive';
+  @override
+  String get projectArchiveEmpty => 'No archived projects.';
+  @override
+  String get projectUnarchive => 'Restore from archive';
+  @override
+  String projectUnarchiveQuestion({required Object name}) => 'Restore “${name}” to the project list?';
+  @override
+  String get projectExportPassword => 'Password for exported project';
+  @override
+  String get projectExportPasswordHelp =>
+      'Set a password for this independent copy. The working project will continue to open with the workspace. Keep the export password separately.';
+  @override
+  String get projectWorkspacePassword => 'Change workspace password';
+  @override
+  String get projectBackupHelp =>
+      'This copy includes the project catalog and shared access settings. Export each project file as well: project contents are stored separately.';
+  @override
+  String get projectRestoreRevision =>
+      'Restore this project version? Current contents will be replaced by the selected version and retained in local history.';
+  @override
   String get generatorOpen => 'Generator…';
   @override
   String get generatorAgain => 'Generate another';
@@ -180,7 +255,37 @@ class TranslationsEn extends Translations with BaseTranslations<AppLocale, Trans
   @override
   String vaultDropHere({required Object name}) => 'Drop an entry into “${name}”';
   @override
-  String get vaultEntryHint => 'Click to copy password · drag to move or reorder';
+  String get vaultEntryHint =>
+      'Click to copy password · drag into a field: username, or password if masked · drag inside to reorder';
+  @override
+  String get vaultSecretDragUnsupported =>
+      'Could not identify an editable field. This field may not support filling from SkySecret.';
+  @override
+  String get vaultSecretDragMissingValue =>
+      'This entry has no value for this field: a username is needed for a normal field, or a password for a masked field.';
+  @override
+  String get vaultSecretDragFailed => 'Could not fill the field. Try dragging again or use copy.';
+  @override
+  String get vaultSecretDragHover => 'Hover over a field · Esc to cancel';
+  @override
+  String get vaultSecretDragLogin => 'Insert login';
+  @override
+  String get vaultSecretDragPassword => 'Insert password';
+  @override
+  String get vaultSecretDragPair => 'Insert login and password';
+  @override
+  String get vaultSecretDragPartial =>
+      'The login was sent, but the password could not be inserted. Check the fields and drag the entry onto the password field again.';
+  @override
+  String get vaultSecretDragNoLogin => 'This entry has no login';
+  @override
+  String get vaultSecretDragNoPassword => 'This entry has no password';
+  @override
+  String get vaultSecretDragTargetLost =>
+      'The field was recognized but became unavailable before insertion. Point to the field and drag again.';
+  @override
+  String get vaultSecretDragTargetChanged =>
+      'Could not confirm the same field before insertion. No value was sent. Drag again.';
   @override
   String get appName => 'SkySecret';
   @override
@@ -781,6 +886,44 @@ class TranslationsEn extends Translations with BaseTranslations<AppLocale, Trans
 extension on TranslationsEn {
   dynamic _flatMapFunction(String path) {
     return switch (path) {
+      'noticeError' => 'Error',
+      'noticeWarning' => 'Attention',
+      'noticeSuccess' => 'Done',
+      'noticeInformation' => 'Information',
+      'noticeDismiss' => 'Dismiss notification',
+      'general' => 'General',
+      'projects' => 'Projects',
+      'projectCreate' => 'New project',
+      'projectName' => 'Project name',
+      'projectShared' => 'Unlock with workspace',
+      'projectSharedHelp' => 'Open through this general vault. Turn off to require a separate project password.',
+      'projectSeparate' => 'Separate master password',
+      'projectsEmpty' => 'No projects here. Your everyday secrets remain in General.',
+      'projectUnlockWorkspace' => 'Unlock the general vault to access its projects.',
+      'projectSelectWorkspace' => 'Open the general vault that owns this project, then select it in Projects.',
+      'projectLockWorkspace' => 'Lock workspace and projects',
+      'projectOpen' => 'Open project',
+      'projectFinishEditing' => 'Save or cancel the current edit, or clear the password fields before switching.',
+      'projectRestore' => 'Restore project from file',
+      'projectRestoreHelp' => 'If the project file is missing on this device, restore its encrypted copy. Existing files are never replaced by this action.',
+      'projectConflict' => 'Conflicting project settings',
+      'projectResolveQuestion' => ({
+        required Object name,
+      }) => 'Use the settings for “${name}”? Other conflicting versions will remain in the archive with their access settings preserved.',
+      'projectDeleteWorkspaceHelp' => 'If this vault owns projects, deleting it also removes their shared access settings. Export those projects with independent passwords first. Project files are not deleted by this action.',
+      'projectRemove' => 'Archive project',
+      'projectRemoveQuestion' => ({
+        required Object name,
+      }) => 'Archive “${name}”? Its encrypted file and access settings will be kept. You can restore it from the project archive.',
+      'projectArchive' => 'Project archive',
+      'projectArchiveEmpty' => 'No archived projects.',
+      'projectUnarchive' => 'Restore from archive',
+      'projectUnarchiveQuestion' => ({required Object name}) => 'Restore “${name}” to the project list?',
+      'projectExportPassword' => 'Password for exported project',
+      'projectExportPasswordHelp' => 'Set a password for this independent copy. The working project will continue to open with the workspace. Keep the export password separately.',
+      'projectWorkspacePassword' => 'Change workspace password',
+      'projectBackupHelp' => 'This copy includes the project catalog and shared access settings. Export each project file as well: project contents are stored separately.',
+      'projectRestoreRevision' => 'Restore this project version? Current contents will be replaced by the selected version and retained in local history.',
       'generatorOpen' => 'Generator…',
       'generatorAgain' => 'Generate another',
       'generatorChooseGroup' => 'Select at least one character group.',
@@ -856,7 +999,23 @@ extension on TranslationsEn {
       'vaultName' => 'Vault name',
       'vaultNameOptional' => 'Vault name (optional)',
       'vaultDropHere' => ({required Object name}) => 'Drop an entry into “${name}”',
-      'vaultEntryHint' => 'Click to copy password · drag to move or reorder',
+      'vaultEntryHint' =>
+        'Click to copy password · drag into a field: username, or password if masked · drag inside to reorder',
+      'vaultSecretDragUnsupported' =>
+        'Could not identify an editable field. This field may not support filling from SkySecret.',
+      'vaultSecretDragMissingValue' => 'This entry has no value for this field: a username is needed for a normal field, or a password for a masked field.',
+      'vaultSecretDragFailed' => 'Could not fill the field. Try dragging again or use copy.',
+      'vaultSecretDragHover' => 'Hover over a field · Esc to cancel',
+      'vaultSecretDragLogin' => 'Insert login',
+      'vaultSecretDragPassword' => 'Insert password',
+      'vaultSecretDragPair' => 'Insert login and password',
+      'vaultSecretDragPartial' => 'The login was sent, but the password could not be inserted. Check the fields and drag the entry onto the password field again.',
+      'vaultSecretDragNoLogin' => 'This entry has no login',
+      'vaultSecretDragNoPassword' => 'This entry has no password',
+      'vaultSecretDragTargetLost' =>
+        'The field was recognized but became unavailable before insertion. Point to the field and drag again.',
+      'vaultSecretDragTargetChanged' =>
+        'Could not confirm the same field before insertion. No value was sent. Drag again.',
       'appName' => 'SkySecret',
       'windowsOnly' => 'SkySecret runs on Windows.',
       'clipboardBusy' => 'Clipboard is busy. Please try again.',

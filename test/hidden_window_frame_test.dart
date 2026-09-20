@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skysecret/core/desktop/windows/hidden_window_frame.dart';
+import 'package:skysecret/core/os/windows/window/hidden_window_frame.dart';
 
 class FrameBinding extends BindingBase with SchedulerBinding {
   void hide() => handleAppLifecycleStateChanged(AppLifecycleState.hidden);
@@ -20,11 +20,11 @@ void main() {
     await Future<void>.delayed(Duration.zero);
     expect(completed, isFalse);
 
-    await prepareHiddenWindowFrame().timeout(const Duration(seconds: 2));
+    await HiddenWindowFrame.prepare().timeout(const Duration(seconds: 2));
     expect(completed, isTrue);
     expect(binding.framesEnabled, isFalse);
 
-    await prepareHiddenWindowFrame().timeout(const Duration(seconds: 2));
+    await HiddenWindowFrame.prepare().timeout(const Duration(seconds: 2));
     expect(binding.framesEnabled, isFalse);
   });
 }

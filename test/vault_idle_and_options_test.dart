@@ -5,7 +5,7 @@ import 'package:skysecret/ui/shared/desktop_option.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skysecret/app.dart';
 import 'package:skysecret/core/crypto/crypto.dart';
-import 'package:skysecret/core/settings/vault_preferences.dart';
+import 'package:skysecret/core/settings/repositories/vault_preferences.dart';
 import 'package:skysecret/i18n/translations.g.dart';
 
 import 'manager_window_test.dart' show FakeDesktop, FakeClipboard;
@@ -20,10 +20,11 @@ class PausedStore extends OrganizationStore {
     List<VaultEntry> entries, {
     List<VaultFolder>? folders,
     String? name,
+    List<VaultProject>? projects,
   }) async {
     await gate?.future;
     if (!session.isLocked) {
-      await super.save(session, entries, folders: folders, name: name);
+      await super.save(session, entries, folders: folders, name: name, projects: projects);
     }
   }
 }

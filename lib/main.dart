@@ -4,10 +4,10 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 
 import 'app.dart';
-import 'core/os/windows/desktop_controller.dart';
-import 'core/desktop/clipboard/sensitive_clipboard_boundary.dart';
-import 'core/os/windows/windows_instance.dart';
-import 'core/sync/github/github_backup.dart';
+import 'core/os/windows/controllers/desktop_controller.dart';
+import 'core/desktop/clipboard/services/sensitive_clipboard_boundary.dart';
+import 'core/os/windows/services/windows_instance.dart';
+import 'core/sync/github/controllers/github_backup.dart';
 import 'i18n/translations.g.dart';
 import 'ui/editor/file_editor_window.dart';
 import 'ui/authenticator/totp_window.dart';
@@ -25,9 +25,9 @@ Future<void> main(List<String> args) async {
     );
     return;
   }
-  if (await runFileEditorIfNeeded(clipboardBoundary: clipboardBoundary)) return;
-  if (await runTotpWindowIfNeeded()) return;
-  if (await runSearchWindowIfNeeded(clipboardBoundary: clipboardBoundary)) return;
+  if (await FileEditorWindow.runIfNeeded(clipboardBoundary: clipboardBoundary)) return;
+  if (await TotpWindow.runIfNeeded()) return;
+  if (await VaultSearchWindow.runIfNeeded(clipboardBoundary: clipboardBoundary)) return;
   final WindowsInstance instance;
   try {
     instance = WindowsInstance();

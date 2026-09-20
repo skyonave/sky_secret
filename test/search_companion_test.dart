@@ -3,7 +3,7 @@ import 'dart:convert';
 
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skysecret/ui/search/vault_search_presenter.dart';
+import 'package:skysecret/core/desktop/search/controllers/vault_search_presenter.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();

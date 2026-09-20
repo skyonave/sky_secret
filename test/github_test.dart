@@ -5,10 +5,10 @@ import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skysecret/core/crypto/crypto.dart';
-import 'package:skysecret/core/sync/github/github_api.dart';
-import 'package:skysecret/core/sync/github/github_credentials.dart';
-import 'package:skysecret/core/sync/github/github_backup.dart';
-import 'package:skysecret/core/sync/github/github_storage.dart';
+import 'package:skysecret/core/sync/github/services/github_api.dart';
+import 'package:skysecret/core/sync/github/models/github_credentials.dart';
+import 'package:skysecret/core/sync/github/controllers/github_backup.dart';
+import 'package:skysecret/core/sync/github/repositories/github_storage.dart';
 
 const h0 = '0000000000000000000000000000000000000000';
 const h1 = '1111111111111111111111111111111111111111';
@@ -69,12 +69,13 @@ class MemoryStorage implements GitHubStorage {
   int writes = 0;
   int? failAt;
   @override
-  Future<Map<String, dynamic>?> read() async => value == null ? null : object(jsonDecode(jsonEncode(value)));
+  Future<Map<String, dynamic>?> read() async =>
+      value == null ? null : GitHubValue.object(jsonDecode(jsonEncode(value)));
   @override
   Future<void> write(Map<String, dynamic> data) async {
     writes++;
     if (writes == failAt) throw const GitHubFailure(GitHubProblem.storage);
-    value = object(jsonDecode(jsonEncode(data)));
+    value = GitHubValue.object(jsonDecode(jsonEncode(data)));
   }
 }
 
@@ -121,7 +122,7 @@ class FakeGitHub extends GitHubApi {
   ) async {
     uploads++;
     await onUpload?.call();
-    final hash = await gitBlobHash(bytes);
+    final hash = await GitBlob.hash(bytes);
     blobs[hash] = Uint8List.fromList(bytes);
     return hash;
   }
@@ -286,7 +287,7 @@ void main() {
         transport: (method, uri, headers, body, _) async {
           expect(headers['X-GitHub-Api-Version'], GitHubApi.apiVersion);
           if (method == 'PATCH') {
-            expect(object(body), {'sha': h2, 'force': false});
+            expect(GitHubValue.object(body), {'sha': h2, 'force': false});
             expect(uri.toString(), contains('heads/backup%2Fmain'));
             return const GitHubResponse(200, {});
           }
@@ -304,7 +305,7 @@ void main() {
       'download validates hash and size, marker version cannot be adopted',
       () async {
         final bytes = Uint8List.fromList([1, 2, 3]);
-        final hash = await gitBlobHash(bytes);
+        final hash = await GitBlob.hash(bytes);
         final api = GitHubApi(
           transport: (_, _, _, _, _) async => GitHubResponse(200, {
             'encoding': 'base64',
@@ -555,7 +556,7 @@ void main() {
       await backup.sync();
       expect(backup.status, BackupStatus.conflict);
       expect(
-        object(object(storage.value!['bindings'])['legacy'])['base'],
+        GitHubValue.object(GitHubValue.object(storage.value!['bindings'])['legacy'])['base'],
         isNull,
       );
       expect(storage.value!['lastSync'], isNull);
@@ -814,7 +815,7 @@ void main() {
     'remote tree rejects symlinks, traversal, oversized and truncated objects',
     () async {
       final markerBytes = utf8.encode(GitHubApi.marker);
-      final markerHash = await gitBlobHash(markerBytes);
+      final markerHash = await GitBlob.hash(markerBytes);
       List<Map<String, dynamic>> entries = [];
       var truncated = false;
       final api = GitHubApi(

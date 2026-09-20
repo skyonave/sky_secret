@@ -22,6 +22,7 @@ class OrganizationStore extends VaultStore {
     List<VaultEntry> entries, {
     List<VaultFolder>? folders,
     String? name,
+    List<VaultProject>? projects,
   }) async {
     if (failNext) {
       failNext = false;
@@ -33,6 +34,7 @@ class OrganizationStore extends VaultStore {
       folders ?? session.folders,
       name ?? session.name,
       revision: session.revision,
+      projects: projects,
     );
   }
 }

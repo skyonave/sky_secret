@@ -3,30 +3,20 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../../core/crypto/generator_options.dart';
+import '../../core/crypto/generator/models/generator_options.dart';
 import '../../i18n/translations.g.dart';
 import '../shared/app_theme.dart';
-import '../shared/desktop_menu.dart';
+import '../shared/menu/desktop_menu.dart';
 import '../shared/desktop_option.dart';
 import '../shared/desktop_tooltip.dart';
 import '../shared/input/sensitive_text_editing.dart';
-import 'generator_service.dart';
-
-Future<String?> showGenerator({
-  required BuildContext context,
-  required GeneratorService service,
-  required Future<bool> Function(String) copy,
-  required String actionLabel,
-  bool canApply = true,
-}) {
-  DesktopTooltip.dismissAll();
-  return showDialog<String>(
-    context: context,
-    routeSettings: const RouteSettings(name: DesktopMenuObserver.routeName),
-    animationStyle: AnimationStyle.noAnimation,
-    builder: (_) => GeneratorDialog(service: service, copy: copy, actionLabel: actionLabel, canApply: canApply),
-  );
-}
+import 'services/generator_service.dart';
+part 'widgets/_generator_mode_button.dart';
+part 'widgets/_generator_preview.dart';
+part 'widgets/_generator_count.dart';
+part 'widgets/_password_options.dart';
+part 'widgets/_phrase_options.dart';
+part 'widgets/_generator_warning.dart';
 
 class GeneratorDialog extends StatefulWidget {
   final GeneratorService service;
@@ -44,6 +34,22 @@ class GeneratorDialog extends StatefulWidget {
 
   @override
   State<GeneratorDialog> createState() => _GeneratorDialogState();
+
+  static Future<String?> show({
+    required BuildContext context,
+    required GeneratorService service,
+    required Future<bool> Function(String) copy,
+    required String actionLabel,
+    bool canApply = true,
+  }) {
+    DesktopTooltip.dismissAll();
+    return showDialog<String>(
+      context: context,
+      routeSettings: const RouteSettings(name: DesktopMenuObserver.routeName),
+      animationStyle: AnimationStyle.noAnimation,
+      builder: (_) => GeneratorDialog(service: service, copy: copy, actionLabel: actionLabel, canApply: canApply),
+    );
+  }
 }
 
 class _GeneratorDialogState extends State<GeneratorDialog> {
@@ -177,22 +183,52 @@ class _GeneratorDialogState extends State<GeneratorDialog> {
             const SizedBox(height: 10),
             Row(
               children: [
-                Expanded(child: _mode(GeneratorMode.password, t.generatorPassword)),
+                Expanded(
+                  child: _GeneratorModeButton(
+                    mode: GeneratorMode.password,
+                    label: t.generatorPassword,
+                    loading: _loading,
+                    onChangeMode: _changeMode,
+                    options: _options,
+                  ),
+                ),
                 const SizedBox(width: 6),
-                Expanded(child: _mode(GeneratorMode.passphrase, t.generatorPassphrase)),
+                Expanded(
+                  child: _GeneratorModeButton(
+                    mode: GeneratorMode.passphrase,
+                    label: t.generatorPassphrase,
+                    loading: _loading,
+                    onChangeMode: _changeMode,
+                    options: _options,
+                  ),
+                ),
               ],
             ),
             const SizedBox(height: 12),
-            _preview(),
+            _GeneratorPreview(
+              loading: _loading,
+              generating: _generating,
+              value: _value,
+              copied: _copied,
+              countValid: _countValid,
+              options: _options,
+              onGenerate: _generate,
+              ready: _ready,
+              copying: _copying,
+              onCopy: _copy,
+            ),
             const SizedBox(height: 12),
             if (!_loading) ...[
-              _number(),
+              _GeneratorCount(phrase: _phrase, count: _count, countValid: _countValid, onChangeCount: _changeCount),
               const SizedBox(height: 8),
-              if (_phrase) _phraseOptions() else _passwordOptions(),
-              if (!_options.valid) _warning(t.generatorChooseGroup),
+              if (_phrase)
+                _PhraseOptions(options: _options, onChange: _change)
+              else
+                _PasswordOptions(options: _options, onChange: _change),
+              if (!_options.valid) _GeneratorWarning(text: t.generatorChooseGroup),
             ],
-            if (_error != null) _warning(_error!),
-            if (_preferencesError != null) _warning(_preferencesError!),
+            if (_error != null) _GeneratorWarning(text: _error!),
+            if (_preferencesError != null) _GeneratorWarning(text: _preferencesError!),
             const SizedBox(height: 12),
             FilledButton.icon(
               key: const Key('generator-apply'),
@@ -206,188 +242,11 @@ class _GeneratorDialogState extends State<GeneratorDialog> {
     ),
   );
 
-  Widget _mode(GeneratorMode mode, String label) => TextButton(
-    onPressed: _loading ? null : () => _changeMode(mode),
-    style: TextButton.styleFrom(
-      backgroundColor: _options.mode == mode ? AppColors.surface : Colors.transparent,
-      side: BorderSide(color: _options.mode == mode ? AppColors.accent : AppColors.border),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
-    ),
-    child: Text(label),
-  );
-
-  Widget _preview() => Container(
-    padding: const EdgeInsets.all(10),
-    decoration: BoxDecoration(
-      border: Border.all(color: AppColors.border),
-      borderRadius: BorderRadius.circular(4),
-    ),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        ConstrainedBox(
-          constraints: const BoxConstraints(minHeight: 42, maxHeight: 110),
-          child: _loading || _generating
-              ? const Center(child: SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)))
-              : SingleChildScrollView(
-                  child: Text(
-                    _value,
-                    key: const Key('generated-password'),
-                    style: const TextStyle(fontFamily: 'Consolas', fontSize: 15, height: 1.45),
-                  ),
-                ),
-        ),
-        const SizedBox(height: 6),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.end,
-          children: [
-            if (_copied) Padding(padding: const EdgeInsets.only(right: 8), child: Text(t.copied)),
-            DesktopIconButton(
-              key: const Key('generator-regenerate'),
-              tooltip: t.regenerate,
-              onPressed: !_loading && _countValid && _options.valid ? () => unawaited(_generate()) : null,
-              icon: const Icon(Icons.refresh_rounded, size: 17),
-            ),
-            const SizedBox(width: 4),
-            DesktopIconButton(
-              key: const Key('generator-copy'),
-              tooltip: t.copy,
-              onPressed: _ready && !_copying ? () => unawaited(_copy()) : null,
-              icon: Icon(_copied ? Icons.check_rounded : Icons.copy_outlined, size: 17),
-            ),
-          ],
-        ),
-      ],
-    ),
-  );
-
-  Widget _number() => Row(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      Expanded(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 10),
-          child: Text(_phrase ? '${t.generatorWords} · 6–10' : '${t.length} · 12–64'),
-        ),
-      ),
-      const SizedBox(width: 10),
-      SizedBox(
-        width: 120,
-        child: SensitiveTextEditing(
-          controller: _count,
-          builder: (context, menuBuilder) => TextField(
-            contextMenuBuilder: menuBuilder,
-            enableIMEPersonalizedLearning: false,
-            key: const Key('generator-count'),
-            controller: _count,
-            keyboardType: TextInputType.number,
-            inputFormatters: [FilteringTextInputFormatter.digitsOnly, LengthLimitingTextInputFormatter(2)],
-            decoration: InputDecoration(
-              isDense: true,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-              errorText: _countValid ? null : t.generatorRange,
-            ),
-            onChanged: (text) {
-              final count = int.tryParse(text);
-              _countValid = count != null && count >= (_phrase ? 6 : 12) && count <= (_phrase ? 10 : 64);
-              _change(
-                _countValid
-                    ? (_phrase ? _options.copyWith(wordCount: count) : _options.copyWith(length: count))
-                    : _options,
-              );
-            },
-          ),
-        ),
-      ),
-    ],
-  );
-
-  Widget _passwordOptions() => Column(
-    children: [
-      Row(
-        children: [
-          Expanded(
-            child: DesktopOption(
-              title: 'a–z',
-              value: _options.lowercase,
-              onChanged: (value) => _change(_options.copyWith(lowercase: value)),
-            ),
-          ),
-          const SizedBox(width: 4),
-          Expanded(
-            child: DesktopOption(
-              title: 'A–Z',
-              value: _options.uppercase,
-              onChanged: (value) => _change(_options.copyWith(uppercase: value)),
-            ),
-          ),
-        ],
-      ),
-      const SizedBox(height: 4),
-      Row(
-        children: [
-          Expanded(
-            child: DesktopOption(
-              title: '0–9',
-              value: _options.digits,
-              onChanged: (value) => _change(_options.copyWith(digits: value)),
-            ),
-          ),
-          const SizedBox(width: 4),
-          Expanded(
-            child: DesktopOption(
-              title: t.symbols,
-              key: const Key('generator-symbols'),
-              value: _options.symbols,
-              onChanged: (value) => _change(_options.copyWith(symbols: value)),
-            ),
-          ),
-        ],
-      ),
-      const SizedBox(height: 4),
-      DesktopTooltip(
-        message: t.generatorSimilarHint,
-        child: DesktopOption(
-          title: t.generatorExcludeSimilar,
-          value: _options.excludeSimilar,
-          onChanged: (value) => _change(_options.copyWith(excludeSimilar: value)),
-        ),
-      ),
-    ],
-  );
-
-  Widget _phraseOptions() => Column(
-    crossAxisAlignment: CrossAxisAlignment.stretch,
-    children: [
-      Row(
-        children: [
-          Expanded(child: Text(t.generatorSeparator)),
-          const SizedBox(width: 10),
-          SizedBox(
-            width: 120,
-            child: DropdownButtonFormField<String>(
-              initialValue: _options.separator,
-              decoration: const InputDecoration(
-                isDense: true,
-                contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-              ),
-              items: ['-', ' ', '_', '.']
-                  .map((value) => DropdownMenuItem(value: value, child: Text(value == ' ' ? t.generatorSpace : value)))
-                  .toList(),
-              onChanged: (value) {
-                if (value != null) _change(_options.copyWith(separator: value));
-              },
-            ),
-          ),
-        ],
-      ),
-      const SizedBox(height: 10),
-      Text(t.generatorEnglishWords, style: const TextStyle(color: AppColors.muted, fontSize: 11)),
-    ],
-  );
-
-  Widget _warning(String text) => Padding(
-    padding: const EdgeInsets.only(top: 8),
-    child: Text(text, style: const TextStyle(color: Color(0xFFFFCB8A), fontSize: 11)),
-  );
+  void _changeCount(String text) {
+    final count = int.tryParse(text);
+    _countValid = count != null && count >= (_phrase ? 6 : 12) && count <= (_phrase ? 10 : 64);
+    _change(
+      _countValid ? (_phrase ? _options.copyWith(wordCount: count) : _options.copyWith(length: count)) : _options,
+    );
+  }
 }

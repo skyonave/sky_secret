@@ -41,6 +41,8 @@ void main() {
     for (final entry in [input, old, moved, file, latest]) {
       expect(() => entry.username, throwsStateError);
       expect(() => entry.password, throwsStateError);
+      expect(entry.copyProtectedUsername, throwsStateError);
+      expect(entry.copyProtectedPassword, throwsStateError);
       expect(() => entry.notes, throwsStateError);
       expect(() => entry.hasPassword, throwsStateError);
       expect(entry.toJson, throwsStateError);

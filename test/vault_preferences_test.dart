@@ -1,7 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skysecret/core/settings/vault_preferences.dart';
+import 'package:skysecret/core/settings/repositories/vault_preferences.dart';
 
 void main() {
   test('capture defaults off, persists independently and failed writes preserve it', () async {
