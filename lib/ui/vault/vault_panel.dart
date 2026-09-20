@@ -47,6 +47,7 @@ import 'controllers/vault_session_controller.dart';
 import 'controllers/vault_sync_controller.dart';
 import 'controllers/vault_browser_controller.dart';
 import 'controllers/vault_deletion_controller.dart';
+import 'controllers/vault_tree_state_controller.dart';
 
 part 'widgets/_vault_tree.dart';
 part 'controllers/_vault_tree_controller.dart';
@@ -154,7 +155,8 @@ class VaultPanelState extends State<VaultPanel> {
   bool _busy = false;
   bool _waitingForPassword = false;
   String? _error;
-  final _collapsedFolders = <String>{};
+  final _treeState = VaultTreeStateController();
+  Set<String> get _collapsedFolders => _treeState.collapsed;
   final _vaultName = TextEditingController();
   final _renameName = TextEditingController();
   bool _renamingVault = false;
@@ -248,6 +250,7 @@ class VaultPanelState extends State<VaultPanel> {
     try {
       await opening;
       if (!mounted || epoch != _securityEpoch) return;
+      _restoreTreeState();
       _touchActivity();
       if (mounted) onWindowShown();
     } on VaultUnlockException {
@@ -289,6 +292,7 @@ class VaultPanelState extends State<VaultPanel> {
       if (_lifecycle.project!.unlockWithWorkspace) {
         try {
           if (await _lifecycle.restoreProject(File(source.path))) {
+            _restoreTreeState();
             _touchActivity();
             return;
           }
@@ -299,6 +303,7 @@ class VaultPanelState extends State<VaultPanel> {
       final passwords = await _passwordPrompt();
       if (!mounted || passwords == null || epoch != _securityEpoch) return;
       await _lifecycle.restoreProject(File(source.path), password: passwords.password);
+      _restoreTreeState();
       _touchActivity();
     });
   }
@@ -1028,7 +1033,8 @@ class VaultPanelState extends State<VaultPanel> {
     if (_busy) return;
     if (_lifecycle.project?.unlockWithWorkspace == true) {
       await _operation(() async {
-        await _lifecycle.open(_lifecycle.project!.credential);
+        if (await _lifecycle.open(_lifecycle.project!.credential) == false || !mounted) return;
+        _restoreTreeState();
         _touchActivity();
       });
       if (mounted) onWindowShown();
@@ -1048,9 +1054,7 @@ class VaultPanelState extends State<VaultPanel> {
     _confirmation.clear();
     await _operation(() async {
       if (await _lifecycle.open(password, name: name.isEmpty ? null : name) == false || !mounted) return;
-      _collapsedFolders
-        ..clear()
-        ..addAll(_treePreferences?.collapsed(_selectedVaultId ?? 'local') ?? {});
+      _restoreTreeState();
       FocusManager.instance.primaryFocus?.unfocus();
       setState(_vaultName.clear);
       _touchActivity();
@@ -1149,6 +1153,12 @@ class VaultPanelState extends State<VaultPanel> {
 
   void _updateSearchHandler() {
     if (mounted) widget.onSearchHandlerChanged?.call(_canSearch ? _requestSearch : null);
+  }
+
+  void _restoreTreeState() {
+    if (_session == null || _session!.isLocked) return;
+    final vaultId = _selectedVaultId ?? 'local';
+    _treeState.restore(vaultId, _treePreferences?.collapsed(vaultId) ?? {});
   }
 
   void _saveTreeState() {
@@ -1934,7 +1944,8 @@ class VaultPanelState extends State<VaultPanel> {
       _loading = false;
       _clearEditor();
       _error = null;
-      _collapsedFolders.clear();
+      _treeState.clear();
+      if (preserveWorkspace) _restoreTreeState();
       _renamingVault = false;
       _renameName.clear();
     });
