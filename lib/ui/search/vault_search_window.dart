@@ -367,9 +367,9 @@ class _VaultSearchWindowState extends State<VaultSearchWindow> with WindowListen
                           ? Center(
                               child: _loading
                                   ? const SizedBox(
-                                      width: 16,
-                                      height: 16,
-                                      child: CircularProgressIndicator(strokeWidth: 2),
+                                      width: 160,
+                                      height: 2,
+                                      child: LinearProgressIndicator(minHeight: 2),
                                     )
                                   : Text(t.browserNoResults),
                             )

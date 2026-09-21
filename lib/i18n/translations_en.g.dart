@@ -151,7 +151,7 @@ class TranslationsEn extends Translations with BaseTranslations<AppLocale, Trans
   @override
   String get projectSelectWorkspace => 'Open the general vault that owns this project, then select it in Projects.';
   @override
-  String get projectLockWorkspace => 'Lock workspace and projects';
+  String get projectLockWorkspace => 'Lock vault and projects';
   @override
   String get projectOpen => 'Open project';
   @override
@@ -170,10 +170,10 @@ class TranslationsEn extends Translations with BaseTranslations<AppLocale, Trans
   String get projectDeleteWorkspaceHelp =>
       'If this vault owns projects, deleting it also removes their shared access settings. Export those projects with independent passwords first. Project files are not deleted by this action.';
   @override
-  String get projectRemove => 'Archive project';
+  String get projectRemove => 'Delete project';
   @override
   String projectRemoveQuestion({required Object name}) =>
-      'Archive “${name}”? Its encrypted file and access settings will be kept. You can restore it from the project archive.';
+      'Delete “${name}” and its secrets from this computer? Programs launched through the project will stop. The source folder, original .env files and external backups will remain. This cannot be undone.';
   @override
   String get projectArchive => 'Project archive';
   @override
@@ -965,6 +965,72 @@ class TranslationsEn extends Translations with BaseTranslations<AppLocale, Trans
   String get totpAdd => 'Add authenticator';
   @override
   String get totpKind => 'Authenticator · TOTP';
+  @override
+  String get projectEnvClearValues => 'Clear values';
+  @override
+  String get projectEnvCopy => 'Copy .env';
+  @override
+  String projectEnvCopyName({required Object name}) => '${name} — copy';
+  @override
+  String get projectEnvCopyValue => 'Copy value';
+  @override
+  String get projectEnvDeleteFailed =>
+      'Removal stopped: a file changed, is inaccessible, or saved vault data could not be verified. Check remaining originals.';
+  @override
+  String get projectEnvDeleteHelp =>
+      'Remove selected originals? Saved vault data and unchanged source files are checked first. This does not clean Git history or other copies.';
+  @override
+  String get projectEnvDeleteSources => 'Remove selected originals';
+  @override
+  String get projectEnvDuplicate => 'Duplicate environment';
+  @override
+  String get projectEnvImport => 'Import';
+  @override
+  String get projectEnvImported => 'Environments saved. Original files remain in the project.';
+  @override
+  String get projectEnvImportFailed => 'Could not read the folder. Check access and project size.';
+  @override
+  String get projectEnvImportFolder => 'Connect folder / import .env';
+  @override
+  String get projectEnvImportHelp =>
+      'Select files to import as separate environments. Existing environments and source files are preserved. .env.example and .env.template are skipped.';
+  @override
+  String get projectEnvKeepFiles => 'Keep files';
+  @override
+  String projectEnvLineError({required Object line}) => 'Invalid line ${line}. Check KEY=value and quotes.';
+  @override
+  String get projectEnvNone => 'No .env files found. Templates and dependency folders are skipped.';
+  @override
+  String get projectEnvReveal => 'Show / hide values';
+  @override
+  String get projectEnvRows => 'Keys and values';
+  @override
+  String get projectEnvText => 'From .env text';
+  @override
+  String get projectEnvTextHelp =>
+      'Paste KEY=value, one variable per line. Empty values, quotes, comments and export are supported. No variable expansion. This text shows plain values.';
+  @override
+  String projectEnvVariableCount({required Object count}) => '${count} variables';
+  @override
+  String get projectSecretAccounts => 'Accounts and notes';
+  @override
+  String get projectSecretCopied => 'Copied';
+  @override
+  String get projectSecretCopyFailed => 'Could not copy';
+  @override
+  String get projectSecretFiles => 'Files';
+  @override
+  String get projectSecretOpenFile => 'Open file';
+  @override
+  String get projectSecretsEmpty => 'Project secrets appear here. Add an entry or environment in the main window.';
+  @override
+  String get projectSecretsShow => 'Show project secrets';
+  @override
+  String get projectMore => 'More';
+  @override
+  String get projectEnvHideValue => 'Hide value';
+  @override
+  String get projectEnvShowValue => 'Show value';
 }
 
 extension on TranslationsEn {
@@ -1027,7 +1093,7 @@ extension on TranslationsEn {
       'projectsEmpty' => 'No projects here. Your everyday secrets remain in General.',
       'projectUnlockWorkspace' => 'Unlock the general vault to access its projects.',
       'projectSelectWorkspace' => 'Open the general vault that owns this project, then select it in Projects.',
-      'projectLockWorkspace' => 'Lock workspace and projects',
+      'projectLockWorkspace' => 'Lock vault and projects',
       'projectOpen' => 'Open project',
       'projectFinishEditing' => 'Save or cancel the current edit, or clear the password fields before switching.',
       'projectRestore' => 'Restore project from file',
@@ -1037,10 +1103,10 @@ extension on TranslationsEn {
         required Object name,
       }) => 'Use the settings for “${name}”? Other conflicting versions will remain in the archive with their access settings preserved.',
       'projectDeleteWorkspaceHelp' => 'If this vault owns projects, deleting it also removes their shared access settings. Export those projects with independent passwords first. Project files are not deleted by this action.',
-      'projectRemove' => 'Archive project',
+      'projectRemove' => 'Delete project',
       'projectRemoveQuestion' => ({
         required Object name,
-      }) => 'Archive “${name}”? Its encrypted file and access settings will be kept. You can restore it from the project archive.',
+      }) => 'Delete “${name}” and its secrets from this computer? Programs launched through the project will stop. The source folder, original .env files and external backups will remain. This cannot be undone.',
       'projectArchive' => 'Project archive',
       'projectArchiveEmpty' => 'No archived projects.',
       'projectUnarchive' => 'Restore from archive',
@@ -1434,6 +1500,37 @@ extension on TranslationsEn {
       'totpOpenFailed' => 'Could not open the verification codes window.',
       'totpAdd' => 'Add authenticator',
       'totpKind' => 'Authenticator · TOTP',
+      'projectEnvClearValues' => 'Clear values',
+      'projectEnvCopy' => 'Copy .env',
+      'projectEnvCopyName' => ({required Object name}) => '${name} — copy',
+      'projectEnvCopyValue' => 'Copy value',
+      'projectEnvDeleteFailed' => 'Removal stopped: a file changed, is inaccessible, or saved vault data could not be verified. Check remaining originals.',
+      'projectEnvDeleteHelp' => 'Remove selected originals? Saved vault data and unchanged source files are checked first. This does not clean Git history or other copies.',
+      'projectEnvDeleteSources' => 'Remove selected originals',
+      'projectEnvDuplicate' => 'Duplicate environment',
+      'projectEnvImport' => 'Import',
+      'projectEnvImported' => 'Environments saved. Original files remain in the project.',
+      'projectEnvImportFailed' => 'Could not read the folder. Check access and project size.',
+      'projectEnvImportFolder' => 'Connect folder / import .env',
+      'projectEnvImportHelp' => 'Select files to import as separate environments. Existing environments and source files are preserved. .env.example and .env.template are skipped.',
+      'projectEnvKeepFiles' => 'Keep files',
+      'projectEnvLineError' => ({required Object line}) => 'Invalid line ${line}. Check KEY=value and quotes.',
+      'projectEnvNone' => 'No .env files found. Templates and dependency folders are skipped.',
+      'projectEnvReveal' => 'Show / hide values',
+      'projectEnvRows' => 'Keys and values',
+      'projectEnvText' => 'From .env text',
+      'projectEnvTextHelp' => 'Paste KEY=value, one variable per line. Empty values, quotes, comments and export are supported. No variable expansion. This text shows plain values.',
+      'projectEnvVariableCount' => ({required Object count}) => '${count} variables',
+      'projectSecretAccounts' => 'Accounts and notes',
+      'projectSecretCopied' => 'Copied',
+      'projectSecretCopyFailed' => 'Could not copy',
+      'projectSecretFiles' => 'Files',
+      'projectSecretOpenFile' => 'Open file',
+      'projectSecretsEmpty' => 'Project secrets appear here. Add an entry or environment in the main window.',
+      'projectSecretsShow' => 'Show project secrets',
+      'projectMore' => 'More',
+      'projectEnvHideValue' => 'Hide value',
+      'projectEnvShowValue' => 'Show value',
       _ => null,
     };
   }

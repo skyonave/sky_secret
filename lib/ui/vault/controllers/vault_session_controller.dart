@@ -146,6 +146,34 @@ class VaultSessionController {
     );
   }
 
+  Future<void> deleteProject(VaultProject project) async {
+    retainWorkspace();
+    final workspace = workspaceSession;
+    final store = _workspaceStore;
+    final catalog = _catalog;
+    if (_disposed || workspace == null || workspace.isLocked || store == null || catalog == null) return;
+    final current = workspace.projects.where((p) => p.id == project.id).firstOrNull;
+    if (current == null) return;
+    if (_project?.vaultId == current.vaultId) suspendContext();
+    final epoch = _epoch;
+    bool valid() => accepts(epoch) && !workspace.isLocked;
+    final remaining = workspace.projects.where((p) => p.id != current.id).toList();
+    if (remaining.every((p) => p.vaultId != current.vaultId)) {
+      final directory = Directory('${catalog.directory.path}/projects');
+      final type = await FileSystemEntity.type(directory.path, followLinks: false);
+      if (!valid()) return;
+      if (type == FileSystemEntityType.directory) {
+        final target = VaultStore(file: File('${directory.path}/${current.vaultId}.smv'));
+        await target.delete(allowed: valid, retainSnapshots: false, allowMissing: true);
+      } else if (type != FileSystemEntityType.notFound) {
+        throw const FileSystemException('Project directory is not a regular directory');
+      }
+    }
+    if (!valid()) return;
+    await store.save(workspace, workspace.entries, projects: remaining);
+    if (valid()) _vaults.removeWhere((v) => v.id == current.vaultId && remaining.every((p) => p.vaultId != v.id));
+  }
+
   Future<VaultProject?> resolveProject(VaultProject project) async {
     retainWorkspace();
     final workspace = workspaceSession;

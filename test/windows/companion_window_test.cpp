@@ -167,6 +167,13 @@ int main() {
   CHECK(code_bounds.right - code_bounds.left == 454);
   CHECK(code_bounds.bottom - code_bounds.top == 602);
   CHECK((move_flags & SWP_NOSIZE) == 0);
+  CHECK(companion.Place(code_window, 12, false, true, 2));
+  CHECK(code_bounds.left == 476 && code_bounds.right == 930);
+  CHECK(!companion.Place(code_window, 12, false, true, 3));
+  main_bounds = RECT{800, 400, 1270, 1010};
+  CHECK(companion.Place(code_window, 12, false, true, 2));
+  CHECK(code_bounds.left == 0 && code_bounds.right == 330);
+  main_bounds = RECT{1400, 400, 1870, 1010};
   dpi = 144;
   CHECK(companion.Place(code_window, 12, false, true));
   CHECK(code_bounds.right == 1390);

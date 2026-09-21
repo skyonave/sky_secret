@@ -73,7 +73,7 @@ class DesktopNoticePlugin : public flutter::Plugin {
       shown_ = true;
       if (!Follow(true)) {
         Hide();
-        result->Error("position", "Notification position unavailable");
+        result->Success();
         return;
       }
       SetTimer(window_, 1, 100, nullptr);
@@ -177,11 +177,11 @@ class DesktopNoticePlugin : public flutter::Plugin {
     text_height_ = text.bottom;
     const auto height = std::min<LONG>(text_height_ + Scale(58),
         std::min<LONG>(Scale(260), monitor.rcWork.bottom - monitor.rcWork.top));
-    const auto rect = DesktopNoticeBounds(monitor.rcWork, {width, height});
+    const auto rect = DesktopNoticeBounds(monitor.rcWork, {width, height}, Scale(12));
     RECT previous{};
     GetWindowRect(window_, &previous);
     if (!EqualRect(&previous, &rect)) {
-      SetWindowPos(window_, HWND_TOPMOST, rect.left, rect.top, width, height, SWP_NOACTIVATE);
+      SetWindowPos(window_, nullptr, rect.left, rect.top, width, height, SWP_NOACTIVATE | SWP_NOZORDER);
       SetWindowPos(close_, nullptr, width - Scale(40), Scale(8), Scale(28), Scale(28), SWP_NOZORDER | SWP_NOACTIVATE);
       auto region = DesktopNoticeShape(width, height, dpi_);
       if (region && !SetWindowRgn(window_, region, FALSE)) DeleteObject(region);
@@ -191,6 +191,7 @@ class DesktopNoticePlugin : public flutter::Plugin {
     GetWindowDisplayAffinity(host, &affinity);
     SetWindowDisplayAffinity(window_, affinity);
     if (!IsWindowVisible(window_)) ShowWindow(window_, SW_SHOWNOACTIVATE);
+    SetWindowPos(window_, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOACTIVATE | SWP_NOMOVE | SWP_NOSIZE);
     POINT cursor{};
     GetCursorPos(&cursor);
     const bool hovered = GetAncestor(WindowFromPoint(cursor), GA_ROOT) == window_;

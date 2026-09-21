@@ -11,26 +11,69 @@ class _ProjectEnvironmentDialog extends StatefulWidget {
 
 class _ProjectEnvironmentDialogState extends State<_ProjectEnvironmentDialog> {
   late final _name = TextEditingController(text: widget.data['name'] as String? ?? '');
+  final _source = TextEditingController();
   late final _variables = [
     for (final item in (widget.data['variables'] as Map? ?? {}).entries)
       _EnvironmentFields(item.key as String, item.value as String),
   ];
   String? _error;
   bool _saving = false;
+  bool _textMode = false;
+  bool _revealed = false;
+
+  ProjectEnvironment _environment() {
+    if (_textMode) return ProjectDotenv.parse(_source.text);
+    final values = <String, String>{};
+    final names = <String>{};
+    for (final fields in _variables) {
+      final key = fields.name.text.trim();
+      if (!names.add(key.toUpperCase())) throw const FormatException();
+      values[key] = fields.value.text;
+    }
+    return ProjectEnvironment(values);
+  }
+
+  void _toggleMode() {
+    try {
+      final value = _environment();
+      if (_textMode) {
+        final replacement = [for (final item in value.variables.entries) _EnvironmentFields(item.key, item.value)];
+        for (final fields in _variables) {
+          fields.dispose();
+        }
+        _variables
+          ..clear()
+          ..addAll(replacement);
+        _source.clear();
+      } else {
+        _source.text = ProjectDotenv.format(value);
+      }
+      setState(() {
+        _textMode = !_textMode;
+        _error = null;
+      });
+    } on FormatException catch (error) {
+      setState(
+        () =>
+            _error = error.source is int ? t.projectEnvLineError(line: error.source as int) : t.projectVariablesInvalid,
+      );
+    }
+  }
+
+  Future<void> _copy() async {
+    try {
+      await SensitiveClipboardScope.copyText(context, ProjectDotenv.format(_environment()));
+    } on FormatException {
+      setState(() => _error = t.projectVariablesInvalid);
+    }
+  }
 
   Future<void> _save() async {
     if (_saving) return;
     try {
       final name = _name.text.trim();
       if (name.isEmpty || name.length > 120) throw const FormatException();
-      final variables = <String, String>{};
-      final names = <String>{};
-      for (final fields in _variables) {
-        final key = fields.name.text.trim();
-        if (!names.add(key.toUpperCase())) throw const FormatException();
-        variables[key] = fields.value.text;
-      }
-      final environment = ProjectEnvironment(variables);
+      final environment = _environment();
       setState(() => _saving = true);
       final error = await widget.save({'name': name, 'contents': environment.encode()});
       if (!mounted) return;
@@ -39,8 +82,11 @@ class _ProjectEnvironmentDialogState extends State<_ProjectEnvironmentDialog> {
         return;
       }
       setState(() => _error = error);
-    } on FormatException {
-      setState(() => _error = t.projectVariablesInvalid);
+    } on FormatException catch (error) {
+      setState(
+        () =>
+            _error = error.source is int ? t.projectEnvLineError(line: error.source as int) : t.projectVariablesInvalid,
+      );
     } catch (_) {
       if (mounted) setState(() => _error = t.vaultWriteFailed);
     } finally {
@@ -52,6 +98,8 @@ class _ProjectEnvironmentDialogState extends State<_ProjectEnvironmentDialog> {
   void dispose() {
     _name.clear();
     _name.dispose();
+    _source.clear();
+    _source.dispose();
     for (final fields in _variables) {
       fields.dispose();
     }
@@ -62,37 +110,67 @@ class _ProjectEnvironmentDialogState extends State<_ProjectEnvironmentDialog> {
   Widget build(BuildContext context) => AbsorbPointer(
     absorbing: _saving,
     child: ConfigurationPage(
-      title: Text(t.projectEnvironmentEdit),
+      title: Text(widget.data['creating'] == true ? t.projectEnvironmentAdd : t.projectEnvironmentEdit),
       content: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           _VaultField(controller: _name, label: t.projectEnvironmentName, fieldKey: 'environment-name', busy: false),
-          Text(t.projectVariablesProtected, style: Theme.of(context).textTheme.bodySmall),
-          const SizedBox(height: 16),
-          for (final fields in _variables)
-            Padding(
-              key: ObjectKey(fields),
-              padding: const EdgeInsets.only(bottom: 8),
-              child: Row(
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              OutlinedButton.icon(
+                onPressed: _toggleMode,
+                icon: Icon(_textMode ? Icons.table_rows_outlined : Icons.code, size: 16),
+                label: Text(_textMode ? t.projectEnvRows : t.projectEnvText),
+              ),
+              TextButton.icon(
+                onPressed: _copy,
+                icon: const Icon(Icons.copy_outlined, size: 16),
+                label: Text(t.projectEnvCopy),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          if (_textMode) ...[
+            Text(t.projectEnvTextHelp, style: Theme.of(context).textTheme.bodySmall),
+            const SizedBox(height: 12),
+            _VaultField(controller: _source, label: '.env', fieldKey: 'environment-source', busy: false, lines: 14),
+          ] else ...[
+            Row(
+              children: [
+                Expanded(child: Text(t.projectVariablesProtected, style: Theme.of(context).textTheme.bodySmall)),
+                DesktopIconButton(
+                  tooltip: t.projectEnvReveal,
+                  onPressed: () => setState(() => _revealed = !_revealed),
+                  icon: Icon(_revealed ? Icons.visibility_off_outlined : Icons.visibility_outlined, size: 18),
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            for (final fields in _variables)
+              Row(
+                key: ObjectKey(fields),
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Expanded(
-                    child: Column(
-                      children: [
-                        _VaultField(
-                          controller: fields.name,
-                          label: t.projectVariableName,
-                          fieldKey: 'variable-name',
-                          busy: false,
-                        ),
-                        _VaultField(
-                          controller: fields.value,
-                          label: t.projectVariableValue,
-                          fieldKey: 'variable-value',
-                          secret: true,
-                          busy: false,
-                        ),
-                      ],
+                    flex: 2,
+                    child: _VaultField(
+                      controller: fields.name,
+                      label: t.projectVariableName,
+                      fieldKey: 'variable-name',
+                      busy: false,
+                    ),
+                  ),
+                  const Padding(padding: EdgeInsets.fromLTRB(6, 10, 6, 0), child: Text('=')),
+                  Expanded(
+                    flex: 3,
+                    child: _VaultField(
+                      controller: fields.value,
+                      label: t.projectVariableValue,
+                      fieldKey: 'variable-value',
+                      secret: !_revealed,
+                      busy: false,
                     ),
                   ),
                   const SizedBox(width: 6),
@@ -106,18 +184,33 @@ class _ProjectEnvironmentDialogState extends State<_ProjectEnvironmentDialog> {
                   ),
                 ],
               ),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                TextButton.icon(
+                  onPressed: _variables.length >= 128
+                      ? null
+                      : () => setState(() => _variables.add(_EnvironmentFields('', ''))),
+                  icon: const Icon(Icons.add_rounded, size: 16),
+                  label: Text(t.projectVariableAdd),
+                ),
+                TextButton(
+                  onPressed: () => setState(() {
+                    for (final fields in _variables) {
+                      fields.value.clear();
+                    }
+                  }),
+                  child: Text(t.projectEnvClearValues),
+                ),
+              ],
             ),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: TextButton.icon(
-              onPressed: _variables.length >= 128
-                  ? null
-                  : () => setState(() => _variables.add(_EnvironmentFields('', ''))),
-              icon: const Icon(Icons.add_rounded, size: 16),
-              label: Text(t.projectVariableAdd),
+          ],
+          if (_error != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 12),
+              child: Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
             ),
-          ),
-          if (_error != null) Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
         ],
       ),
       actions: [

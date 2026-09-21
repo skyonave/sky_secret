@@ -152,6 +152,24 @@ void main() {
     expect(profile.toJson().keys, ['executable', 'directory', 'arguments']);
   });
 
+  test('connected folder persists separately from environment launch settings', () async {
+    final directory = await Directory.systemTemp.createTemp('project-folder-synthetic-');
+    addTearDown(() => directory.delete(recursive: true));
+    final preferences = ProjectLaunchPreferences(
+      file: File('${directory.path}/settings'),
+      protect: (bytes, {decrypt = false}) => Uint8List.fromList(bytes),
+    );
+    await Future.wait([preferences.saveDirectory('lineage', directory.path), preferences.save('lineage/env', profile)]);
+    expect(await preferences.readDirectory('lineage'), directory.path);
+    expect((await preferences.read('lineage/env'))!.executable, profile.executable);
+    expect(await preferences.readDirectory('unrelated'), isNull);
+    expect(() => preferences.saveDirectory('lineage', 'relative'), throwsFormatException);
+    await preferences.save('other/env', profile);
+    await preferences.removeProject('lineage');
+    expect(await preferences.readDirectory('lineage'), isNull);
+    expect(await preferences.read('lineage/env'), isNull);
+    expect(await preferences.read('other/env'), isNotNull);
+  });
   group('launch lifecycle through a mocked native channel', () {
     const channel = MethodChannel('synthetic/project-launch');
     late VaultSession session;
@@ -208,6 +226,22 @@ void main() {
       grant.complete(1);
       expect(await started, isFalse);
       expect(calls.where((call) => call.method == 'start'), isEmpty);
+    });
+    test('deleting one project stops its processes without stopping other projects', () async {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(channel, (call) async {
+        calls.add(call);
+        if (call.method == 'prepare') return 1;
+        if (call.method == 'start') return true;
+        return null;
+      });
+      for (final id in ['first/env', 'first/other', 'second/env']) {
+        expect(await controller.start(id: id, session: session, entry: entry, profile: profile), isTrue);
+      }
+      await controller.stopProject('first');
+      expect(controller.running('first/env'), isFalse);
+      expect(controller.running('first/other'), isFalse);
+      expect(controller.running('second/env'), isTrue);
+      expect(calls.where((call) => call.method == 'stop'), hasLength(2));
     });
     test('an obsolete start stops only its own process, preserving a newer start', () async {
       final pending = <Completer<bool>>[];

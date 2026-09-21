@@ -38,7 +38,7 @@ class _GeneratorPreview extends StatelessWidget {
         ConstrainedBox(
           constraints: const BoxConstraints(minHeight: 42, maxHeight: 110),
           child: loading || generating
-              ? const Center(child: SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)))
+              ? const Align(alignment: Alignment.bottomCenter, child: LinearProgressIndicator(minHeight: 2))
               : SingleChildScrollView(
                   child: Text(
                     value,

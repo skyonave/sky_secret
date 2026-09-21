@@ -272,4 +272,29 @@ void main() {
     await ConfigurationWindows.prepare('en');
     expect(transport.count, 2);
   });
+  test('project companion is nonmodal, editor occupies third slot, lock revokes both', () async {
+    final companion = ConfigurationWindows.open(
+      kind: 'projectSecrets',
+      companion: true,
+      locale: 'en',
+      isValid: () => true,
+    );
+    await transport.until(() => transport.payload != null);
+    final companionChannel = transport.session!;
+    expect(ConfigurationWindows.opened.value, isFalse);
+    expect(transport.placements.last.method, 'placeResources');
+    final editor = ConfigurationWindows.open(kind: 'environment', locale: 'en', isValid: () => true);
+    await transport.until(() => transport.sessions.length == 2 && transport.payload?['kind'] == 'environment');
+    final editorChannel = transport.session!;
+    expect(ConfigurationWindows.opened.value, isTrue);
+    expect(transport.placements.last.method, 'placeConfiguration');
+    expect((transport.placements.last.arguments as Map)['slot'], 2);
+    await transport.fromChild(editorChannel, 'complete');
+    await editor;
+    expect(ConfigurationWindows.opened.value, isFalse);
+    expect(await transport.fromChild(companionChannel, 'alive'), isTrue);
+    ConfigurationWindows.closeAll();
+    expect(await transport.fromChild(companionChannel, 'alive'), isNull);
+    await companion;
+  });
 }

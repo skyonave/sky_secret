@@ -67,6 +67,13 @@ class ProjectLaunchController extends ChangeNotifier {
     if (!_disposed) notifyListeners();
   }
 
+  Future<void> stopProject(String lineage) async {
+    final ids = {..._running.keys, ..._starting.keys}.where((id) => id.startsWith('$lineage/')).toList();
+    for (final id in ids) {
+      await stop(id);
+    }
+  }
+
   Future<void> _poll() async {
     if (_disposed || _polling) return;
     _polling = true;

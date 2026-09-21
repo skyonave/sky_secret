@@ -130,14 +130,17 @@ void StartupIndicator::Paint(HWND window) {
     MoveToEx(dc, scale(35), scale(25), nullptr);
     LineTo(dc, scale(21), scale(39));
   } else {
-    const double angle = phase_ * 3.141592653589793 / 12;
-    const int x = scale(28);
-    const int y = scale(32);
-    const int radius = scale(10);
-    Arc(dc, x - radius, y - radius, x + radius, y + radius,
-        x + static_cast<int>(radius * std::cos(angle)), y + static_cast<int>(radius * std::sin(angle)),
-        x + static_cast<int>(radius * std::cos(angle + 4)), y + static_cast<int>(radius * std::sin(angle + 4)));
-  }
+    const auto track = CreateSolidBrush(RGB(47, 64, 78));
+    RECT progress{scale(12), bounds.bottom - scale(7), bounds.right - scale(12), bounds.bottom - scale(4)};
+    FillRect(dc, &progress, track);
+    DeleteObject(track);
+    const int length = scale(48);
+    const int travel = progress.right - progress.left - length;
+    progress.left += travel * phase_ / 24;
+    progress.right = progress.left + length;
+    const auto active = CreateSolidBrush(color);
+    FillRect(dc, &progress, active);
+    DeleteObject(active);  }
   SelectObject(dc, old_pen);
   DeleteObject(pen);
   std::wstring text;
@@ -150,7 +153,7 @@ void StartupIndicator::Paint(HWND window) {
   const auto old_font = SelectObject(dc, font);
   SetBkMode(dc, TRANSPARENT);
   SetTextColor(dc, RGB(224, 235, 241));
-  RECT text_bounds{scale(52), scale(12), bounds.right - scale(16), bounds.bottom - scale(12)};
+  RECT text_bounds{scale(displayed_status_ == 0 ? 16 : 52), scale(12), bounds.right - scale(16), bounds.bottom - scale(12)};
   DrawTextW(dc, text.c_str(), -1, &text_bounds, DT_LEFT | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS | DT_NOPREFIX);
   SelectObject(dc, old_font);
   DeleteObject(font);

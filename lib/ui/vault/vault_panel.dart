@@ -1,6 +1,7 @@
 import '../shared/desktop_tooltip.dart';
 
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:file_selector/file_selector.dart';
@@ -36,6 +37,7 @@ import '../shared/menu/inset_menu_item.dart';
 import '../shared/desktop_option.dart';
 import '../shared/notifications/desktop_notice.dart';
 import '../shared/menu/desktop_menu.dart';
+import '../shared/menu/desktop_select.dart';
 import '../shared/files/save_file_dialog.dart';
 import '../shared/input/sensitive_text_editing.dart';
 import '../generator/generator_dialog.dart';
@@ -52,6 +54,8 @@ import 'controllers/vault_browser_controller.dart';
 import 'controllers/vault_deletion_controller.dart';
 import '../../core/desktop/configuration/controllers/configuration_windows.dart';
 import '../../core/projects/controllers/project_launch_controller.dart';
+import '../../core/projects/services/project_dotenv.dart';
+import '../../core/projects/services/project_env_import.dart';
 import '../../core/crypto/generator/models/generator_options.dart';
 import '../../core/projects/models/project_launch_profile.dart';
 import '../../core/projects/repositories/project_launch_preferences.dart';
@@ -73,10 +77,12 @@ part 'widgets/_projects_panel.dart';
 part 'dialogs/_project_create_dialog.dart';
 part 'dialogs/_vault_configuration_forms.dart';
 part 'dialogs/_project_environment_dialog.dart';
+part 'dialogs/_project_import_dialog.dart';
 part 'dialogs/_project_launch_dialog.dart';
 part 'dialogs/_entry_configuration_dialog.dart';
 part 'dialogs/_configuration_choice_dialog.dart';
 part 'widgets/_project_workspace.dart';
+part 'widgets/_project_secrets_panel.dart';
 part 'dialogs/_vault_preferences_dialog.dart';
 part 'widgets/_vault_entry_card.dart';
 part 'dialogs/_vault_text_file_dialog.dart';
@@ -170,7 +176,9 @@ class VaultPanelState extends State<VaultPanel> {
   bool _loading = true;
   bool _projectsMode = false;
   bool _archivedProjects = false;
-  bool _projectResources = false;
+  String? _openingProjectId;
+  VaultSession? _resourcesSession;
+  String? _projectDirectory;
   bool _entryWindowOpen = false;
   bool _windowShown = false;
   bool _restoreCodesPending = false;
@@ -182,6 +190,7 @@ class VaultPanelState extends State<VaultPanel> {
   bool get _showingProjects => _projectsMode && _lifecycle.project == null && _lifecycle.workspaceUnlocked;
   bool get _contentActive => widget.active && !_showingProjects && !ConfigurationWindows.opened.value;
   bool _busy = false;
+  bool _busyProgress = true;
   bool _waitingForPassword = false;
   String? _error;
   final _treeState = VaultTreeStateController();
@@ -249,6 +258,123 @@ class VaultPanelState extends State<VaultPanel> {
     }
   }
 
+  Future<void> _openProjectSecrets() async {
+    final session = _session;
+    if (!_windowShown ||
+        _lifecycle.project == null ||
+        session == null ||
+        session.isLocked ||
+        identical(_resourcesSession, session)) {
+      return;
+    }
+    _resourcesSession = session;
+    bool valid() => mounted && _windowShown && identical(_session, session) && !session.isLocked;
+    try {
+      await ConfigurationWindows.open(
+        kind: 'projectSecrets',
+        companion: true,
+        locale: LocaleSettings.currentLocale.languageCode,
+        data: {'title': _heading},
+        isValid: valid,
+        onAction: (method, arguments) async {
+          if (!valid()) return null;
+          if (method == 'state') {
+            return {
+              'title': _heading,
+              'revision': session.revision.toJson(),
+              'busy': _busy || ConfigurationWindows.opened.value,
+              'rows': [
+                for (final entry in session.entries.where((entry) => !entry.isDeleted))
+                  if (!entry.isEnvironment ||
+                      entry.id ==
+                          (_environmentId ??
+                              session.entries.where((e) => e.isEnvironment && !e.isDeleted).firstOrNull?.id))
+                    {
+                      'id': entry.id,
+                      'title': entry.title,
+                      'kind': entry.kind.name,
+                      'password': entry.hasPassword,
+                      'username': entry.username.isNotEmpty,
+                      'notes': !entry.isEnvironment && entry.notes.isNotEmpty,
+                      'totp': entry.hasTotp,
+                      if (entry.isEnvironment) 'keys': ProjectEnvironment.decode(entry.notes).variables.keys.toList(),
+                    },
+              ],
+            };
+          }
+          if (_busy || ConfigurationWindows.opened.value || arguments is! Map) return false;
+          final entry = session.entries.where((entry) => entry.id == arguments['id'] && !entry.isDeleted).firstOrNull;
+          if (entry == null) return false;
+          _touchActivity();
+          if (method == 'reveal') {
+            final selected =
+                _environmentId ?? session.entries.where((e) => e.isEnvironment && !e.isDeleted).firstOrNull?.id;
+            if (!entry.isEnvironment || entry.id != selected) return null;
+            return ProjectEnvironment.decode(entry.notes).variables[arguments['key']];
+          }
+          if (method == 'edit') {
+            unawaited(entry.isFile ? _openFile(entry) : _edit(entry));
+            return true;
+          }
+          if (method == 'delete') {
+            unawaited(_deleteEntry(entry));
+            return true;
+          }
+          if (method == 'open') {
+            if (entry.isFile) {
+              unawaited(_openFile(entry));
+            }
+            if (entry.isSsh) {
+              unawaited(_connectSsh(entry));
+            }
+            return true;
+          }
+          if (method == 'totp') {
+            final codes = TotpSession(
+              vault: session,
+              isValid: valid,
+              copy: widget.copySecret,
+              clearClipboard: widget.clearClipboard,
+              activity: _touchActivity,
+            );
+            try {
+              return await codes.copyCode(entry.id, DateTime.now());
+            } finally {
+              codes.close();
+            }
+          }
+          if (method == 'copyField') {
+            final field = arguments['field'];
+            final String? value;
+            if (entry.isEnvironment) {
+              final env = ProjectEnvironment.decode(entry.notes);
+              value = field == 'env' ? ProjectDotenv.format(env) : env.variables[arguments['key']];
+            } else {
+              value = switch (field) {
+                'password' => entry.password,
+                'username' => entry.username,
+                'notes' => entry.notes,
+                _ => null,
+              };
+            }
+            if (value == null) return false;
+            final copied = await widget.copySecret(value);
+            if (!valid() || !session.entries.contains(entry)) {
+              await widget.clearClipboard();
+              return false;
+            }
+            return copied;
+          }
+          return false;
+        },
+      );
+    } catch (_) {
+      if (valid()) _notice(t.configurationFailed);
+    } finally {
+      if (identical(_resourcesSession, session)) _resourcesSession = null;
+    }
+  }
+
   void showSection(bool projects) {
     if (_loading || _busy || _catalog == null) return;
     if (projects && !_lifecycle.workspaceUnlocked) {
@@ -288,6 +414,14 @@ class VaultPanelState extends State<VaultPanel> {
   Future<void> _loadLaunchProfiles() async {
     final session = _session;
     if (session == null || _lifecycle.project == null) return;
+    try {
+      final directory = await _launchPreferences.readDirectory(session.revision.lineage);
+      if (!mounted || session.isLocked || session != _session) return;
+      _projectDirectory = directory;
+    } catch (_) {
+      if (mounted && !session.isLocked) _notice(t.vaultPreferencesReadFailed);
+      return;
+    }
     for (final entry in session.entries.where((entry) => entry.isEnvironment && !entry.isDeleted)) {
       try {
         final profile = await _launchPreferences.read(_launchId(session, entry));
@@ -300,14 +434,20 @@ class VaultPanelState extends State<VaultPanel> {
     }
   }
 
-  Future<void> _editEnvironment([VaultEntry? entry]) async {
+  Future<void> _editEnvironment([VaultEntry? entry, bool duplicate = false]) async {
     final session = _session;
     if (_busy || session == null || session.isLocked) return;
     if (entry != null && !session.entries.contains(entry)) return;
+    if (!duplicate &&
+        entry != null &&
+        (_projectLaunch.running(_launchId(session, entry)) || _projectLaunch.starting(_launchId(session, entry)))) {
+      return;
+    }
     await _configuration(
       'environment',
       data: {
-        'name': entry?.title ?? '',
+        'creating': entry == null || duplicate,
+        'name': duplicate ? t.projectEnvCopyName(name: entry!.title) : entry?.title ?? '',
         'variables': entry == null ? <String, String>{} : ProjectEnvironment.decode(entry.notes).variables,
       },
       onAction: (method, result) async {
@@ -315,7 +455,9 @@ class VaultPanelState extends State<VaultPanel> {
           return t.vaultWriteFailed;
         }
         final changed = VaultEntry(
-          id: entry?.id ?? VaultEntry.create(title: result['name'] as String).id,
+          id: duplicate
+              ? VaultEntry.create(title: result['name'] as String).id
+              : entry?.id ?? VaultEntry.create(title: result['name'] as String).id,
           title: result['name'] as String,
           username: '',
           password: '',
@@ -323,7 +465,7 @@ class VaultPanelState extends State<VaultPanel> {
           kind: VaultEntryKind.environment,
           folderId: entry?.folderId,
           order: entry?.order ?? 0,
-          conflictOf: entry?.conflictOf,
+          conflictOf: duplicate ? null : entry?.conflictOf,
           isFavorite: entry?.isFavorite ?? false,
         );
         if (await _persist([
@@ -339,12 +481,113 @@ class VaultPanelState extends State<VaultPanel> {
     );
   }
 
+  Future<void> _importProjectFolder() async {
+    final session = _session;
+    final store = _store;
+    if (_busy || session == null || session.isLocked || store == null) return;
+    bool valid() => mounted && identical(session, _session) && !session.isLocked;
+    final directory = await getDirectoryPath(initialDirectory: _projectDirectory);
+    if (directory == null || !valid()) return;
+    List<ProjectEnvSource> sources = [];
+    final imported = <int, String>{};
+    try {
+      await _operation(() async {
+        sources = await ProjectEnvImport.scan(Directory(directory), allowed: valid);
+        if (!valid()) return;
+        await _launchPreferences.saveDirectory(session.revision.lineage, directory);
+        if (valid()) setState(() => _projectDirectory = directory);
+      });
+      if (!valid()) return;
+      if (sources.isEmpty) {
+        _notice(t.projectEnvNone, kind: DesktopNoticeKind.information);
+        return;
+      }
+      await _configuration(
+        'projectImport',
+        data: {
+          'files': [
+            for (final source in sources)
+              {'name': source.name, 'invalid': source.invalid, 'count': source.environment?.variables.length ?? 0},
+          ],
+        },
+        onAction: (method, arguments) async {
+          if (!valid() || arguments is! List || arguments.isEmpty) return t.vaultWriteFailed;
+          final indices = arguments.cast<int>().toSet();
+          if (indices.any((index) => index < 0 || index >= sources.length || sources[index].environment == null)) {
+            return t.vaultWriteFailed;
+          }
+          if (method == 'import' && imported.isEmpty) {
+            final names = session.entries
+                .where((entry) => entry.isEnvironment && !entry.isDeleted)
+                .map((entry) => entry.title)
+                .toSet();
+            final entries = <VaultEntry>[];
+            for (final index in indices) {
+              var name = sources[index].name;
+              if (name.length > 100) name = name.substring(name.length - 100);
+              final base = name;
+              for (var suffix = 2; names.contains(name); suffix++) {
+                name = '$base ($suffix)';
+              }
+              names.add(name);
+              final entry = VaultEntry(
+                id: VaultEntry.create(title: name).id,
+                title: name,
+                username: '',
+                password: '',
+                notes: sources[index].environment!.encode(),
+                kind: VaultEntryKind.environment,
+              );
+              entries.add(entry);
+              imported[index] = entry.id;
+            }
+            if (!await _persist([...session.entries, ...entries])) {
+              imported.clear();
+              return t.vaultWriteFailed;
+            }
+            if (!valid()) return t.vaultWriteFailed;
+            setState(() => _environmentId = entries.first.id);
+            return true;
+          }
+          if (method == 'remove' && indices.every(imported.containsKey)) {
+            // Authenticate and decode the bytes actually read back from disk before offering removal.
+            final verified = await session.openRevision(await store.readEncryptedSnapshot());
+            try {
+              if (!valid()) return t.vaultWriteFailed;
+              for (final index in indices) {
+                final entry = verified.entries
+                    .where((entry) => entry.id == imported[index] && !entry.isDeleted)
+                    .firstOrNull;
+                if (entry == null || entry.notes != sources[index].environment!.encode()) {
+                  return t.projectEnvDeleteFailed;
+                }
+              }
+              for (final index in indices) {
+                if (!await sources[index].removeUnchanged(allowed: valid)) return t.projectEnvDeleteFailed;
+              }
+              return true;
+            } finally {
+              session.closeRevision(verified);
+            }
+          }
+          return t.vaultWriteFailed;
+        },
+      );
+    } catch (_) {
+      if (valid()) _notice(t.projectEnvImportFailed);
+    } finally {
+      for (final source in sources) {
+        source.clear();
+      }
+    }
+  }
+
   Future<void> _configureLaunch(VaultEntry entry) async {
     final session = _session;
     if (_busy || session == null || session.isLocked || !session.entries.contains(entry)) return;
     await _configuration(
       'launch',
-      data: _launchProfiles[entry.id]?.toJson() ?? {},
+      data: _launchProfiles[entry.id]?.toJson() ?? {'directory': _projectDirectory ?? ''},
       onAction: (method, result) async {
         if (method != 'save' || result is! Map || !mounted || session.isLocked || session != _session) {
           return t.vaultPreferencesSaveFailed;
@@ -409,7 +652,7 @@ class VaultPanelState extends State<VaultPanel> {
     _lock(preserveWorkspace: true);
     setState(() {
       _projectsMode = true;
-      _projectResources = false;
+      _openingProjectId = project.id;
       _environmentId = null;
       _loading = true;
     });
@@ -428,24 +671,47 @@ class VaultPanelState extends State<VaultPanel> {
     } catch (_) {
       if (mounted && epoch == _securityEpoch) _error = 'io';
     } finally {
-      if (mounted && epoch == _securityEpoch) setState(() => _loading = false);
+      if (mounted && epoch == _securityEpoch) {
+        setState(() {
+          _loading = false;
+          _openingProjectId = null;
+        });
+      }
     }
   }
 
-  Future<void> _toggleProjectArchive(VaultProject project) async {
+  Future<void> _restoreArchivedProject(VaultProject project) async {
     if (_busy || !_lifecycle.workspaceUnlocked) return;
     final epoch = _securityEpoch;
     if (!await _confirm(
-          project.archived ? t.projectUnarchive : t.projectRemove,
-          project.archived
-              ? t.projectUnarchiveQuestion(name: project.name)
-              : t.projectRemoveQuestion(name: project.name),
+          t.projectUnarchive,
+          t.projectUnarchiveQuestion(name: project.name),
         ) ||
         !mounted ||
         epoch != _securityEpoch) {
       return;
     }
     await _operation(() => _lifecycle.toggleProjectArchive(project));
+    if (mounted && _error != null) _notice(_errorText);
+  }
+
+  Future<void> _deleteProject(VaultProject project) async {
+    if (_busy || _loading || !_lifecycle.workspaceUnlocked) return;
+    final epoch = _securityEpoch;
+    if (!await _confirm(t.projectRemove, t.projectRemoveQuestion(name: project.name)) ||
+        !mounted ||
+        epoch != _securityEpoch) {
+      return;
+    }
+    await _operation(() async {
+      await _projectLaunch.stopProject(project.lineage);
+      if (!mounted || epoch != _securityEpoch) return;
+      if (_lifecycle.projects.every((p) => p.id == project.id || p.lineage != project.lineage)) {
+        await _launchPreferences.removeProject(project.lineage);
+      }
+      if (!mounted || epoch != _securityEpoch) return;
+      await _lifecycle.deleteProject(project);
+    });
     if (mounted && _error != null) _notice(_errorText);
   }
 
@@ -547,7 +813,7 @@ class VaultPanelState extends State<VaultPanel> {
         return;
       }
       openRemoteCopy = await _confirm(t.syncKeyChangedTitle, message, actionLabel: t.syncOpenRemoteCopy);
-    });
+    }, showProgress: false);
     if (openRemoteCopy && mounted && epoch == _securityEpoch) {
       await showGitHub(backup, restoreSeparately: true);
     }
@@ -724,7 +990,7 @@ class VaultPanelState extends State<VaultPanel> {
 
   String get fileDropHint => _session == null || _session!.isLocked
       ? t.vaultDropLocked
-      : (_busy || _editor.active || !(ModalRoute.of(context)?.isCurrent ?? true))
+      : (_busy || _editor.active || ConfigurationWindows.opened.value || !(ModalRoute.of(context)?.isCurrent ?? true))
       ? t.vaultDropBusy
       : t.vaultDropHint;
 
@@ -774,6 +1040,7 @@ class VaultPanelState extends State<VaultPanel> {
     _windowShown = false;
     _restoreCodesPending = false;
     ConfigurationWindows.closeAll();
+    _resourcesSession = null;
     _cancelPasswordGeneration();
     _externalDragCandidate = null;
     _fileDrag.cancel();
@@ -789,6 +1056,8 @@ class VaultPanelState extends State<VaultPanel> {
     Navigator.of(context).popUntil((route) => route.isFirst);
     _lock(clearClipboard: false, keepNotice: true);
   }
+
+  void lockFromHeader() => _lock();
 
   void _configurationChanged() {
     _updateSearchHandler();
@@ -815,6 +1084,10 @@ class VaultPanelState extends State<VaultPanel> {
   void onWindowShown() {
     _windowShown = true;
     if (!_contentActive) return;
+    if (_lifecycle.project != null) {
+      unawaited(_openProjectSecrets());
+      return;
+    }
     if (_session?.entries.any((entry) => entry.hasTotp && entry.isDeleted == false) == true) {
       unawaited(_openCodes());
     }
@@ -907,11 +1180,12 @@ class VaultPanelState extends State<VaultPanel> {
     }
   }
 
-  Future<void> _operation(Future<void> Function() action) async {
+  Future<void> _operation(Future<void> Function() action, {bool showProgress = true}) async {
     if (_busy) return;
     final epoch = _securityEpoch;
     setState(() {
       _busy = true;
+      _busyProgress = showProgress;
       _error = null;
     });
     try {
@@ -933,7 +1207,12 @@ class VaultPanelState extends State<VaultPanel> {
     } catch (_) {
       if (mounted && epoch == _securityEpoch) setState(() => _error = 'io');
     } finally {
-      if (mounted && epoch == _securityEpoch) setState(() => _busy = false);
+      if (mounted && epoch == _securityEpoch) {
+        setState(() {
+          _busy = false;
+          _busyProgress = true;
+        });
+      }
     }
   }
 
@@ -1273,6 +1552,10 @@ class VaultPanelState extends State<VaultPanel> {
       _touchActivity();
       if (_store!.snapshotCleanupPending) _notice(t.vaultSnapshotCleanupWarning, kind: DesktopNoticeKind.warning);
     });
+    if (_lifecycle.project != null) {
+      unawaited(_openProjectSecrets());
+      return;
+    }
     if (_session?.entries.any((entry) => entry.hasTotp && entry.isDeleted == false) == true) unawaited(_openCodes());
   }
 
@@ -1386,6 +1669,8 @@ class VaultPanelState extends State<VaultPanel> {
 
   void _resetBrowser({bool keepNotice = false}) {
     _projectLaunch.lock();
+    _openingProjectId = null;
+    _projectDirectory = null;
     _cancelPasswordGeneration();
     _externalDragCandidate = null;
     _fileDrag.cancel();
@@ -2053,6 +2338,7 @@ class VaultPanelState extends State<VaultPanel> {
     bool keepNotice = false,
   }) {
     ConfigurationWindows.closeAll();
+    _resourcesSession = null;
     _launchProfiles.clear();
     DesktopTooltip.dismissAll();
     DesktopMenuObserver.dismissAll();
@@ -2086,6 +2372,7 @@ class VaultPanelState extends State<VaultPanel> {
     setState(() {
       _busy = false;
       _loading = false;
+      _busyProgress = true;
       _clearEditor();
       _error = null;
       _treeState.clear();
@@ -2099,11 +2386,12 @@ class VaultPanelState extends State<VaultPanel> {
 
   @override
   void dispose() {
+    ConfigurationWindows.opened.removeListener(_configurationChanged);
     _projectLaunch.removeListener(_launchChanged);
     _projectLaunch.dispose();
     ConfigurationWindows.closeAll();
+    _resourcesSession = null;
     ConfigurationWindows.onActivity = null;
-    ConfigurationWindows.opened.removeListener(_configurationChanged);
     _cancelPasswordGeneration();
     _fileDrag.dispose();
     _secretDrag.dispose();
@@ -2378,39 +2666,58 @@ class VaultPanelState extends State<VaultPanel> {
         if (mounted) unawaited(_restoreCodesAfterConfiguration());
       });
     }
-    if (_loading) return const Center(child: CircularProgressIndicator());
-    if (_showingProjects) {
+    if (_loading && _openingProjectId == null) {
+      return const Align(alignment: Alignment.bottomCenter, child: LinearProgressIndicator(minHeight: 2));
+    }
+    if (_showingProjects || _openingProjectId != null) {
       return _ProjectsPanel(
         archived: _archivedProjects,
+        hasArchived: _lifecycle.projects.any((p) => p.archived),
         onArchiveView: () => setState(() => _archivedProjects = !_archivedProjects),
         projects: _lifecycle.projects.where((p) => p.archived == _archivedProjects).toList(),
-        busy: _busy,
+        busy: _busy || _loading,
+        showProgress: _busyProgress,
+        openingId: _openingProjectId,
         onCreate: _createProject,
         onOpen: _openProject,
-        onArchive: _toggleProjectArchive,
-        onLock: _lock,
+        onArchive: _restoreArchivedProject,
+        onDelete: _deleteProject,
       );
     }
     final session = _session;
-    if (session != null && _lifecycle.project != null && !_projectResources && !_inlineEditorActive) {
+    if (session != null && _lifecycle.project != null && !_inlineEditorActive) {
       return _ProjectWorkspace(
         title: _heading,
         session: session,
         selectedId: _environmentId,
+        directory: _projectDirectory,
         profiles: _launchProfiles,
         launch: _projectLaunch,
         launchId: (entry) => _launchId(session, entry),
         busy: _busy,
         onSelect: (entry) => setState(() => _environmentId = entry.id),
+        showProgress: _busyProgress,
         onCreate: () => _editEnvironment(),
         onEdit: _editEnvironment,
         onConfigure: _configureLaunch,
         onRun: _runEnvironment,
         onStop: (entry) => _projectLaunch.stop(_launchId(session, entry)),
-        onResources: () => setState(() => _projectResources = true),
+        onDuplicate: (entry) => _editEnvironment(entry, true),
+        onImport: _importProjectFolder,
+        onSecrets: _openProjectSecrets,
+        onRename: _startRenameVault,
+        createActions: _VaultCreateActions(
+          compact: true,
+          busy: _busy,
+          onEntry: () => _edit(),
+          onSsh: () => _edit(null, null, true),
+          onTotp: () => _edit(null, null, false, true),
+          onFile: _addFile,
+          onTextFile: _createTextFile,
+          onSearch: _requestSearch,
+        ),
         onBack: () => showSection(true),
         onSettings: _showPreferences,
-        onLock: () => _lock(preserveWorkspace: true, keepProject: true),
         onDelete: _deleteEntry,
       );
     }
@@ -2566,22 +2873,8 @@ class VaultPanelState extends State<VaultPanel> {
                     _renameName.clear();
                   }),
                   onSettings: _showPreferences,
-                  onLock: _lifecycle.project == null ? _lock : () => _lock(preserveWorkspace: true, keepProject: true),
                 ),
               ),
-              if (session != null && _inlineEditorActive == false)
-                if (_lifecycle.project != null)
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 8),
-                      child: TextButton.icon(
-                        onPressed: () => setState(() => _projectResources = false),
-                        icon: const Icon(Icons.arrow_back_rounded, size: 16),
-                        label: Text(t.projectOverview),
-                      ),
-                    ),
-                  ),
               if (session != null && _inlineEditorActive == false)
                 _VaultCreateActions(
                   busy: _busy,
@@ -2594,7 +2887,7 @@ class VaultPanelState extends State<VaultPanel> {
                 ),
               const Divider(height: 1),
               if (constraints.hasBoundedHeight) Expanded(child: content) else content,
-              if (_busy && !_waitingForPassword) const LinearProgressIndicator(minHeight: 2),
+              if (_busy && _busyProgress && !_waitingForPassword) const LinearProgressIndicator(minHeight: 2),
               if (_error != null && _error != 'read')
                 Padding(
                   padding: const EdgeInsets.fromLTRB(14, 6, 14, 8),

@@ -169,12 +169,12 @@ class _ConfigurationWindowState extends State<ConfigurationWindow> with WindowLi
         return false;
       }
       if (!current()) return false;
-      await windowManager.show();
+      await windowManager.show(inactive: payload['companion'] == true);
       if (!current()) {
         await windowManager.hide();
         return false;
       }
-      await windowManager.focus();
+      if (payload['companion'] != true) await windowManager.focus();
       if (!current()) return false;
       _timer = Timer.periodic(const Duration(seconds: 1), (_) => _ping(session));
       return true;

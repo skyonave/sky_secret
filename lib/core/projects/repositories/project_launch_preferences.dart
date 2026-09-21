@@ -36,9 +36,40 @@ class ProjectLaunchPreferences {
   }
 
   Future<void> save(String id, ProjectLaunchProfile profile) {
+    return _saveValue(id, profile.toJson());
+  }
+
+  Future<String?> readDirectory(String lineage) async {
+    await _saving;
+    final value = (await _read())['folder/$lineage'];
+    if (value == null) return null;
+    if (value is! String || !Directory(value).isAbsolute || value.contains('\u0000')) {
+      throw const FormatException('Invalid project directory');
+    }
+    return value;
+  }
+
+  Future<void> saveDirectory(String lineage, String directory) {
+    if (!Directory(directory).isAbsolute || directory.contains('\u0000')) {
+      throw const FormatException('Invalid project directory');
+    }
+    return _saveValue('folder/$lineage', directory);
+  }
+
+  Future<void> _saveValue(String id, Object value) {
+    return _update((profiles) => profiles[id] = value);
+  }
+
+  Future<void> removeProject(String lineage) {
+    return _update(
+      (profiles) => profiles.removeWhere((key, _) => key == 'folder/$lineage' || key.startsWith('$lineage/')),
+    );
+  }
+
+  Future<void> _update(void Function(Map<String, dynamic>) change) {
     final operation = _saving.then((_) async {
       final profiles = await _read();
-      profiles[id] = profile.toJson();
+      change(profiles);
       final plain = utf8.encode(jsonEncode(profiles));
       try {
         if (plain.length > 1024 * 1024) throw const FormatException('Launch settings too large');

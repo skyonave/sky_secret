@@ -3,6 +3,8 @@ import 'dart:io';
 
 import 'package:skysecret/ui/shared/files/native_file_drop_target.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:skysecret/core/desktop/configuration/controllers/configuration_windows.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skysecret/app.dart';
 import 'package:skysecret/core/crypto/crypto.dart';
@@ -76,6 +78,17 @@ void main() {
       guard.request();
       await tester.pump();
       expect(hides, 3);
+      protected = false;
+      over = false;
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(hides, 4);
+      protected = true;
+      guard.request();
+      await tester.pump();
+      guard.cancel();
+      protected = false;
+      await tester.pump(const Duration(milliseconds: 200));
+      expect(hides, 4);
       final pending = Completer<DismissalState>();
       final stale = FocusDismissal(
         readState: () => pending.future,
@@ -92,7 +105,7 @@ void main() {
         fileOver: false,
       ));
       await tester.pump();
-      expect(hides, 3);
+      expect(hides, 4);
     },
   );
 
@@ -101,6 +114,13 @@ void main() {
       'drop batch, rejection, locked vault and modal: ${locale.name}',
       (tester) async {
         await LocaleSettings.setLocale(locale);
+        final notices = <String>[];
+        const noticeChannel = MethodChannel('skysecret/desktop_notice');
+        tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(noticeChannel, (call) async {
+          if (call.method == 'show') notices.add((call.arguments as Map)['message'] as String);
+          return null;
+        });
+        addTearDown(() => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(noticeChannel, null));
         final session = (await tester.runAsync(
           () => VaultCipher.create('Synthetic master 1!'),
         ))!;
@@ -157,7 +177,7 @@ void main() {
 
         await drop([one.path], locked: true);
         expect(session.entries, isEmpty);
-        expect(find.text(t.vaultDropLocked), findsOneWidget);
+        expect(notices, contains(t.vaultDropLocked));
         await tester.enterText(
           find.byKey(const Key('vault-master')),
           'Synthetic master 1!',
@@ -173,11 +193,11 @@ void main() {
         expect(session.entries.last.attachments.single.bytes, [0, 255, 12, 42]);
         await drop([one.path, dir.path]);
         expect(session.entries.length, 2);
-        expect(find.text(t.vaultDropFilesOnly), findsOneWidget);
+        expect(notices, contains(t.vaultDropFilesOnly));
         store.failNext = true;
         await drop([one.path]);
         expect(session.entries.length, 2);
-        await tester.tap(find.byKey(const Key('vault-settings')));
+        ConfigurationWindows.opened.value = true;
         await tester.pumpAndSettle();
         expect(
           tester
@@ -189,6 +209,7 @@ void main() {
         );
         expect(tester.takeException(), isNull);
         await tester.pumpWidget(const SizedBox.shrink());
+        await tester.pump(const Duration(seconds: 4));
       },
     );
   }

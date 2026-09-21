@@ -5,12 +5,14 @@ class _ManagerTitleBar extends StatelessWidget {
   final ValueChanged<bool> onSectionChanged;
   final bool projectsSelected;
   final bool projectsAvailable;
+  final VoidCallback onLock;
 
   const _ManagerTitleBar({
     required this.desktop,
     required this.onSectionChanged,
     required this.projectsSelected,
     required this.projectsAvailable,
+    required this.onLock,
   });
 
   @override
@@ -32,7 +34,14 @@ class _ManagerTitleBar extends StatelessWidget {
                 children: [
                   const Icon(Icons.lock_outline_rounded, color: AppColors.accent, size: 16),
                   const SizedBox(width: 8),
-                  Text(t.appName, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                  Flexible(
+                    child: Text(
+                      t.appName,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -53,6 +62,13 @@ class _ManagerTitleBar extends StatelessWidget {
           projectsSelected: projectsSelected,
         ),
         const SizedBox(width: 6),
+        DesktopIconButton(
+          key: const Key('lock-vault'),
+          tooltip: t.projectLockWorkspace,
+          onPressed: projectsAvailable ? onLock : null,
+          icon: const Icon(Icons.lock_outline_rounded, size: 17),
+        ),
+        const SizedBox(width: 4),
         DesktopIconButton(
           tooltip: t.hide,
           onPressed: () => unawaited(desktop.hide()),

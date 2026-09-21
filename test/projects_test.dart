@@ -101,6 +101,86 @@ void main() {
     expect(await controller.open(_separate), isTrue);
   });
 
+  test('project deletion removes its file and snapshots, preserves general and source files', () async {
+    final project = await create();
+    final second = (await controller.createProject('Other project'))!;
+    await controller.selectProject(project);
+    await controller.save([VaultEntry.create(title: 'Synthetic entry')]);
+    final child = controller.session!;
+    final childStore = controller.store!;
+    expect(await childStore.history(), isNotEmpty);
+    final source = File('${directory.path}/source/.env');
+    await source.parent.create();
+    await source.writeAsString('SYNTHETIC=value');
+    await controller.deleteProject(project);
+    expect(child.isLocked, isTrue);
+    expect(await childStore.exists(), isFalse);
+    expect(await childStore.history(), isEmpty);
+    expect(await source.readAsString(), 'SYNTHETIC=value');
+    expect(controller.projects.single.id, second.id);
+    controller.lock();
+    await controller.open(_master);
+    expect(controller.projects.single.id, second.id);
+    await controller.selectProject(controller.projects.single);
+    expect(controller.session!.isLocked, isFalse);
+  });
+
+  test('missing or archived project can be deleted and cannot be resurrected by late save', () async {
+    final project = await create(separate: true);
+    await controller.toggleProjectArchive(project);
+    await controller.selectProject(controller.projects.single);
+    await controller.open(_separate);
+    final child = controller.session!;
+    final store = controller.store!;
+    controller.suspendContext();
+    await store.file.delete();
+    await controller.deleteProject(controller.projects.single);
+    expect(controller.projects, isEmpty);
+    await expectLater(store.save(child, []), throwsStateError);
+    expect(await store.exists(), isFalse);
+  });
+
+  test('deleting a duplicate catalog reference preserves the shared project file', () async {
+    final project = await create();
+    final duplicate = VaultProject(
+      id: 'duplicate',
+      vaultId: project.vaultId,
+      lineage: project.lineage,
+      name: 'Duplicate',
+      credential: project.credential,
+      archived: true,
+    );
+    await controller.store!.save(controller.session!, [], projects: [project, duplicate]);
+    await controller.deleteProject(project);
+    expect(controller.projects.single.id, 'duplicate');
+    await controller.selectProject(controller.projects.single);
+    expect(controller.session!.isLocked, isFalse);
+  });
+
+  test('catalog write failure leaves a retryable reference after project file removal', () async {
+    final project = await create();
+    final rootFile = controller.store!.file;
+    controller.dispose();
+    var fail = false;
+    controller = VaultSessionController(
+      catalog: catalog,
+      store: VaultStore(
+        file: rootFile,
+        beforeCommit: () async {
+          if (fail) throw const FileSystemException('Synthetic');
+        },
+      ),
+    );
+    await controller.load();
+    await controller.open(_master);
+    fail = true;
+    await expectLater(controller.deleteProject(controller.projects.single), throwsA(isA<FileSystemException>()));
+    expect(controller.projects.single.id, project.id);
+    fail = false;
+    await controller.deleteProject(controller.projects.single);
+    expect(controller.projects, isEmpty);
+  });
+
   test('workspace lock revokes project credentials and both sessions', () async {
     final project = await create();
     final root = controller.session!;

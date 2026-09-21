@@ -16,18 +16,13 @@ class _PhraseOptions extends StatelessWidget {
           const SizedBox(width: 10),
           SizedBox(
             width: 120,
-            child: DropdownButtonFormField<String>(
-              initialValue: options.separator,
-              decoration: const InputDecoration(
-                isDense: true,
-                contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-              ),
-              items: ['-', ' ', '_', '.']
-                  .map((value) => DropdownMenuItem(value: value, child: Text(value == ' ' ? t.generatorSpace : value)))
-                  .toList(),
-              onChanged: (value) {
-                if (value != null) onChange(options.copyWith(separator: value));
-              },
+            child: DesktopSelect<String>(
+              value: options.separator,
+              items: [
+                for (final value in ['-', ' ', '_', '.'])
+                  (value: value, label: value == ' ' ? t.generatorSpace : value, icon: Icons.short_text_rounded),
+              ],
+              onChanged: (value) => onChange(options.copyWith(separator: value)),
             ),
           ),
         ],

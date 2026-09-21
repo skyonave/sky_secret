@@ -38,7 +38,8 @@ class FocusDismissal {
     }
     if (revision != _revision) return;
     if (state.protectedFocus) {
-      cancel();
+      _releaseTicks = 0;
+      _timer = Timer(const Duration(milliseconds: 100), () => _check(revision));
       return;
     }
     if (!state.cancelDrag && (state.leftDown || (state.fileOver && _releaseTicks++ < 5))) {

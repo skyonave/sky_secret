@@ -51,12 +51,20 @@ void main() {
       store.gate.complete();
       await tester.pumpAndSettle();
       expect(session.isLocked, isTrue);
-      expect(find.byKey(const Key('lock-vault')), findsNothing);
+      expect(
+        tester
+            .widget<IconButton>(
+              find.byKey(const Key('lock-vault')),
+            )
+            .onPressed,
+        isNull,
+      );
       expect(
         tester.widget<TextField>(find.byKey(const Key('vault-master'))).controller!.text,
         isEmpty,
       );
       await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump(const Duration(seconds: 4));
     },
   );
 }

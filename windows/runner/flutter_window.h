@@ -45,6 +45,7 @@ class FlutterWindow : public Win32Window {
   std::unique_ptr<CompanionWindow> companion_;
   std::unique_ptr<CompanionWindow> search_companion_;
   std::unique_ptr<CompanionWindow> configuration_companion_;
+  std::unique_ptr<CompanionWindow> resources_companion_;
   std::unique_ptr<flutter::MethodChannel<flutter::EncodableValue>> companion_channel_;
   bool session_notifications_ = false;
   FileDropTarget* file_drop_ = nullptr;

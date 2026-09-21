@@ -79,20 +79,13 @@ class _EntryConfigurationDialogState extends State<_EntryConfigurationDialog> {
           draft: _draft,
           busy: _busy,
           isSsh: _draft.isSsh,
-          locationSelector: DropdownButtonFormField<String>(
-            initialValue: _draft.folderId ?? '',
-            isExpanded: true,
-            decoration: InputDecoration(
-              labelText: t.vaultLocation,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-            ),
+          locationSelector: DesktopSelect<String>(
+            value: _draft.folderId ?? '',
+            label: t.vaultLocation,
             items: [
-              DropdownMenuItem(value: '', child: Text(t.vaultRoot)),
+              (value: '', label: t.vaultRoot, icon: Icons.folder_outlined),
               for (final folder in widget.data['folders'] as List)
-                DropdownMenuItem(
-                  value: folder['id'] as String,
-                  child: Text(folder['name'] as String, overflow: TextOverflow.ellipsis),
-                ),
+                (value: folder['id'] as String, label: folder['name'] as String, icon: Icons.folder_outlined),
             ],
             onChanged: _busy ? null : (value) => setState(() => _draft.folderId = value == '' ? null : value),
           ),

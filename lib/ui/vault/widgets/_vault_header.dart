@@ -14,7 +14,6 @@ class _VaultHeader extends StatelessWidget {
   final VoidCallback onStartRename;
   final VoidCallback onCancelRename;
   final VoidCallback onSettings;
-  final VoidCallback onLock;
 
   const _VaultHeader({
     required this.title,
@@ -30,7 +29,6 @@ class _VaultHeader extends StatelessWidget {
     required this.onStartRename,
     required this.onCancelRename,
     required this.onSettings,
-    required this.onLock,
   });
 
   @override
@@ -117,13 +115,6 @@ class _VaultHeader extends StatelessWidget {
           tooltip: t.vaultSettings,
           onPressed: savingPreferences ? null : onSettings,
           icon: const Icon(Icons.settings_outlined, size: 21),
-        ),
-      if (unlocked)
-        DesktopIconButton(
-          key: const Key('lock-vault'),
-          tooltip: t.vaultLock,
-          onPressed: busy ? null : onLock,
-          icon: const Icon(Icons.lock_outline_rounded),
         ),
     ],
   );

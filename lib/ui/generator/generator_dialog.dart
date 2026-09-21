@@ -7,6 +7,7 @@ import '../../core/crypto/generator/models/generator_options.dart';
 import '../../i18n/translations.g.dart';
 import '../shared/app_theme.dart';
 import '../shared/desktop_option.dart';
+import '../shared/menu/desktop_select.dart';
 import '../shared/desktop_tooltip.dart';
 import '../shared/input/sensitive_text_editing.dart';
 import 'services/generator_service.dart';

@@ -126,7 +126,7 @@ class _ManagerWindowState extends State<ManagerWindow> {
     final token = vault?.fileDropSession;
     final folderId = vault?.fileDropFolderId;
     _setFileHover(false);
-    if (vault == null || !(ModalRoute.of(context)?.isCurrent ?? true)) return;
+    if (vault == null || ConfigurationWindows.opened.value || !(ModalRoute.of(context)?.isCurrent ?? true)) return;
     try {
       if (!await widget.desktop.focusFileDrop() || !mounted) return;
 
@@ -159,7 +159,6 @@ class _ManagerWindowState extends State<ManagerWindow> {
 
   @override
   void dispose() {
-    ConfigurationWindows.closeAll();
     ConfigurationWindows.copy = null;
     ConfigurationWindows.clearClipboard = null;
     ConfigurationWindows.onBlur = null;
@@ -196,6 +195,7 @@ class _ManagerWindowState extends State<ManagerWindow> {
                     onSectionChanged: (projects) => _vaultKey.currentState?.showSection(projects),
                     projectsSelected: _projectsSelected,
                     projectsAvailable: _projectsAvailable,
+                    onLock: () => _vaultKey.currentState?.lockFromHeader(),
                   ),
                   Expanded(
                     child: VaultPanel(

@@ -75,6 +75,7 @@ bool FlutterWindow::OnCreate() {
   companion_ = std::make_unique<CompanionWindow>(GetHandle());
   search_companion_ = std::make_unique<CompanionWindow>(GetHandle());
   configuration_companion_ = std::make_unique<CompanionWindow>(GetHandle());
+  resources_companion_ = std::make_unique<CompanionWindow>(GetHandle());
   companion_channel_ = std::make_unique<flutter::MethodChannel<flutter::EncodableValue>>(
       flutter_controller_->engine()->messenger(), "skysecret/companion",
       &flutter::StandardMethodCodec::GetInstance());
@@ -92,7 +93,7 @@ bool FlutterWindow::OnCreate() {
           {flutter::EncodableValue("width"), flutter::EncodableValue((bounds->right - bounds->left) / scale)},
           {flutter::EncodableValue("height"), flutter::EncodableValue((bounds->bottom - bounds->top) / scale)},
       }));
-    } else if (call.method_name() == "place" || call.method_name() == "placeSearch" || call.method_name() == "placeConfiguration") {
+    } else if (call.method_name() == "place" || call.method_name() == "placeSearch" || call.method_name() == "placeConfiguration" || call.method_name() == "placeResources") {
       const auto* args = std::get_if<flutter::EncodableMap>(call.arguments());
       if (!args || args->count(flutter::EncodableValue("window")) == 0 ||
           args->count(flutter::EncodableValue("gap")) == 0) {
@@ -103,10 +104,14 @@ bool FlutterWindow::OnCreate() {
       const auto* gap = std::get_if<double>(&args->at(flutter::EncodableValue("gap")));
       const bool integer = std::holds_alternative<int32_t>(id) || std::holds_alternative<int64_t>(id);
       const bool search = call.method_name() == "placeSearch";
-      const bool configuration = call.method_name() == "placeConfiguration";
-      auto* target = configuration ? configuration_companion_.get() : search ? search_companion_.get() : companion_.get();
+      const bool resources = call.method_name() == "placeResources";
+      const bool configuration = call.method_name() == "placeConfiguration" || resources;
+      int slot = 1;
+      const auto slot_arg = args->find(flutter::EncodableValue("slot"));
+      if (slot_arg != args->end() && std::holds_alternative<int32_t>(slot_arg->second)) slot = std::get<int32_t>(slot_arg->second);
+      auto* target = resources ? resources_companion_.get() : configuration ? configuration_companion_.get() : search ? search_companion_.get() : companion_.get();
       result->Success(flutter::EncodableValue(integer && gap &&
-          target->Place(reinterpret_cast<HWND>(id.LongValue()), *gap, search, configuration)));
+          target->Place(reinterpret_cast<HWND>(id.LongValue()), *gap, search, configuration, slot)));
     } else if (call.method_name() == "returnFocus") {
       const auto* args = call.arguments() ? std::get_if<flutter::EncodableMap>(call.arguments()) : nullptr;
       HWND child = nullptr;
@@ -232,10 +237,12 @@ void FlutterWindow::OnDestroy() {
   if (companion_) companion_->Detach();
   if (search_companion_) search_companion_->Detach();
   if (configuration_companion_) configuration_companion_->Detach();
+  if (resources_companion_) resources_companion_->Detach();
   companion_channel_.reset();
   companion_.reset();
   search_companion_.reset();
   configuration_companion_.reset();
+  resources_companion_.reset();
   ssh_bridge_.reset();
   project_process_.reset();
   if (file_drop_) {
@@ -270,6 +277,7 @@ FlutterWindow::MessageHandler(HWND hwnd, UINT const message,
   if (companion_) companion_->OnMessage(message, wparam, lparam);
   if (search_companion_) search_companion_->OnMessage(message, wparam, lparam);
   if (configuration_companion_) configuration_companion_->OnMessage(message, wparam, lparam);
+  if (resources_companion_) resources_companion_->OnMessage(message, wparam, lparam);
   if (message == WM_SHOWWINDOW && !wparam && file_drop_) {
     if (secret_drag_) secret_drag_->Revoke();
     if (file_drag_) file_drag_->Revoke();

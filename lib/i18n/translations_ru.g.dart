@@ -149,7 +149,7 @@ class Translations with BaseTranslations<AppLocale, Translations> {
   String get projectSelectWorkspace =>
       'Откройте общий сейф, которому принадлежит этот проект, затем выберите его в «Проекты».';
 
-  String get projectLockWorkspace => 'Заблокировать workspace и проекты';
+  String get projectLockWorkspace => 'Заблокировать сейф и проекты';
 
   String get projectOpen => 'Открыть проект';
 
@@ -169,10 +169,10 @@ class Translations with BaseTranslations<AppLocale, Translations> {
   String get projectDeleteWorkspaceHelp =>
       'Если этому сейфу принадлежат проекты, при удалении исчезнут и настройки их общего открытия. Сначала экспортируйте такие проекты с независимыми паролями. Файлы проектов этим действием не удаляются.';
 
-  String get projectRemove => 'Архивировать проект';
+  String get projectRemove => 'Удалить проект';
 
   String projectRemoveQuestion({required Object name}) =>
-      'Архивировать «${name}»? Зашифрованный файл и настройки доступа сохранятся. Проект можно вернуть из архива.';
+      'Удалить «${name}» и его секреты с этого компьютера? Запущенные через проект программы будут остановлены. Папка с кодом, исходные .env и внешние резервные копии останутся. Отменить удаление нельзя.';
 
   String get projectArchive => 'Архив проектов';
 
@@ -965,6 +965,72 @@ class Translations with BaseTranslations<AppLocale, Translations> {
   String get totpAdd => 'Добавить аутентификатор';
 
   String get totpKind => 'Аутентификатор · TOTP';
+
+  String get projectEnvClearValues => 'Очистить значения';
+
+  String get projectEnvCopy => 'Скопировать .env';
+
+  String projectEnvCopyName({required Object name}) => '${name} — копия';
+
+  String get projectEnvCopyValue => 'Скопировать значение';
+
+  String get projectEnvDeleteFailed =>
+      'Удаление остановлено: файл изменён, недоступен или данные в сейфе не подтверждены. Проверьте оставшиеся исходники.';
+
+  String get projectEnvDeleteHelp =>
+      'Удалить выбранные исходники? Перед удалением проверяются сохранённые данные в сейфе и неизменность файлов. Это не очищает историю Git и другие копии.';
+
+  String get projectEnvDeleteSources => 'Удалить выбранные исходники';
+
+  String get projectEnvDuplicate => 'Создать копию окружения';
+
+  String get projectEnvImport => 'Импортировать';
+
+  String get projectEnvImported => 'Окружения сохранены. Исходные файлы оставлены в проекте.';
+
+  String get projectEnvImportFailed => 'Не удалось прочитать папку. Проверьте доступ и объём проекта.';
+
+  String get projectEnvImportFolder => 'Подключить папку / импорт .env';
+
+  String get projectEnvImportHelp =>
+      'Выберите файлы для импорта. Каждый станет отдельным окружением. Существующие окружения и исходные файлы сохраняются. Шаблоны .env.example и .env.template пропускаются.';
+
+  String get projectEnvKeepFiles => 'Оставить файлы';
+
+  String projectEnvLineError({required Object line}) => 'Ошибка в строке ${line}. Проверьте KEY=value и кавычки.';
+
+  String get projectEnvNone => 'Файлы .env не найдены. Шаблоны и служебные папки пропущены.';
+
+  String get projectEnvReveal => 'Показать / скрыть значения';
+
+  String get projectEnvRows => 'Ключи и значения';
+
+  String get projectEnvText => 'Из текста .env';
+
+  String get projectEnvTextHelp =>
+      'Вставьте KEY=value, по переменной на строку. Поддерживаются пустые значения, кавычки, комментарии и export. Подстановки не выполняются. Текст содержит открытые значения.';
+
+  String projectEnvVariableCount({required Object count}) => 'Переменных: ${count}';
+
+  String get projectSecretAccounts => 'Учётные записи и заметки';
+
+  String get projectSecretCopied => 'Скопировано';
+
+  String get projectSecretCopyFailed => 'Не удалось скопировать';
+
+  String get projectSecretFiles => 'Файлы';
+
+  String get projectSecretOpenFile => 'Открыть файл';
+
+  String get projectSecretsEmpty => 'Здесь появятся секреты проекта. Добавьте запись или окружение в главном окне.';
+
+  String get projectSecretsShow => 'Показать секреты проекта';
+
+  String get projectMore => 'Ещё';
+
+  String get projectEnvHideValue => 'Скрыть значение';
+
+  String get projectEnvShowValue => 'Показать значение';
 }
 
 extension on Translations {
@@ -1028,7 +1094,7 @@ extension on Translations {
       'projectUnlockWorkspace' => 'Откройте общий сейф для доступа к его проектам.',
       'projectSelectWorkspace' =>
         'Откройте общий сейф, которому принадлежит этот проект, затем выберите его в «Проекты».',
-      'projectLockWorkspace' => 'Заблокировать workspace и проекты',
+      'projectLockWorkspace' => 'Заблокировать сейф и проекты',
       'projectOpen' => 'Открыть проект',
       'projectFinishEditing' => 'Сохраните или отмените редактирование либо очистите поля пароля перед переключением.',
       'projectRestore' => 'Восстановить проект из файла',
@@ -1038,10 +1104,10 @@ extension on Translations {
         required Object name,
       }) => 'Использовать настройки «${name}»? Другие конфликтующие версии останутся в архиве с сохранёнными данными доступа.',
       'projectDeleteWorkspaceHelp' => 'Если этому сейфу принадлежат проекты, при удалении исчезнут и настройки их общего открытия. Сначала экспортируйте такие проекты с независимыми паролями. Файлы проектов этим действием не удаляются.',
-      'projectRemove' => 'Архивировать проект',
+      'projectRemove' => 'Удалить проект',
       'projectRemoveQuestion' => ({
         required Object name,
-      }) => 'Архивировать «${name}»? Зашифрованный файл и настройки доступа сохранятся. Проект можно вернуть из архива.',
+      }) => 'Удалить «${name}» и его секреты с этого компьютера? Запущенные через проект программы будут остановлены. Папка с кодом, исходные .env и внешние резервные копии останутся. Отменить удаление нельзя.',
       'projectArchive' => 'Архив проектов',
       'projectArchiveEmpty' => 'В архиве пока нет проектов.',
       'projectUnarchive' => 'Вернуть из архива',
@@ -1439,6 +1505,37 @@ extension on Translations {
       'totpOpenFailed' => 'Не удалось открыть окно кодов подтверждения.',
       'totpAdd' => 'Добавить аутентификатор',
       'totpKind' => 'Аутентификатор · TOTP',
+      'projectEnvClearValues' => 'Очистить значения',
+      'projectEnvCopy' => 'Скопировать .env',
+      'projectEnvCopyName' => ({required Object name}) => '${name} — копия',
+      'projectEnvCopyValue' => 'Скопировать значение',
+      'projectEnvDeleteFailed' => 'Удаление остановлено: файл изменён, недоступен или данные в сейфе не подтверждены. Проверьте оставшиеся исходники.',
+      'projectEnvDeleteHelp' => 'Удалить выбранные исходники? Перед удалением проверяются сохранённые данные в сейфе и неизменность файлов. Это не очищает историю Git и другие копии.',
+      'projectEnvDeleteSources' => 'Удалить выбранные исходники',
+      'projectEnvDuplicate' => 'Создать копию окружения',
+      'projectEnvImport' => 'Импортировать',
+      'projectEnvImported' => 'Окружения сохранены. Исходные файлы оставлены в проекте.',
+      'projectEnvImportFailed' => 'Не удалось прочитать папку. Проверьте доступ и объём проекта.',
+      'projectEnvImportFolder' => 'Подключить папку / импорт .env',
+      'projectEnvImportHelp' => 'Выберите файлы для импорта. Каждый станет отдельным окружением. Существующие окружения и исходные файлы сохраняются. Шаблоны .env.example и .env.template пропускаются.',
+      'projectEnvKeepFiles' => 'Оставить файлы',
+      'projectEnvLineError' => ({required Object line}) => 'Ошибка в строке ${line}. Проверьте KEY=value и кавычки.',
+      'projectEnvNone' => 'Файлы .env не найдены. Шаблоны и служебные папки пропущены.',
+      'projectEnvReveal' => 'Показать / скрыть значения',
+      'projectEnvRows' => 'Ключи и значения',
+      'projectEnvText' => 'Из текста .env',
+      'projectEnvTextHelp' => 'Вставьте KEY=value, по переменной на строку. Поддерживаются пустые значения, кавычки, комментарии и export. Подстановки не выполняются. Текст содержит открытые значения.',
+      'projectEnvVariableCount' => ({required Object count}) => 'Переменных: ${count}',
+      'projectSecretAccounts' => 'Учётные записи и заметки',
+      'projectSecretCopied' => 'Скопировано',
+      'projectSecretCopyFailed' => 'Не удалось скопировать',
+      'projectSecretFiles' => 'Файлы',
+      'projectSecretOpenFile' => 'Открыть файл',
+      'projectSecretsEmpty' => 'Здесь появятся секреты проекта. Добавьте запись или окружение в главном окне.',
+      'projectSecretsShow' => 'Показать секреты проекта',
+      'projectMore' => 'Ещё',
+      'projectEnvHideValue' => 'Скрыть значение',
+      'projectEnvShowValue' => 'Показать значение',
       _ => null,
     };
   }

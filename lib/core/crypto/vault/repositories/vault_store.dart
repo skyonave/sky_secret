@@ -152,26 +152,32 @@ class VaultStore {
     );
   }
 
-  Future<void> delete({bool Function()? allowed}) async {
+  Future<void> delete({bool Function()? allowed, bool retainSnapshots = true, bool allowMissing = false}) async {
     if (_writing) throw const VaultConflictException();
     _writing = true;
     RandomAccessFile? lock;
     try {
-      if (!await exists()) throw const VaultConflictException();
+      if (!await exists() && !allowMissing) throw const VaultConflictException();
       lock = await File('${file.path}.lock').open(mode: FileMode.append);
       await lock.lock(FileLock.exclusive);
-      if (!await exists()) throw const VaultConflictException();
+      final present = await exists();
+      if (!present && !allowMissing) throw const VaultConflictException();
       await beforeCommit?.call();
       if (!(allowed?.call() ?? true)) {
         throw StateError('Operation was cancelled');
       }
-      await _archive(await _read());
+      if (retainSnapshots) {
+        if (present) await _archive(await _read());
+      } else {
+        await _removeSnapshots(historyDirectory, RegExp(r'^[0-9a-f]{64}\.smv$'));
+        await _removeSnapshots(Directory('${file.path}.sync'), RegExp(r'^[0-9a-f]{40}\.smv$'));
+      }
       if (!(allowed?.call() ?? true)) {
         throw StateError('Operation was cancelled');
       }
-      await file.delete();
+      if (present) await file.delete();
       _changes.add(null);
-      await _trimHistory();
+      if (retainSnapshots) await _trimHistory();
     } finally {
       try {
         await lock?.close();

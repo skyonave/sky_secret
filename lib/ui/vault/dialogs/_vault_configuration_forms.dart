@@ -19,6 +19,8 @@ class VaultConfigurationForms extends StatelessWidget {
       onChangePassword: () => unawaited(action('password', null)),
     ),
     'project' => const _ProjectCreateDialog(),
+    'projectImport' => _ProjectImportDialog(data: data, action: action),
+    'projectSecrets' => _ProjectSecretsPanel(data: data, action: action),
     'confirm' => Builder(
       builder: (context) => ConfigurationPage(
         title: Text(data['title'] as String),
