@@ -32,21 +32,6 @@ Save edits before hiding: hiding locks the vault by default. Completed copies re
 
 > We work to protect your data, but cannot guarantee its security or recovery. [Protection and limits](SECURITY.md).
 
-## General and Projects
-
-Use **General / Projects** in the title bar. General remains a complete vault for everyday secrets; projects are optional. Existing vaults stay in General. Each general vault has its own project list.
-
-- **Unlock with workspace:** unlock the general vault, then open a project without another password.
-- **Separate master password:** enter the project's own password when opening it.
-- Projects have independent encrypted files and data keys, history, export and synchronization. The lock in the title bar locks the general vault and its projects. Idle and hide preferences apply to the whole workspace.
-- Delete a project using the trash button and confirmation. Its source folder and external backups remain. Previously archived projects are still accessible from the archive.
-
-**Back up the general vault and each project separately.** A general-vault export includes the encrypted project catalog, but not project contents. Exporting a shared-unlock project asks for a password for that independent copy. To recover a missing project file, open its project and restore a `.smv` copy or select its GitHub backup. Existing files are not overwritten by restoration. Keep the workspace and export passwords separately; there is no password reset.
-
-**Projects:** commands and environments stay in the main window, secrets appear to its left, and entry forms and settings open further left. Duplicate an environment, paste `.env` text, or import files from a connected folder. Import preserves source files; removal is offered separately after saving. `.env.example` and `.env.template` are skipped.
-
-**Project → environment → launch.** Add variables, select a local .exe, its working folder and one argument per line. For example, run node.exe with server.js in your repository folder. SkySecret supplies variables directly without creating .env files or inserting values into the command. Code stays in your folder. Launch settings are local to each computer. The program keeps its supplied secrets after the vault locks; use Stop in the project or Exit from the tray to terminate the managed process tree. Only launch trusted code: it can write or transmit the supplied values. Git history is not scanned or rewritten.
-
 ## Русский
 
 **Приватный рабочий процесс для секретов, файлов и SSH на Windows.**
@@ -71,21 +56,6 @@ Use **General / Projects** in the title bar. General remains a complete vault fo
 Сохраняйте правки перед скрытием: по умолчанию оно блокирует сейф. Завершённое копирование доступно **10 секунд с момента копирования**, включая время после скрытия. Ручная блокировка, тайм-аут и блокировка Windows сразу очищают текущую копию приложения. Ранее созданные сейфы читаются; перед сохранением общего сейфа в новой версии обновляйте все устройства.
 
 > Мы максимально стараемся обезопасить данные, но не можем гарантировать их безопасность и восстановление. [Защита и её границы](SECURITY.md).
-
-### Общее и Проекты
-
-Переключайтесь через **Общее / Проекты** в шапке. Общий сейф остаётся полноценным местом для повседневных секретов; проекты необязательны. Прежние сейфы остаются в «Общее». У каждого общего сейфа свой список проектов.
-
-- **Открывать с workspace:** откройте общий сейф, затем проект без дополнительного пароля.
-- **Отдельный мастер-пароль:** вводите собственный пароль проекта при его открытии.
-- У проектов независимые зашифрованные файлы и ключи данных, история, экспорт и синхронизация. Замок в шапке блокирует общий сейф и его проекты. Настройки тайм-аута и скрытия действуют на всё рабочее пространство.
-- Проект удаляется кнопкой корзины с подтверждением. Папка с кодом и внешние резервные копии остаются. Ранее архивированные проекты доступны в архиве.
-
-**Сохраняйте копии общего сейфа и каждого проекта отдельно.** Экспорт общего сейфа содержит зашифрованный каталог проектов, но не их содержимое. При экспорте проекта с общим открытием задаётся пароль независимой копии. Для восстановления отсутствующего файла откройте проект и выберите копию `.smv` или его резервную копию в GitHub. Восстановление не перезаписывает существующие файлы. Храните пароли workspace и экспортов отдельно; сброса пароля нет.
-
-**Проекты:** команды и окружения находятся в главном окне, секреты — слева, формы записей и настройки — ещё левее. Окружение можно скопировать, собрать из текста `.env` или импортировать из подключённой папки. Импорт оставляет исходники; их удаление предлагается отдельно после сохранения. Шаблоны `.env.example` и `.env.template` пропускаются.
-
-**Проект → окружение → запуск.** Добавьте переменные, выберите локальный .exe, рабочую папку и аргументы по одному на строке. Например, node.exe с аргументом server.js в папке репозитория. SkySecret передаёт переменные напрямую, не создавая .env и не подставляя значения в команду. Код остаётся в вашей папке. Настройка запуска локальна для каждого компьютера. После блокировки программа сохраняет выданные секреты; кнопка «Остановить» в проекте или «Выход» из трея завершает управляемое дерево процессов. Запускайте только доверенный код: он может записать или отправить значения. История Git не сканируется и не переписывается.
 
 ---
 

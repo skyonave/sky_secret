@@ -29,7 +29,6 @@ import '../vault/vault_panel.dart';
 import '../../core/desktop/configuration/controllers/configuration_windows.dart';
 part 'widgets/_manager_file_drop_target.dart';
 part 'widgets/_manager_title_bar.dart';
-part 'widgets/_manager_section_button.dart';
 part 'widgets/_git_hub_status.dart';
 part 'widgets/_manager_sync_button.dart';
 part 'widgets/_manager_footer.dart';
@@ -61,8 +60,7 @@ class ManagerWindow extends StatefulWidget {
 class _ManagerWindowState extends State<ManagerWindow> {
   final _vaultKey = GlobalKey<VaultPanelState>();
   bool _fileHover = false;
-  bool _projectsSelected = false;
-  bool _projectsAvailable = false;
+  bool _unlocked = false;
   late final _generatorService = GeneratorService(
     widget.vaultStore == null ? GeneratorPreferences.local() : GeneratorPreferences(),
   );
@@ -192,19 +190,15 @@ class _ManagerWindowState extends State<ManagerWindow> {
                 children: [
                   _ManagerTitleBar(
                     desktop: widget.desktop,
-                    onSectionChanged: (projects) => _vaultKey.currentState?.showSection(projects),
-                    projectsSelected: _projectsSelected,
-                    projectsAvailable: _projectsAvailable,
+                    unlocked: _unlocked,
                     onLock: () => _vaultKey.currentState?.lockFromHeader(),
                   ),
                   Expanded(
                     child: VaultPanel(
-                      onSectionChanged: (projects) => setState(() => _projectsSelected = projects),
-                      onWorkspaceChanged: (available) {
-                        if (_projectsAvailable == available) return;
+                      onUnlockedChanged: (available) {
+                        if (_unlocked == available) return;
                         setState(() {
-                          _projectsAvailable = available;
-                          if (!available) _projectsSelected = false;
+                          _unlocked = available;
                         });
                       },
                       generatorService: _generatorService,

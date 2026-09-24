@@ -2,7 +2,6 @@ part of '../vault_panel.dart';
 
 class _VaultCreateActions extends StatelessWidget {
   final bool busy;
-  final bool compact;
   final VoidCallback onEntry;
   final VoidCallback onSsh;
   final VoidCallback onTotp;
@@ -12,7 +11,6 @@ class _VaultCreateActions extends StatelessWidget {
 
   const _VaultCreateActions({
     required this.busy,
-    this.compact = false,
     required this.onEntry,
     required this.onSsh,
     required this.onTotp,
@@ -42,42 +40,15 @@ class _VaultCreateActions extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 8),
-          if (compact)
-            PopupMenuButton<int>(
-              borderRadius: BorderRadius.circular(4),
-              tooltip: '',
-              enabled: !busy,
-              routeSettings: const RouteSettings(name: DesktopMenuObserver.routeName),
-              popUpAnimationStyle: AnimationStyle.noAnimation,
-              position: PopupMenuPosition.under,
-              onOpened: DesktopTooltip.dismissAll,
-              onSelected: (index) => actions[index].run(),
-              itemBuilder: (_) => [
-                for (var index = 0; index < actions.length; index++)
-                  InsetMenuItem(value: index, label: actions[index].label, icon: actions[index].icon),
-              ],
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(t.projectMore),
-                    const SizedBox(width: 6),
-                    const Icon(Icons.expand_more_rounded, size: 18),
-                  ],
-                ),
-              ),
+          for (final action in actions) ...[
+            DesktopIconButton(
+              key: Key(action.key),
+              tooltip: action.label,
+              onPressed: busy ? null : action.run,
+              icon: Icon(action.icon, size: 17),
             ),
-          if (!compact)
-            for (final action in actions) ...[
-              DesktopIconButton(
-                key: Key(action.key),
-                tooltip: action.label,
-                onPressed: busy ? null : action.run,
-                icon: Icon(action.icon, size: 17),
-              ),
-              const SizedBox(width: 2),
-            ],
+            const SizedBox(width: 2),
+          ],
           const SizedBox(width: 4),
           DesktopIconButton(
             key: const Key('open-vault-search'),

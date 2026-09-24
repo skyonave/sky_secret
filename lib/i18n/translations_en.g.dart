@@ -45,80 +45,6 @@ class TranslationsEn extends Translations with BaseTranslations<AppLocale, Trans
   @override
   String get startupFailed => 'Some components failed to load';
   @override
-  String get projectWorkflow => 'Environments and launch';
-  @override
-  String get projectWorkflowHelp => 'Secrets stay here. Code stays in your folder.';
-  @override
-  String get projectEnvironments => 'Environments';
-  @override
-  String get projectEnvironmentAdd => 'Add environment';
-  @override
-  String get projectEnvironmentEdit => 'Configure environment';
-  @override
-  String get projectEnvironmentName => 'Environment name';
-  @override
-  String get projectEnvironmentEmpty =>
-      'Create an environment, such as Development, Test or Production, and add variables for your program.';
-  @override
-  String get projectVariableName => 'Variable name';
-  @override
-  String get projectVariableValue => 'Value';
-  @override
-  String get projectVariableAdd => 'Add variable';
-  @override
-  String get projectVariableRemove => 'Remove variable';
-  @override
-  String get projectVariablesInvalid =>
-      'Check the name and variables. Use unique names with Latin letters, digits and underscores. Up to 128 variables; total size is limited.';
-  @override
-  String get projectVariablesProtected => 'Values are hidden and saved inside the encrypted vault.';
-  @override
-  String get projectResources => 'Secrets and files';
-  @override
-  String get projectOverview => 'Back to environments';
-  @override
-  String get projectLaunchConfigure => 'Configure launch';
-  @override
-  String get projectLaunch => 'Run';
-  @override
-  String get projectStop => 'Stop';
-  @override
-  String get projectRunning => 'Running';
-  @override
-  String get projectStarting => 'Starting…';
-  @override
-  String get projectStopped => 'Stopped';
-  @override
-  String projectExited({required Object code}) => 'Process exited: ${code}';
-  @override
-  String get projectLaunchReady => 'Launch configured on this computer';
-  @override
-  String get projectLaunchMissing => 'Choose a program and working folder on this computer';
-  @override
-  String get projectExecutable => 'Program (.exe)';
-  @override
-  String get projectDirectory => 'Working folder with code';
-  @override
-  String get projectArguments => 'Arguments — one per line';
-  @override
-  String get projectBrowse => 'Browse';
-  @override
-  String get projectLaunchHelp =>
-      'The program receives environment variables directly. SkySecret does not create .env files, interpolate values into the command or save program output. It keeps running with the supplied secrets after the vault locks. Stop or exiting SkySecret terminates it and its child processes.';
-  @override
-  String get projectLaunchTrust =>
-      'Run only trusted code: the program receives secrets and can write or transmit them. This does not check existing files in Git.';
-  @override
-  String get projectLaunchInvalid =>
-      'Select absolute paths to an .exe and a working folder. Keep secrets out of paths and arguments.';
-  @override
-  String get projectLaunchFailed =>
-      'Could not start the program. Check the executable, working folder and access permissions.';
-  @override
-  String get projectLaunchLocal => 'Launch settings stay on this computer and are not transferred by synchronization.';
-  @override
-  String get projectLaunchReview => 'Review the program and folder before running';
-  @override
   String get configurationFailed => 'Could not open the settings window. Please try again.';
   @override
   String get noticeError => 'Error';
@@ -130,71 +56,6 @@ class TranslationsEn extends Translations with BaseTranslations<AppLocale, Trans
   String get noticeInformation => 'Information';
   @override
   String get noticeDismiss => 'Dismiss notification';
-  @override
-  String get general => 'General';
-  @override
-  String get projects => 'Projects';
-  @override
-  String get projectCreate => 'New project';
-  @override
-  String get projectName => 'Project name';
-  @override
-  String get projectShared => 'Unlock with workspace';
-  @override
-  String get projectSharedHelp => 'Open through this general vault. Turn off to require a separate project password.';
-  @override
-  String get projectSeparate => 'Separate master password';
-  @override
-  String get projectsEmpty => 'No projects here. Your everyday secrets remain in General.';
-  @override
-  String get projectUnlockWorkspace => 'Unlock the general vault to access its projects.';
-  @override
-  String get projectSelectWorkspace => 'Open the general vault that owns this project, then select it in Projects.';
-  @override
-  String get projectLockWorkspace => 'Lock vault and projects';
-  @override
-  String get projectOpen => 'Open project';
-  @override
-  String get projectFinishEditing => 'Save or cancel the current edit, or clear the password fields before switching.';
-  @override
-  String get projectRestore => 'Restore project from file';
-  @override
-  String get projectRestoreHelp =>
-      'If the project file is missing on this device, restore its encrypted copy. Existing files are never replaced by this action.';
-  @override
-  String get projectConflict => 'Conflicting project settings';
-  @override
-  String projectResolveQuestion({required Object name}) =>
-      'Use the settings for “${name}”? Other conflicting versions will remain in the archive with their access settings preserved.';
-  @override
-  String get projectDeleteWorkspaceHelp =>
-      'If this vault owns projects, deleting it also removes their shared access settings. Export those projects with independent passwords first. Project files are not deleted by this action.';
-  @override
-  String get projectRemove => 'Delete project';
-  @override
-  String projectRemoveQuestion({required Object name}) =>
-      'Delete “${name}” and its secrets from this computer? Programs launched through the project will stop. The source folder, original .env files and external backups will remain. This cannot be undone.';
-  @override
-  String get projectArchive => 'Project archive';
-  @override
-  String get projectArchiveEmpty => 'No archived projects.';
-  @override
-  String get projectUnarchive => 'Restore from archive';
-  @override
-  String projectUnarchiveQuestion({required Object name}) => 'Restore “${name}” to the project list?';
-  @override
-  String get projectExportPassword => 'Password for exported project';
-  @override
-  String get projectExportPasswordHelp =>
-      'Set a password for this independent copy. The working project will continue to open with the workspace. Keep the export password separately.';
-  @override
-  String get projectWorkspacePassword => 'Change workspace password';
-  @override
-  String get projectBackupHelp =>
-      'This copy includes the project catalog and shared access settings. Export each project file as well: project contents are stored separately.';
-  @override
-  String get projectRestoreRevision =>
-      'Restore this project version? Current contents will be replaced by the selected version and retained in local history.';
   @override
   String get generatorOpen => 'Generator…';
   @override
@@ -965,72 +826,6 @@ class TranslationsEn extends Translations with BaseTranslations<AppLocale, Trans
   String get totpAdd => 'Add authenticator';
   @override
   String get totpKind => 'Authenticator · TOTP';
-  @override
-  String get projectEnvClearValues => 'Clear values';
-  @override
-  String get projectEnvCopy => 'Copy .env';
-  @override
-  String projectEnvCopyName({required Object name}) => '${name} — copy';
-  @override
-  String get projectEnvCopyValue => 'Copy value';
-  @override
-  String get projectEnvDeleteFailed =>
-      'Removal stopped: a file changed, is inaccessible, or saved vault data could not be verified. Check remaining originals.';
-  @override
-  String get projectEnvDeleteHelp =>
-      'Remove selected originals? Saved vault data and unchanged source files are checked first. This does not clean Git history or other copies.';
-  @override
-  String get projectEnvDeleteSources => 'Remove selected originals';
-  @override
-  String get projectEnvDuplicate => 'Duplicate environment';
-  @override
-  String get projectEnvImport => 'Import';
-  @override
-  String get projectEnvImported => 'Environments saved. Original files remain in the project.';
-  @override
-  String get projectEnvImportFailed => 'Could not read the folder. Check access and project size.';
-  @override
-  String get projectEnvImportFolder => 'Connect folder / import .env';
-  @override
-  String get projectEnvImportHelp =>
-      'Select files to import as separate environments. Existing environments and source files are preserved. .env.example and .env.template are skipped.';
-  @override
-  String get projectEnvKeepFiles => 'Keep files';
-  @override
-  String projectEnvLineError({required Object line}) => 'Invalid line ${line}. Check KEY=value and quotes.';
-  @override
-  String get projectEnvNone => 'No .env files found. Templates and dependency folders are skipped.';
-  @override
-  String get projectEnvReveal => 'Show / hide values';
-  @override
-  String get projectEnvRows => 'Keys and values';
-  @override
-  String get projectEnvText => 'From .env text';
-  @override
-  String get projectEnvTextHelp =>
-      'Paste KEY=value, one variable per line. Empty values, quotes, comments and export are supported. No variable expansion. This text shows plain values.';
-  @override
-  String projectEnvVariableCount({required Object count}) => '${count} variables';
-  @override
-  String get projectSecretAccounts => 'Accounts and notes';
-  @override
-  String get projectSecretCopied => 'Copied';
-  @override
-  String get projectSecretCopyFailed => 'Could not copy';
-  @override
-  String get projectSecretFiles => 'Files';
-  @override
-  String get projectSecretOpenFile => 'Open file';
-  @override
-  String get projectSecretsEmpty => 'Project secrets appear here. Add an entry or environment in the main window.';
-  @override
-  String get projectSecretsShow => 'Show project secrets';
-  @override
-  String get projectMore => 'More';
-  @override
-  String get projectEnvHideValue => 'Hide value';
-  @override
-  String get projectEnvShowValue => 'Show value';
 }
 
 extension on TranslationsEn {
@@ -1040,82 +835,12 @@ extension on TranslationsEn {
       'startupLoading' => 'SkySecret is loading…',
       'startupReady' => 'SkySecret is ready',
       'startupFailed' => 'Some components failed to load',
-      'projectWorkflow' => 'Environments and launch',
-      'projectWorkflowHelp' => 'Secrets stay here. Code stays in your folder.',
-      'projectEnvironments' => 'Environments',
-      'projectEnvironmentAdd' => 'Add environment',
-      'projectEnvironmentEdit' => 'Configure environment',
-      'projectEnvironmentName' => 'Environment name',
-      'projectEnvironmentEmpty' =>
-        'Create an environment, such as Development, Test or Production, and add variables for your program.',
-      'projectVariableName' => 'Variable name',
-      'projectVariableValue' => 'Value',
-      'projectVariableAdd' => 'Add variable',
-      'projectVariableRemove' => 'Remove variable',
-      'projectVariablesInvalid' => 'Check the name and variables. Use unique names with Latin letters, digits and underscores. Up to 128 variables; total size is limited.',
-      'projectVariablesProtected' => 'Values are hidden and saved inside the encrypted vault.',
-      'projectResources' => 'Secrets and files',
-      'projectOverview' => 'Back to environments',
-      'projectLaunchConfigure' => 'Configure launch',
-      'projectLaunch' => 'Run',
-      'projectStop' => 'Stop',
-      'projectRunning' => 'Running',
-      'projectStarting' => 'Starting…',
-      'projectStopped' => 'Stopped',
-      'projectExited' => ({required Object code}) => 'Process exited: ${code}',
-      'projectLaunchReady' => 'Launch configured on this computer',
-      'projectLaunchMissing' => 'Choose a program and working folder on this computer',
-      'projectExecutable' => 'Program (.exe)',
-      'projectDirectory' => 'Working folder with code',
-      'projectArguments' => 'Arguments — one per line',
-      'projectBrowse' => 'Browse',
-      'projectLaunchHelp' => 'The program receives environment variables directly. SkySecret does not create .env files, interpolate values into the command or save program output. It keeps running with the supplied secrets after the vault locks. Stop or exiting SkySecret terminates it and its child processes.',
-      'projectLaunchTrust' => 'Run only trusted code: the program receives secrets and can write or transmit them. This does not check existing files in Git.',
-      'projectLaunchInvalid' =>
-        'Select absolute paths to an .exe and a working folder. Keep secrets out of paths and arguments.',
-      'projectLaunchFailed' =>
-        'Could not start the program. Check the executable, working folder and access permissions.',
-      'projectLaunchLocal' => 'Launch settings stay on this computer and are not transferred by synchronization.',
-      'projectLaunchReview' => 'Review the program and folder before running',
       'configurationFailed' => 'Could not open the settings window. Please try again.',
       'noticeError' => 'Error',
       'noticeWarning' => 'Attention',
       'noticeSuccess' => 'Done',
       'noticeInformation' => 'Information',
       'noticeDismiss' => 'Dismiss notification',
-      'general' => 'General',
-      'projects' => 'Projects',
-      'projectCreate' => 'New project',
-      'projectName' => 'Project name',
-      'projectShared' => 'Unlock with workspace',
-      'projectSharedHelp' => 'Open through this general vault. Turn off to require a separate project password.',
-      'projectSeparate' => 'Separate master password',
-      'projectsEmpty' => 'No projects here. Your everyday secrets remain in General.',
-      'projectUnlockWorkspace' => 'Unlock the general vault to access its projects.',
-      'projectSelectWorkspace' => 'Open the general vault that owns this project, then select it in Projects.',
-      'projectLockWorkspace' => 'Lock vault and projects',
-      'projectOpen' => 'Open project',
-      'projectFinishEditing' => 'Save or cancel the current edit, or clear the password fields before switching.',
-      'projectRestore' => 'Restore project from file',
-      'projectRestoreHelp' => 'If the project file is missing on this device, restore its encrypted copy. Existing files are never replaced by this action.',
-      'projectConflict' => 'Conflicting project settings',
-      'projectResolveQuestion' => ({
-        required Object name,
-      }) => 'Use the settings for “${name}”? Other conflicting versions will remain in the archive with their access settings preserved.',
-      'projectDeleteWorkspaceHelp' => 'If this vault owns projects, deleting it also removes their shared access settings. Export those projects with independent passwords first. Project files are not deleted by this action.',
-      'projectRemove' => 'Delete project',
-      'projectRemoveQuestion' => ({
-        required Object name,
-      }) => 'Delete “${name}” and its secrets from this computer? Programs launched through the project will stop. The source folder, original .env files and external backups will remain. This cannot be undone.',
-      'projectArchive' => 'Project archive',
-      'projectArchiveEmpty' => 'No archived projects.',
-      'projectUnarchive' => 'Restore from archive',
-      'projectUnarchiveQuestion' => ({required Object name}) => 'Restore “${name}” to the project list?',
-      'projectExportPassword' => 'Password for exported project',
-      'projectExportPasswordHelp' => 'Set a password for this independent copy. The working project will continue to open with the workspace. Keep the export password separately.',
-      'projectWorkspacePassword' => 'Change workspace password',
-      'projectBackupHelp' => 'This copy includes the project catalog and shared access settings. Export each project file as well: project contents are stored separately.',
-      'projectRestoreRevision' => 'Restore this project version? Current contents will be replaced by the selected version and retained in local history.',
       'generatorOpen' => 'Generator…',
       'generatorAgain' => 'Generate another',
       'generatorChooseGroup' => 'Select at least one character group.',
@@ -1500,37 +1225,6 @@ extension on TranslationsEn {
       'totpOpenFailed' => 'Could not open the verification codes window.',
       'totpAdd' => 'Add authenticator',
       'totpKind' => 'Authenticator · TOTP',
-      'projectEnvClearValues' => 'Clear values',
-      'projectEnvCopy' => 'Copy .env',
-      'projectEnvCopyName' => ({required Object name}) => '${name} — copy',
-      'projectEnvCopyValue' => 'Copy value',
-      'projectEnvDeleteFailed' => 'Removal stopped: a file changed, is inaccessible, or saved vault data could not be verified. Check remaining originals.',
-      'projectEnvDeleteHelp' => 'Remove selected originals? Saved vault data and unchanged source files are checked first. This does not clean Git history or other copies.',
-      'projectEnvDeleteSources' => 'Remove selected originals',
-      'projectEnvDuplicate' => 'Duplicate environment',
-      'projectEnvImport' => 'Import',
-      'projectEnvImported' => 'Environments saved. Original files remain in the project.',
-      'projectEnvImportFailed' => 'Could not read the folder. Check access and project size.',
-      'projectEnvImportFolder' => 'Connect folder / import .env',
-      'projectEnvImportHelp' => 'Select files to import as separate environments. Existing environments and source files are preserved. .env.example and .env.template are skipped.',
-      'projectEnvKeepFiles' => 'Keep files',
-      'projectEnvLineError' => ({required Object line}) => 'Invalid line ${line}. Check KEY=value and quotes.',
-      'projectEnvNone' => 'No .env files found. Templates and dependency folders are skipped.',
-      'projectEnvReveal' => 'Show / hide values',
-      'projectEnvRows' => 'Keys and values',
-      'projectEnvText' => 'From .env text',
-      'projectEnvTextHelp' => 'Paste KEY=value, one variable per line. Empty values, quotes, comments and export are supported. No variable expansion. This text shows plain values.',
-      'projectEnvVariableCount' => ({required Object count}) => '${count} variables',
-      'projectSecretAccounts' => 'Accounts and notes',
-      'projectSecretCopied' => 'Copied',
-      'projectSecretCopyFailed' => 'Could not copy',
-      'projectSecretFiles' => 'Files',
-      'projectSecretOpenFile' => 'Open file',
-      'projectSecretsEmpty' => 'Project secrets appear here. Add an entry or environment in the main window.',
-      'projectSecretsShow' => 'Show project secrets',
-      'projectMore' => 'More',
-      'projectEnvHideValue' => 'Hide value',
-      'projectEnvShowValue' => 'Show value',
       _ => null,
     };
   }

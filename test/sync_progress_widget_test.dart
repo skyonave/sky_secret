@@ -33,80 +33,67 @@ class DelayedSyncBackup extends GitHubBackup {
 }
 
 void main() {
-  for (final project in [false, true]) {
-    testWidgets('one sync progress bar without layout shift, project=$project', (tester) async {
-      await LocaleSettings.setLocale(AppLocale.en);
-      tester.view.physicalSize = const Size(460, 600);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(tester.view.resetPhysicalSize);
-      addTearDown(tester.view.resetDevicePixelRatio);
-      const notices = MethodChannel('skysecret/desktop_notice');
-      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(notices, (_) async => null);
-      addTearDown(() => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(notices, null));
-      final directory = (await tester.runAsync(() => Directory.systemTemp.createTemp('sync-progress-synthetic-')))!;
-      addTearDown(() => directory.delete(recursive: true));
-      final catalog = VaultCatalog(directory: directory);
-      const password = 'Synthetic sync progress password';
-      await tester.runAsync(() async {
-        final setup = VaultSessionController(catalog: catalog);
-        await setup.load();
-        await setup.open(password);
-        if (project) await setup.createProject('Synthetic project');
-        setup.dispose();
-      });
-      final backup = DelayedSyncBackup(catalog);
-      addTearDown(backup.dispose);
-      await tester.pumpWidget(
-        SkySecretApp(
-          desktop: FakeDesktop(),
-          clipboard: FakeClipboard(),
-          vaultCatalog: catalog,
-          githubBackup: backup,
-        ),
-      );
-      Future<void> until(bool Function() ready) async {
-        for (var i = 0; i < 200; i++) {
-          await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 20)));
-          await tester.pump();
-          if (ready()) return;
-        }
-        fail('Synthetic UI did not become ready');
-      }
-
-      await until(() => find.byKey(const Key('vault-master')).evaluate().isNotEmpty);
-      await tester.enterText(find.byKey(const Key('vault-master')), password);
-      await tester.tap(find.byKey(const Key('open-vault')));
-      await until(() {
-        final add = find.byKey(const Key('add-entry')).evaluate().firstOrNull?.widget;
-        final section = find.widgetWithText(TextButton, t.projects).evaluate().firstOrNull?.widget;
-        return add is FilledButton && add.onPressed != null && section is TextButton && section.onPressed != null;
-      });
-      if (project) {
-        await tester.tap(find.text(t.projects));
-        await until(() => find.text('Synthetic project').evaluate().isNotEmpty);
-        await tester.tap(find.text('Synthetic project'));
-        await until(() {
-          final add = find.byKey(const Key('add-entry')).evaluate().firstOrNull?.widget;
-          return find.text(t.projectWorkflow).evaluate().isNotEmpty && add is FilledButton && add.onPressed != null;
-        });
-      }
-      final footer = find.byKey(const Key('manager-footer'));
-      final before = tester.getRect(footer);
-      await tester.tap(find.byKey(const Key('synchronize-vault')));
-      await tester.pump();
-      expect(backup.busy, isTrue);
-      expect(find.byType(LinearProgressIndicator), findsOneWidget);
-      expect(find.descendant(of: footer, matching: find.byType(LinearProgressIndicator)), findsOneWidget);
-      expect(tester.getRect(footer), before);
-      expect(tester.widget<FilledButton>(find.byKey(const Key('add-entry'))).onPressed, isNull);
-      backup.gate.complete();
-      await tester.pump();
-      await tester.pump();
-      expect(find.byType(LinearProgressIndicator), findsNothing);
-      expect(tester.getRect(footer), before);
-      await tester.pumpWidget(const SizedBox.shrink());
-      await tester.pump(const Duration(seconds: 4));
-      expect(tester.takeException(), isNull);
+  testWidgets('one sync progress bar without layout shift', (tester) async {
+    await LocaleSettings.setLocale(AppLocale.en);
+    tester.view.physicalSize = const Size(460, 600);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    const notices = MethodChannel('skysecret/desktop_notice');
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(notices, (_) async => null);
+    addTearDown(() => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(notices, null));
+    final directory = (await tester.runAsync(() => Directory.systemTemp.createTemp('sync-progress-synthetic-')))!;
+    addTearDown(() => directory.delete(recursive: true));
+    final catalog = VaultCatalog(directory: directory);
+    const password = 'Synthetic sync progress password';
+    await tester.runAsync(() async {
+      final setup = VaultSessionController(catalog: catalog);
+      await setup.load();
+      await setup.open(password);
+      setup.dispose();
     });
-  }
+    final backup = DelayedSyncBackup(catalog);
+    addTearDown(backup.dispose);
+    await tester.pumpWidget(
+      SkySecretApp(
+        desktop: FakeDesktop(),
+        clipboard: FakeClipboard(),
+        vaultCatalog: catalog,
+        githubBackup: backup,
+      ),
+    );
+    Future<void> until(bool Function() ready) async {
+      for (var i = 0; i < 200; i++) {
+        await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 20)));
+        await tester.pump();
+        if (ready()) return;
+      }
+      fail('Synthetic UI did not become ready');
+    }
+
+    await until(() => find.byKey(const Key('vault-master')).evaluate().isNotEmpty);
+    await tester.enterText(find.byKey(const Key('vault-master')), password);
+    await tester.tap(find.byKey(const Key('open-vault')));
+    await until(() {
+      final add = find.byKey(const Key('add-entry')).evaluate().firstOrNull?.widget;
+      return add is FilledButton && add.onPressed != null;
+    });
+    final footer = find.byKey(const Key('manager-footer'));
+    final before = tester.getRect(footer);
+    await tester.tap(find.byKey(const Key('synchronize-vault')));
+    await tester.pump();
+    expect(backup.busy, isTrue);
+    expect(find.byType(LinearProgressIndicator), findsOneWidget);
+    expect(find.descendant(of: footer, matching: find.byType(LinearProgressIndicator)), findsOneWidget);
+    expect(tester.getRect(footer), before);
+    expect(tester.widget<FilledButton>(find.byKey(const Key('add-entry'))).onPressed, isNull);
+    backup.gate.complete();
+    await tester.pump();
+    await tester.pump();
+    expect(find.byType(LinearProgressIndicator), findsNothing);
+    expect(tester.getRect(footer), before);
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(seconds: 4));
+    expect(tester.takeException(), isNull);
+  });
 }

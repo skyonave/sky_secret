@@ -1,6 +1,6 @@
 part of '../services/vault_cipher.dart';
 
-enum VaultEntryKind { text, file, ssh, totp, environment }
+enum VaultEntryKind { text, file, ssh, totp }
 
 class VaultEntry {
   final String id;
@@ -38,16 +38,6 @@ class VaultEntry {
        _notes = ProtectedText(notes),
        _totp = ProtectedText(totp.isEmpty ? '' : TotpConfiguration.parse(totp).uri),
        attachments = List.unmodifiable(attachments) {
-    if (kind == VaultEntryKind.environment) {
-      if (username.isNotEmpty || password.isNotEmpty || totp.isNotEmpty || ssh != null || attachments.isNotEmpty) {
-        throw const VaultFormatException();
-      }
-      try {
-        ProjectEnvironment.decode(notes);
-      } on FormatException {
-        throw const VaultFormatException();
-      }
-    }
     if (kind == VaultEntryKind.totp) {
       if (totp.isEmpty ||
           username.isNotEmpty ||
@@ -118,7 +108,6 @@ class VaultEntry {
   bool get isSsh => kind == VaultEntryKind.ssh;
 
   bool get isFile => kind == VaultEntryKind.file;
-  bool get isEnvironment => kind == VaultEntryKind.environment;
 
   bool get isDeleted => deletedAt != null;
 
@@ -382,7 +371,7 @@ class VaultEntry {
                           (value[_VaultEntryJson.conflictOf] as String).isEmpty ||
                           (value[_VaultEntryJson.conflictOf] as String).length > 65536))
             : value.length != (legacy ? 5 : (files ? 7 : 6))) ||
-        (!legacy && typed && !['text', 'file', 'environment'].contains(value[_VaultEntryJson.kind])) ||
+        (!legacy && typed && !['text', 'file'].contains(value[_VaultEntryJson.kind])) ||
         (!legacy &&
             files &&
             (value[_VaultEntryJson.attachments] is! List ||
@@ -411,7 +400,6 @@ class VaultEntry {
     final kind = !legacy && typed
         ? switch (value[_VaultEntryJson.kind]) {
             'file' => VaultEntryKind.file,
-            'environment' => VaultEntryKind.environment,
             _ => VaultEntryKind.text,
           }
         : VaultEntryKind.text;

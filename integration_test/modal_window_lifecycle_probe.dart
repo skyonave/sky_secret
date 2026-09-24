@@ -76,10 +76,6 @@ Future<void> main() async {
         case 'state':
           final bounds = await windowManager.getBounds();
           return {
-            'secrets': find.text('Synthetic account').evaluate().isNotEmpty,
-            'environment': find.byKey(const Key('environment-name')).evaluate().isNotEmpty,
-            'revealed': find.text('TOKEN = synthetic').evaluate().isNotEmpty,
-            'deleteConfirm': find.text(t.projectRemove).evaluate().isNotEmpty,
             'left': bounds.left,
             'right': bounds.right,
             'visible': await windowManager.isVisible(),
@@ -89,12 +85,6 @@ Future<void> main() async {
           await waitFor(() => find.text(t.cancel).evaluate().isNotEmpty, 'Cancel button missing');
           await tester.ensureVisible(find.text(t.cancel));
           await tester.tap(find.text(t.cancel));
-          return true;
-        case 'reveal':
-          await tester.tap(find.byIcon(Icons.visibility_outlined).first);
-          return true;
-        case 'confirmDelete':
-          await tester.tap(find.widgetWithText(FilledButton, t.projectRemove));
           return true;
         case 'cross':
           await waitFor(() => find.byIcon(Icons.close_rounded).evaluate().isNotEmpty, 'Close button missing');
@@ -121,7 +111,7 @@ Future<void> main() async {
   await WindowPrivacy.initialize(captureAllowed: true);
   if (Platform.environment['SKYSECRET_SECTION_INTEGRATION'] == '1') {
     try {
-      await runVaultScenario(tester, Directory(profile), log, sectionsOnly: true);
+      await runVaultScenario(tester, Directory(profile), log, inactive: true);
       if (errors.existsSync()) throw StateError('Framework errors were recorded');
       log('SUCCESS');
     } catch (error) {

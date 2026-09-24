@@ -8,7 +8,6 @@ class _VaultPreferencesDialog extends StatefulWidget {
   final bool busy;
   final VoidCallback onExport;
   final VoidCallback onChangePassword;
-  final bool workspacePassword;
 
   const _VaultPreferencesDialog({
     required this.autoLockEnabled,
@@ -18,7 +17,6 @@ class _VaultPreferencesDialog extends StatefulWidget {
     required this.busy,
     required this.onExport,
     required this.onChangePassword,
-    this.workspacePassword = false,
   });
 
   @override
@@ -93,7 +91,7 @@ class _VaultPreferencesDialogState extends State<_VaultPreferencesDialog> {
                             Navigator.pop(context, 'password');
                           },
                     icon: const Icon(Icons.key_outlined, size: 16),
-                    label: Text(widget.workspacePassword ? t.projectWorkspacePassword : t.vaultChangePassword),
+                    label: Text(t.vaultChangePassword),
                   ),
                 ],
               ),

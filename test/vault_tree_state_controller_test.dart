@@ -3,7 +3,7 @@ import 'package:skysecret/core/settings/repositories/vault_tree_preferences.dart
 import 'package:skysecret/ui/vault/controllers/vault_tree_state_controller.dart';
 
 void main() {
-  test('general folders survive visiting the project list repeatedly', () {
+  test('vault folders survive clearing the visible tree repeatedly', () {
     final state = VaultTreeStateController();
     state.restore('general', {'section'});
     state.collapsed.addAll({'folder', '@favorites'});
@@ -16,18 +16,18 @@ void main() {
     expect(state.collapsed, {'section', 'folder', '@favorites'});
   });
 
-  test('general and project folders remain independent including shared virtual sections', () {
+  test('vault folders remain independent including shared virtual sections', () {
     final state = VaultTreeStateController();
     state.restore('general', {'general-folder', '@favorites'});
-    state.restore('project-a', {'project-folder'});
+    state.restore('vault-a', {'vault-folder'});
     state.collapsed.add('@trash');
-    state.restore('project-b', {});
+    state.restore('vault-b', {});
     state.collapsed.add('@favorites');
     state.restore('general', {});
     expect(state.collapsed, {'general-folder', '@favorites'});
-    state.restore('project-a', {});
-    expect(state.collapsed, {'project-folder', '@trash'});
-    state.restore('project-b', {});
+    state.restore('vault-a', {});
+    expect(state.collapsed, {'vault-folder', '@trash'});
+    state.restore('vault-b', {});
     expect(state.collapsed, {'@favorites'});
   });
 

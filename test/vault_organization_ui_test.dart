@@ -25,7 +25,6 @@ class OrganizationStore extends VaultStore {
     List<VaultEntry> entries, {
     List<VaultFolder>? folders,
     String? name,
-    List<VaultProject>? projects,
   }) async {
     if (failNext) {
       failNext = false;
@@ -37,7 +36,6 @@ class OrganizationStore extends VaultStore {
       folders ?? session.folders,
       name ?? session.name,
       revision: session.revision,
-      projects: projects,
     );
   }
 }
@@ -112,7 +110,8 @@ void main() {
         await commit(() => tester.tap(find.byKey(const Key('confirm-name'))));
         expect(find.text('Synthetic record'), findsOneWidget);
         expect(find.byType(ChoiceChip), findsNothing);
-        expect(find.text(t.vaultGeneral), findsOneWidget);
+        expect(find.text(t.vaultGeneral), findsNothing);
+        expect(find.text(t.appName), findsOneWidget);
         final folderId = session.folders.single.id;
         final start = tester.getCenter(find.text('Synthetic record'));
         final end = tester.getCenter(

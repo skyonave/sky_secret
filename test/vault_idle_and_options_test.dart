@@ -23,11 +23,10 @@ class PausedStore extends OrganizationStore {
     List<VaultEntry> entries, {
     List<VaultFolder>? folders,
     String? name,
-    List<VaultProject>? projects,
   }) async {
     await gate?.future;
     if (!session.isLocked) {
-      await super.save(session, entries, folders: folders, name: name, projects: projects);
+      await super.save(session, entries, folders: folders, name: name);
     }
   }
 }

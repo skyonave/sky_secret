@@ -34,8 +34,8 @@ bool CompanionWindow::ValidChild(HWND child) const {
   return process == GetCurrentProcessId();
 }
 
-bool CompanionWindow::Place(HWND child, double gap, bool above, bool configuration, int slot) {
-  if (!ValidChild(child) || !std::isfinite(gap) || gap < 0 || gap > 100 || slot < 1 || slot > 2) return false;
+bool CompanionWindow::Place(HWND child, double gap, bool above, bool configuration) {
+  if (!ValidChild(child) || !std::isfinite(gap) || gap < 0 || gap > 100) return false;
   const auto bounds = Bounds();
   RECT tile{};
   MONITORINFO monitor{sizeof(MONITORINFO)};
@@ -44,7 +44,6 @@ bool CompanionWindow::Place(HWND child, double gap, bool above, bool configurati
   gap_ = gap;
   above_ = above;
   configuration_ = configuration;
-  slot_ = slot;
   if (child_ != child) {
     const auto needed = tile.right - tile.left + std::lround(gap_ * GetDpiForWindow(main_) / 96.0);
     const auto left_room = bounds->left - monitor.rcWork.left;
@@ -70,12 +69,6 @@ bool CompanionWindow::Follow() {
     auto width = bounds->right - bounds->left;
     const auto height = bounds->bottom - bounds->top;
     auto x = std::max(monitor.rcWork.left, bounds->left - gap - width);
-    if (slot_ == 2) {
-      const auto room = x - gap - monitor.rcWork.left;
-      const auto minimum = std::lround(280 * GetDpiForWindow(main_) / 96.0);
-      width = std::min(width, std::max(minimum, room));
-      x = std::max(monitor.rcWork.left, x - gap - width);
-    }
     const auto y = std::max(monitor.rcWork.top, bounds->top);
     if (tile.left == x && tile.top == y && tile.right - tile.left == width && tile.bottom - tile.top == height) return true;
     return SetWindowPos(child_, nullptr, x, y, width, height,

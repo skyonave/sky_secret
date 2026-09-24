@@ -9,7 +9,6 @@ class VaultSession {
   Uint8List _encoded;
   List<VaultEntry> _entries;
   List<VaultFolder> _folders;
-  List<VaultProject> _projects;
   String? _name;
   bool _locked = false;
   VaultRevision _revision;
@@ -23,13 +22,11 @@ class VaultSession {
     this._entries,
     this._folders,
     this._name,
-    this._revision, {
-    this._projects = const [],
-  }) {
+    this._revision,
+  ) {
     try {
       _key = ProtectedBytes(key);
       _entries = _entries.map((e) => VaultEntry._owned(e, _lifetime)).toList();
-      _projects = _projects.map((p) => VaultProject._owned(p, _lifetime)).toList();
     } finally {
       key.fillRange(0, key.length, 0);
     }
@@ -53,13 +50,6 @@ class VaultSession {
   }
 
   List<VaultEntry> get entries => List.unmodifiable(_entries);
-  List<VaultProject> get projects => List.unmodifiable(_projects);
-
-  List<VaultProject> prepareProjects(List<VaultProject> projects) {
-    if (_locked) throw StateError('Vault is locked');
-    if (projects.length > VaultCipher.maxProjects) throw const VaultFormatException();
-    return projects.map((p) => VaultProject._owned(p, _lifetime)).toList();
-  }
 
   List<VaultEntry> prepareEntries(List<VaultEntry> entries) {
     if (_locked) throw StateError('Vault is locked');
@@ -127,7 +117,6 @@ class VaultSession {
     validateAdoption(source);
     final lifetime = SecretLifetime();
     final owned = source.entries.map((e) => VaultEntry._owned(e, lifetime)).toList();
-    final projects = source.projects.map((p) => VaultProject._owned(p, lifetime)).toList();
     final key = source._key.read();
     try {
       final protected = ProtectedBytes(key);
@@ -138,7 +127,6 @@ class VaultSession {
       _prefix = Uint8List.fromList(source._prefix);
       _encoded = source.persistedBytes;
       _entries = owned;
-      _projects = projects;
       _folders = List.of(source.folders);
       _name = source.name;
       _revision = source.revision;
@@ -157,7 +145,6 @@ class VaultSession {
     List<VaultFolder>? folders,
     String? name,
     VaultRevision? mergeRevision,
-    List<VaultProject>? projects,
   }) async {
     if (_locked) throw StateError('Vault is locked');
     final prefix = Uint8List.fromList(_prefix);
@@ -165,8 +152,7 @@ class VaultSession {
     final title = name ?? _name;
     final owned = entries.map((e) => VaultEntry._owned(e, _lifetime)).toList();
     final revision = _revision.advance(writerId, merge: mergeRevision);
-    final projectSnapshot = prepareProjects(projects ?? _projects);
-    final worker = VaultCipher._startSeal(_key, prefix, owned, groups, title, revision, projectSnapshot);
+    final worker = VaultCipher._startSeal(_key, prefix, owned, groups, title, revision);
     _workers.add(worker);
     try {
       final encoded = await worker.result;
@@ -188,10 +174,9 @@ class VaultSession {
       replacement.writerId = writerId;
       final entries = List<VaultEntry>.of(_entries);
       final folders = List<VaultFolder>.of(_folders);
-      final projects = List<VaultProject>.of(_projects);
-      final encoded = await replacement.encrypt(entries, folders: folders, projects: projects);
+      final encoded = await replacement.encrypt(entries, folders: folders);
       if (_locked) throw StateError('Vault is locked');
-      replacement.acceptPersisted(encoded, entries, folders, _name, projects: projects);
+      replacement.acceptPersisted(encoded, entries, folders, _name);
       return replacement;
     } catch (_) {
       replacement.lock();
@@ -201,30 +186,18 @@ class VaultSession {
     }
   }
 
-  Future<VaultSession> exportWithPassword(String password) async {
-    final copy = await changePassword(password);
-    if (_locked) {
-      copy.lock();
-      throw StateError('Vault is locked');
-    }
-    _replacements.add(copy);
-    return copy;
-  }
-
   void acceptPersisted(
     Uint8List encoded,
     List<VaultEntry> entries,
     List<VaultFolder> folders,
     String? name, {
     VaultRevision? revision,
-    List<VaultProject>? projects,
   }) {
     if (_locked) throw StateError('Vault is locked');
     final owned = entries.map((e) => VaultEntry._owned(e, _lifetime)).toList();
     _revision = revision ?? _sealedRevisions[encoded] ?? (throw StateError('Unauthenticated revision metadata'));
     _encoded = encoded;
     _entries = owned;
-    if (projects != null) _projects = prepareProjects(projects);
     _folders = List.of(folders);
     _name = name;
   }
@@ -243,10 +216,6 @@ class VaultSession {
       entry._destroy();
     }
     _entries = const [];
-    for (final project in _projects) {
-      project._credential.destroy();
-    }
-    _projects = const [];
     _folders = const [];
     _name = null;
   }

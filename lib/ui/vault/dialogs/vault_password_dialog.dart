@@ -11,12 +11,10 @@ typedef VaultPasswords = ({String current, String password});
 
 class VaultPasswordDialog extends StatefulWidget {
   final bool change;
-  final bool create;
 
   const VaultPasswordDialog({
     super.key,
     this.change = false,
-    this.create = false,
   });
 
   @override
@@ -41,9 +39,9 @@ class _VaultPasswordDialogState extends State<VaultPasswordDialog> {
   void _submit() {
     if (_password.text.isEmpty || (widget.change && _current.text.isEmpty)) {
       setState(() => _error = t.vaultPasswordRequired);
-    } else if ((widget.change || widget.create) && _password.text != _confirm.text) {
+    } else if (widget.change && _password.text != _confirm.text) {
       setState(() => _error = t.vaultPasswordMismatch);
-    } else if ((widget.change || widget.create) && !MasterPasswordPolicy.accepts(_password.text)) {
+    } else if (widget.change && !MasterPasswordPolicy.accepts(_password.text)) {
       setState(() => _error = t.vaultPasswordRequirements);
     } else {
       final result = (current: _current.text, password: _password.text);
@@ -57,11 +55,7 @@ class _VaultPasswordDialogState extends State<VaultPasswordDialog> {
   @override
   Widget build(BuildContext context) => ConfigurationPage(
     title: Text(
-      widget.create
-          ? t.projectExportPassword
-          : widget.change
-          ? t.vaultChangePassword
-          : t.vaultImport,
+      widget.change ? t.vaultChangePassword : t.vaultImport,
     ),
     scrollable: true,
     content: SizedBox(
@@ -70,11 +64,7 @@ class _VaultPasswordDialogState extends State<VaultPasswordDialog> {
         mainAxisSize: MainAxisSize.min,
         children: [
           Text(
-            widget.create
-                ? t.projectExportPasswordHelp
-                : widget.change
-                ? t.vaultChangePasswordHelp
-                : t.vaultImportHelp,
+            widget.change ? t.vaultChangePasswordHelp : t.vaultImportHelp,
           ),
           if (widget.change) ...[
             const SizedBox(height: 8),
@@ -95,7 +85,7 @@ class _VaultPasswordDialogState extends State<VaultPasswordDialog> {
             fieldKey: 'transfer-master',
             onSubmit: _submit,
           ),
-          if (widget.change || widget.create)
+          if (widget.change)
             _VaultPasswordField(
               controller: _confirm,
               label: t.vaultConfirmPassword,
@@ -118,7 +108,7 @@ class _VaultPasswordDialogState extends State<VaultPasswordDialog> {
       FilledButton(
         key: const Key('confirm-password-action'),
         onPressed: _submit,
-        child: Text(widget.change || widget.create ? t.save : t.vaultImport),
+        child: Text(widget.change ? t.save : t.vaultImport),
       ),
     ],
   );

@@ -14,10 +14,6 @@ class VaultSessionController {
   bool _disposed = false;
   int _epoch = 0;
   Object? _opening;
-  VaultSession? _workspaceSession;
-  VaultStore? _workspaceStore;
-  String? _workspaceId;
-  VaultProject? _project;
 
   VaultSessionController({this._store, this._catalog});
 
@@ -28,207 +24,18 @@ class VaultSessionController {
   Map<String, String> get names => Map.unmodifiable(_names);
   String? get selectedId => _selectedId;
   bool get exists => _exists;
-  VaultProject? get project => _project;
-  VaultSession? get workspaceSession => _workspaceSession ?? (_project == null ? _session : null);
-  List<VaultProject> get projects => workspaceSession?.projects ?? const [];
-  bool get workspaceUnlocked => workspaceSession?.isLocked == false;
-  bool get hasOpenSession => _session?.isLocked == false || workspaceUnlocked;
+  bool get hasOpenSession => _session?.isLocked == false;
   int get epoch => _epoch;
 
   bool accepts(int epoch) => _disposed == false && _epoch == epoch;
 
   bool owns(VaultSession session) => _disposed == false && _session == session && session.isLocked == false;
 
-  void retainWorkspace() {
-    if (_project != null || _workspaceSession != null || _session == null) return;
-    _workspaceSession = _session;
-    _workspaceStore = _store;
-    _workspaceId = _selectedId;
-  }
-
-  void leaveProject() {
-    if (_project == null) return;
-    _session?.lock();
-    _session = _workspaceSession?.isLocked == false ? _workspaceSession : null;
-    _store = _workspaceStore;
-    _selectedId = _workspaceId;
-    _project = null;
-    _exists = true;
-  }
-
-  void suspendContext() {
-    retainWorkspace();
-    _opening = null;
-    _epoch++;
-    if (_project != null) _session?.lock();
-    leaveProject();
-  }
-
-  void lockProject() {
-    _opening = null;
-    _epoch++;
-    _session?.lock();
-    _session = null;
-  }
-
-  Future<void> selectProject(VaultProject project) async {
-    if (_disposed || !workspaceUnlocked) throw StateError('Workspace is locked');
-    suspendContext();
-    final current = projects.where((p) => p.id == project.id).firstOrNull;
-    if (current == null || current.conflictOf != null) throw const VaultConflictException();
-    final catalog = _catalog!;
-    final target = VaultReference(
-      id: current.vaultId,
-      file: File('${catalog.directory.path}/projects/${current.vaultId}.smv'),
-      isProject: true,
-    );
-    _project = current;
-    _store = target.store;
-    _selectedId = target.id;
-    _session = null;
-    _exists = true;
-    if (current.unlockWithWorkspace) await open(current.credential);
-  }
-
-  Future<VaultProject?> createProject(String name, {String? password}) async {
-    retainWorkspace();
-    final workspace = workspaceSession;
-    final store = _workspaceStore;
-    final catalog = _catalog;
-    if (workspace == null || workspace.isLocked || store == null || catalog == null || _disposed) return null;
-    if (workspace.projects.length >= VaultCipher.maxProjects) throw const VaultFormatException();
-    final epoch = _epoch;
-    final target = catalog.newVault(project: true);
-    final credential = password ?? PasswordGenerator().generate(length: 48);
-    final created = await VaultCipher.create(credential, name: name);
-    try {
-      if (!accepts(epoch) || workspace.isLocked) return null;
-      final project = VaultProject(
-        id: target.id,
-        vaultId: target.id,
-        lineage: created.revision.lineage,
-        name: name,
-        credential: password == null ? credential : '',
-      );
-      await store.save(workspace, workspace.entries, projects: [...workspace.projects, project]);
-      if (!accepts(epoch) || workspace.isLocked) return null;
-      await target.store.saveCreated(created, allowed: () => accepts(epoch) && !workspace.isLocked);
-      if (!accepts(epoch) || workspace.isLocked) return null;
-      _vaults.add(target);
-      return workspace.projects.firstWhere((p) => p.id == project.id);
-    } finally {
-      created.lock();
-    }
-  }
-
-  Future<void> renameProject(String name) async {
-    final project = _project;
-    final workspace = workspaceSession;
-    final epoch = _epoch;
-    if (project == null || workspace == null || workspace.isLocked) return;
-    await _workspaceStore!.save(
-      workspace,
-      workspace.entries,
-      projects: [for (final p in workspace.projects) p.id == project.id ? p.renamed(name) : p],
-    );
-    if (accepts(epoch) && !workspace.isLocked && _project?.id == project.id) {
-      _project = workspace.projects.firstWhere((p) => p.id == project.id);
-    }
-  }
-
-  Future<void> toggleProjectArchive(VaultProject project) async {
-    retainWorkspace();
-    final workspace = workspaceSession;
-    if (workspace == null || workspace.isLocked) return;
-    final current = workspace.projects.where((p) => p.id == project.id).firstOrNull;
-    if (current == null) return;
-    await _workspaceStore!.save(
-      workspace,
-      workspace.entries,
-      projects: [for (final p in workspace.projects) p.id == current.id ? p.withArchived(!p.archived) : p],
-    );
-  }
-
-  Future<void> deleteProject(VaultProject project) async {
-    retainWorkspace();
-    final workspace = workspaceSession;
-    final store = _workspaceStore;
-    final catalog = _catalog;
-    if (_disposed || workspace == null || workspace.isLocked || store == null || catalog == null) return;
-    final current = workspace.projects.where((p) => p.id == project.id).firstOrNull;
-    if (current == null) return;
-    if (_project?.vaultId == current.vaultId) suspendContext();
-    final epoch = _epoch;
-    bool valid() => accepts(epoch) && !workspace.isLocked;
-    final remaining = workspace.projects.where((p) => p.id != current.id).toList();
-    if (remaining.every((p) => p.vaultId != current.vaultId)) {
-      final directory = Directory('${catalog.directory.path}/projects');
-      final type = await FileSystemEntity.type(directory.path, followLinks: false);
-      if (!valid()) return;
-      if (type == FileSystemEntityType.directory) {
-        final target = VaultStore(file: File('${directory.path}/${current.vaultId}.smv'));
-        await target.delete(allowed: valid, retainSnapshots: false, allowMissing: true);
-      } else if (type != FileSystemEntityType.notFound) {
-        throw const FileSystemException('Project directory is not a regular directory');
-      }
-    }
-    if (!valid()) return;
-    await store.save(workspace, workspace.entries, projects: remaining);
-    if (valid()) _vaults.removeWhere((v) => v.id == current.vaultId && remaining.every((p) => p.vaultId != v.id));
-  }
-
-  Future<VaultProject?> resolveProject(VaultProject project) async {
-    retainWorkspace();
-    final workspace = workspaceSession;
-    if (workspace == null || workspace.isLocked) return null;
-    final current = workspace.projects.where((p) => p.id == project.id).firstOrNull;
-    if (current == null || current.conflictOf == null) return current;
-    await _workspaceStore!.save(
-      workspace,
-      workspace.entries,
-      projects: [
-        for (final p in workspace.projects)
-          if (p.id == current.id) p.resolved() else if (p.conflictOf == current.conflictOf) p.withArchived(true) else p,
-      ],
-    );
-    if (workspace.isLocked) return null;
-    return workspace.projects.firstWhere((p) => p.id == current.id);
-  }
-
-  Future<bool> restoreProject(File file, {String? password}) async {
-    final epoch = _epoch;
-    final bytes = await VaultStore(file: file).readEncryptedSnapshot();
-    if (!accepts(epoch)) return false;
-    return restoreProjectBytes(bytes, password: password);
-  }
-
-  Future<bool> restoreProjectBytes(Uint8List bytes, {String? password}) async {
-    final project = _project;
-    final store = _store;
-    final workspace = workspaceSession;
-    final epoch = _epoch;
-    if (project == null || store == null || workspace == null || workspace.isLocked) return false;
-    var opened = await VaultCipher.unlock(bytes, password ?? (project.unlockWithWorkspace ? project.credential : ''));
-    try {
-      if (!accepts(epoch) || workspace.isLocked) return false;
-      if (opened.revision.lineage != project.lineage) throw const VaultUnlockException();
-      if (project.unlockWithWorkspace && password != null) {
-        final replacement = await opened.changePassword(project.credential);
-        opened.lock();
-        opened = replacement;
-      }
-      await store.saveCreated(opened, allowed: () => accepts(epoch) && !workspace.isLocked);
-    } finally {
-      opened.lock();
-    }
-    return accepts(epoch) && await open(project.unlockWithWorkspace ? project.credential : password ?? '');
-  }
-
   Future<void> load() async {
     final epoch = _epoch;
     if (_store == null) {
       final catalog = _catalog ?? VaultCatalog.local();
-      final vaults = await catalog.list(includeProjects: false);
+      final vaults = await catalog.list();
       if (accepts(epoch) == false) return;
       if (vaults.isEmpty) vaults.add(catalog.legacy);
       _catalog = catalog;
@@ -245,7 +52,7 @@ class VaultSessionController {
     if (catalog == null) return;
     lock();
     final epoch = _epoch;
-    final vaults = await catalog.list(includeProjects: false);
+    final vaults = await catalog.list();
     if (accepts(epoch) == false) return;
     final selected = id == null
         ? (vaults.isEmpty ? catalog.legacy : catalog.newVault())
@@ -274,10 +81,6 @@ class VaultSessionController {
     if (accepts(epoch) == false || _opening != request) {
       opened.lock();
       return false;
-    }
-    if (_project != null && opened.revision.lineage != _project!.lineage) {
-      opened.lock();
-      throw const VaultUnlockException();
     }
     _replace(opened);
     return true;
@@ -312,11 +115,6 @@ class VaultSessionController {
       imported.lock();
       return false;
     }
-    _workspaceSession?.lock();
-    _workspaceSession = null;
-    _workspaceStore = null;
-    _workspaceId = null;
-    _project = null;
     _store = target.store;
     _selectedId = target.id;
     _vaults.add(target);
@@ -366,11 +164,6 @@ class VaultSessionController {
     _opening = null;
     _session?.lock();
     _session = null;
-    _workspaceSession?.lock();
-    _workspaceSession = null;
-    _workspaceStore = null;
-    _workspaceId = null;
-    _project = null;
     await store.delete(allowed: () => accepts(epoch) && _store == store);
     if (accepts(epoch) == false) return;
     _names.remove(id);
@@ -383,9 +176,8 @@ class VaultSessionController {
   void _replace(VaultSession session) {
     _opening = null;
     if (_session == session) return;
-    if (_session != _workspaceSession || _project == null) _session?.lock();
+    _session?.lock();
     _session = session;
-    if (_project == null && _workspaceSession != null) _workspaceSession = session;
     _exists = true;
     rememberName();
   }
@@ -395,11 +187,6 @@ class VaultSessionController {
     _epoch++;
     _session?.lock();
     _session = null;
-    _workspaceSession?.lock();
-    leaveProject();
-    _workspaceSession = null;
-    _workspaceStore = null;
-    _workspaceId = null;
   }
 
   void dispose() {

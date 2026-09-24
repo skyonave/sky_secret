@@ -41,80 +41,6 @@ class Translations with BaseTranslations<AppLocale, Translations> {
 
   String get startupFailed => 'Не всё удалось загрузить';
 
-  String get projectWorkflow => 'Окружения и запуск';
-
-  String get projectWorkflowHelp => 'Секреты хранятся здесь. Код остаётся в вашей папке.';
-
-  String get projectEnvironments => 'Окружения';
-
-  String get projectEnvironmentAdd => 'Добавить окружение';
-
-  String get projectEnvironmentEdit => 'Настроить окружение';
-
-  String get projectEnvironmentName => 'Название окружения';
-
-  String get projectEnvironmentEmpty =>
-      'Создайте окружение, например Development, Test или Production, и добавьте переменные для своей программы.';
-
-  String get projectVariableName => 'Имя переменной';
-
-  String get projectVariableValue => 'Значение';
-
-  String get projectVariableAdd => 'Добавить переменную';
-
-  String get projectVariableRemove => 'Убрать переменную';
-
-  String get projectVariablesInvalid =>
-      'Проверьте название и переменные. Имена: латинские буквы, цифры и подчёркивание, без повторов. До 128 переменных; общий объём ограничен.';
-
-  String get projectVariablesProtected => 'Значения скрыты и сохраняются внутри зашифрованного сейфа.';
-
-  String get projectResources => 'Секреты и файлы';
-
-  String get projectOverview => 'К окружениям';
-
-  String get projectLaunchConfigure => 'Настроить запуск';
-
-  String get projectLaunch => 'Запустить';
-
-  String get projectStop => 'Остановить';
-
-  String get projectRunning => 'Работает';
-
-  String get projectStarting => 'Запускается…';
-
-  String get projectStopped => 'Остановлен';
-
-  String projectExited({required Object code}) => 'Процесс завершён: ${code}';
-
-  String get projectLaunchReady => 'Запуск настроен на этом компьютере';
-
-  String get projectLaunchMissing => 'Выберите программу и рабочую папку на этом компьютере';
-
-  String get projectExecutable => 'Программа (.exe)';
-
-  String get projectDirectory => 'Рабочая папка с кодом';
-
-  String get projectArguments => 'Аргументы — каждый на отдельной строке';
-
-  String get projectBrowse => 'Выбрать';
-
-  String get projectLaunchHelp =>
-      'Программа получает переменные окружения напрямую. SkySecret не создаёт .env, не подставляет значения в команду и не сохраняет вывод программы. После блокировки запуск продолжает работать с выданными секретами. Кнопка «Остановить» или выход из SkySecret завершает его и дочерние процессы.';
-
-  String get projectLaunchTrust =>
-      'Запускайте только доверенный код: программа получит секреты и сможет записать или отправить их. Уже существующие файлы в Git этим не проверяются.';
-
-  String get projectLaunchInvalid =>
-      'Выберите полный путь к .exe и рабочей папке. Не включайте секреты в пути или аргументы.';
-
-  String get projectLaunchFailed => 'Не удалось запустить программу. Проверьте путь, рабочую папку и доступ к ним.';
-
-  String get projectLaunchLocal =>
-      'Настройка запуска хранится только на этом компьютере и не переносится через синхронизацию.';
-
-  String get projectLaunchReview => 'Проверьте программу и папку перед запуском';
-
   String get configurationFailed => 'Не удалось открыть окно настроек. Попробуйте ещё раз.';
 
   String get noticeError => 'Ошибка';
@@ -126,74 +52,6 @@ class Translations with BaseTranslations<AppLocale, Translations> {
   String get noticeInformation => 'Информация';
 
   String get noticeDismiss => 'Закрыть уведомление';
-
-  String get general => 'Общее';
-
-  String get projects => 'Проекты';
-
-  String get projectCreate => 'Создать проект';
-
-  String get projectName => 'Название проекта';
-
-  String get projectShared => 'Открывать с workspace';
-
-  String get projectSharedHelp =>
-      'Открывать через этот общий сейф. Снимите флажок для отдельного мастер-пароля проекта.';
-
-  String get projectSeparate => 'Отдельный мастер-пароль';
-
-  String get projectsEmpty => 'Здесь пока нет проектов. Повседневные секреты остаются в «Общее».';
-
-  String get projectUnlockWorkspace => 'Откройте общий сейф для доступа к его проектам.';
-
-  String get projectSelectWorkspace =>
-      'Откройте общий сейф, которому принадлежит этот проект, затем выберите его в «Проекты».';
-
-  String get projectLockWorkspace => 'Заблокировать сейф и проекты';
-
-  String get projectOpen => 'Открыть проект';
-
-  String get projectFinishEditing =>
-      'Сохраните или отмените редактирование либо очистите поля пароля перед переключением.';
-
-  String get projectRestore => 'Восстановить проект из файла';
-
-  String get projectRestoreHelp =>
-      'Если на этом устройстве нет файла проекта, восстановите его зашифрованную копию. Это действие не заменяет существующие файлы.';
-
-  String get projectConflict => 'Конфликт настроек проекта';
-
-  String projectResolveQuestion({required Object name}) =>
-      'Использовать настройки «${name}»? Другие конфликтующие версии останутся в архиве с сохранёнными данными доступа.';
-
-  String get projectDeleteWorkspaceHelp =>
-      'Если этому сейфу принадлежат проекты, при удалении исчезнут и настройки их общего открытия. Сначала экспортируйте такие проекты с независимыми паролями. Файлы проектов этим действием не удаляются.';
-
-  String get projectRemove => 'Удалить проект';
-
-  String projectRemoveQuestion({required Object name}) =>
-      'Удалить «${name}» и его секреты с этого компьютера? Запущенные через проект программы будут остановлены. Папка с кодом, исходные .env и внешние резервные копии останутся. Отменить удаление нельзя.';
-
-  String get projectArchive => 'Архив проектов';
-
-  String get projectArchiveEmpty => 'В архиве пока нет проектов.';
-
-  String get projectUnarchive => 'Вернуть из архива';
-
-  String projectUnarchiveQuestion({required Object name}) => 'Вернуть «${name}» в список проектов?';
-
-  String get projectExportPassword => 'Пароль экспортируемого проекта';
-
-  String get projectExportPasswordHelp =>
-      'Задайте пароль для независимой копии. Рабочий проект продолжит открываться через workspace. Сохраните пароль экспорта отдельно.';
-
-  String get projectWorkspacePassword => 'Сменить пароль workspace';
-
-  String get projectBackupHelp =>
-      'Эта копия содержит каталог проектов и настройки общего доступа. Экспортируйте также каждый проект: его содержимое хранится в отдельном файле.';
-
-  String get projectRestoreRevision =>
-      'Восстановить эту версию проекта? Текущее содержимое будет заменено выбранной версией и останется в локальной истории.';
 
   String get generatorOpen => 'Генератор…';
 
@@ -965,72 +823,6 @@ class Translations with BaseTranslations<AppLocale, Translations> {
   String get totpAdd => 'Добавить аутентификатор';
 
   String get totpKind => 'Аутентификатор · TOTP';
-
-  String get projectEnvClearValues => 'Очистить значения';
-
-  String get projectEnvCopy => 'Скопировать .env';
-
-  String projectEnvCopyName({required Object name}) => '${name} — копия';
-
-  String get projectEnvCopyValue => 'Скопировать значение';
-
-  String get projectEnvDeleteFailed =>
-      'Удаление остановлено: файл изменён, недоступен или данные в сейфе не подтверждены. Проверьте оставшиеся исходники.';
-
-  String get projectEnvDeleteHelp =>
-      'Удалить выбранные исходники? Перед удалением проверяются сохранённые данные в сейфе и неизменность файлов. Это не очищает историю Git и другие копии.';
-
-  String get projectEnvDeleteSources => 'Удалить выбранные исходники';
-
-  String get projectEnvDuplicate => 'Создать копию окружения';
-
-  String get projectEnvImport => 'Импортировать';
-
-  String get projectEnvImported => 'Окружения сохранены. Исходные файлы оставлены в проекте.';
-
-  String get projectEnvImportFailed => 'Не удалось прочитать папку. Проверьте доступ и объём проекта.';
-
-  String get projectEnvImportFolder => 'Подключить папку / импорт .env';
-
-  String get projectEnvImportHelp =>
-      'Выберите файлы для импорта. Каждый станет отдельным окружением. Существующие окружения и исходные файлы сохраняются. Шаблоны .env.example и .env.template пропускаются.';
-
-  String get projectEnvKeepFiles => 'Оставить файлы';
-
-  String projectEnvLineError({required Object line}) => 'Ошибка в строке ${line}. Проверьте KEY=value и кавычки.';
-
-  String get projectEnvNone => 'Файлы .env не найдены. Шаблоны и служебные папки пропущены.';
-
-  String get projectEnvReveal => 'Показать / скрыть значения';
-
-  String get projectEnvRows => 'Ключи и значения';
-
-  String get projectEnvText => 'Из текста .env';
-
-  String get projectEnvTextHelp =>
-      'Вставьте KEY=value, по переменной на строку. Поддерживаются пустые значения, кавычки, комментарии и export. Подстановки не выполняются. Текст содержит открытые значения.';
-
-  String projectEnvVariableCount({required Object count}) => 'Переменных: ${count}';
-
-  String get projectSecretAccounts => 'Учётные записи и заметки';
-
-  String get projectSecretCopied => 'Скопировано';
-
-  String get projectSecretCopyFailed => 'Не удалось скопировать';
-
-  String get projectSecretFiles => 'Файлы';
-
-  String get projectSecretOpenFile => 'Открыть файл';
-
-  String get projectSecretsEmpty => 'Здесь появятся секреты проекта. Добавьте запись или окружение в главном окне.';
-
-  String get projectSecretsShow => 'Показать секреты проекта';
-
-  String get projectMore => 'Ещё';
-
-  String get projectEnvHideValue => 'Скрыть значение';
-
-  String get projectEnvShowValue => 'Показать значение';
 }
 
 extension on Translations {
@@ -1040,83 +832,12 @@ extension on Translations {
       'startupLoading' => 'SkySecret загружается…',
       'startupReady' => 'SkySecret готов',
       'startupFailed' => 'Не всё удалось загрузить',
-      'projectWorkflow' => 'Окружения и запуск',
-      'projectWorkflowHelp' => 'Секреты хранятся здесь. Код остаётся в вашей папке.',
-      'projectEnvironments' => 'Окружения',
-      'projectEnvironmentAdd' => 'Добавить окружение',
-      'projectEnvironmentEdit' => 'Настроить окружение',
-      'projectEnvironmentName' => 'Название окружения',
-      'projectEnvironmentEmpty' =>
-        'Создайте окружение, например Development, Test или Production, и добавьте переменные для своей программы.',
-      'projectVariableName' => 'Имя переменной',
-      'projectVariableValue' => 'Значение',
-      'projectVariableAdd' => 'Добавить переменную',
-      'projectVariableRemove' => 'Убрать переменную',
-      'projectVariablesInvalid' => 'Проверьте название и переменные. Имена: латинские буквы, цифры и подчёркивание, без повторов. До 128 переменных; общий объём ограничен.',
-      'projectVariablesProtected' => 'Значения скрыты и сохраняются внутри зашифрованного сейфа.',
-      'projectResources' => 'Секреты и файлы',
-      'projectOverview' => 'К окружениям',
-      'projectLaunchConfigure' => 'Настроить запуск',
-      'projectLaunch' => 'Запустить',
-      'projectStop' => 'Остановить',
-      'projectRunning' => 'Работает',
-      'projectStarting' => 'Запускается…',
-      'projectStopped' => 'Остановлен',
-      'projectExited' => ({required Object code}) => 'Процесс завершён: ${code}',
-      'projectLaunchReady' => 'Запуск настроен на этом компьютере',
-      'projectLaunchMissing' => 'Выберите программу и рабочую папку на этом компьютере',
-      'projectExecutable' => 'Программа (.exe)',
-      'projectDirectory' => 'Рабочая папка с кодом',
-      'projectArguments' => 'Аргументы — каждый на отдельной строке',
-      'projectBrowse' => 'Выбрать',
-      'projectLaunchHelp' => 'Программа получает переменные окружения напрямую. SkySecret не создаёт .env, не подставляет значения в команду и не сохраняет вывод программы. После блокировки запуск продолжает работать с выданными секретами. Кнопка «Остановить» или выход из SkySecret завершает его и дочерние процессы.',
-      'projectLaunchTrust' => 'Запускайте только доверенный код: программа получит секреты и сможет записать или отправить их. Уже существующие файлы в Git этим не проверяются.',
-      'projectLaunchInvalid' =>
-        'Выберите полный путь к .exe и рабочей папке. Не включайте секреты в пути или аргументы.',
-      'projectLaunchFailed' => 'Не удалось запустить программу. Проверьте путь, рабочую папку и доступ к ним.',
-      'projectLaunchLocal' =>
-        'Настройка запуска хранится только на этом компьютере и не переносится через синхронизацию.',
-      'projectLaunchReview' => 'Проверьте программу и папку перед запуском',
       'configurationFailed' => 'Не удалось открыть окно настроек. Попробуйте ещё раз.',
       'noticeError' => 'Ошибка',
       'noticeWarning' => 'Обратите внимание',
       'noticeSuccess' => 'Готово',
       'noticeInformation' => 'Информация',
       'noticeDismiss' => 'Закрыть уведомление',
-      'general' => 'Общее',
-      'projects' => 'Проекты',
-      'projectCreate' => 'Создать проект',
-      'projectName' => 'Название проекта',
-      'projectShared' => 'Открывать с workspace',
-      'projectSharedHelp' => 'Открывать через этот общий сейф. Снимите флажок для отдельного мастер-пароля проекта.',
-      'projectSeparate' => 'Отдельный мастер-пароль',
-      'projectsEmpty' => 'Здесь пока нет проектов. Повседневные секреты остаются в «Общее».',
-      'projectUnlockWorkspace' => 'Откройте общий сейф для доступа к его проектам.',
-      'projectSelectWorkspace' =>
-        'Откройте общий сейф, которому принадлежит этот проект, затем выберите его в «Проекты».',
-      'projectLockWorkspace' => 'Заблокировать сейф и проекты',
-      'projectOpen' => 'Открыть проект',
-      'projectFinishEditing' => 'Сохраните или отмените редактирование либо очистите поля пароля перед переключением.',
-      'projectRestore' => 'Восстановить проект из файла',
-      'projectRestoreHelp' => 'Если на этом устройстве нет файла проекта, восстановите его зашифрованную копию. Это действие не заменяет существующие файлы.',
-      'projectConflict' => 'Конфликт настроек проекта',
-      'projectResolveQuestion' => ({
-        required Object name,
-      }) => 'Использовать настройки «${name}»? Другие конфликтующие версии останутся в архиве с сохранёнными данными доступа.',
-      'projectDeleteWorkspaceHelp' => 'Если этому сейфу принадлежат проекты, при удалении исчезнут и настройки их общего открытия. Сначала экспортируйте такие проекты с независимыми паролями. Файлы проектов этим действием не удаляются.',
-      'projectRemove' => 'Удалить проект',
-      'projectRemoveQuestion' => ({
-        required Object name,
-      }) => 'Удалить «${name}» и его секреты с этого компьютера? Запущенные через проект программы будут остановлены. Папка с кодом, исходные .env и внешние резервные копии останутся. Отменить удаление нельзя.',
-      'projectArchive' => 'Архив проектов',
-      'projectArchiveEmpty' => 'В архиве пока нет проектов.',
-      'projectUnarchive' => 'Вернуть из архива',
-      'projectUnarchiveQuestion' => ({required Object name}) => 'Вернуть «${name}» в список проектов?',
-      'projectExportPassword' => 'Пароль экспортируемого проекта',
-      'projectExportPasswordHelp' => 'Задайте пароль для независимой копии. Рабочий проект продолжит открываться через workspace. Сохраните пароль экспорта отдельно.',
-      'projectWorkspacePassword' => 'Сменить пароль workspace',
-      'projectBackupHelp' => 'Эта копия содержит каталог проектов и настройки общего доступа. Экспортируйте также каждый проект: его содержимое хранится в отдельном файле.',
-      'projectRestoreRevision' => 'Восстановить эту версию проекта? Текущее содержимое будет заменено выбранной версией и останется в локальной истории.',
       'generatorOpen' => 'Генератор…',
       'generatorAgain' => 'Сгенерировать ещё',
       'generatorChooseGroup' => 'Выберите хотя бы одну группу символов.',
@@ -1505,37 +1226,6 @@ extension on Translations {
       'totpOpenFailed' => 'Не удалось открыть окно кодов подтверждения.',
       'totpAdd' => 'Добавить аутентификатор',
       'totpKind' => 'Аутентификатор · TOTP',
-      'projectEnvClearValues' => 'Очистить значения',
-      'projectEnvCopy' => 'Скопировать .env',
-      'projectEnvCopyName' => ({required Object name}) => '${name} — копия',
-      'projectEnvCopyValue' => 'Скопировать значение',
-      'projectEnvDeleteFailed' => 'Удаление остановлено: файл изменён, недоступен или данные в сейфе не подтверждены. Проверьте оставшиеся исходники.',
-      'projectEnvDeleteHelp' => 'Удалить выбранные исходники? Перед удалением проверяются сохранённые данные в сейфе и неизменность файлов. Это не очищает историю Git и другие копии.',
-      'projectEnvDeleteSources' => 'Удалить выбранные исходники',
-      'projectEnvDuplicate' => 'Создать копию окружения',
-      'projectEnvImport' => 'Импортировать',
-      'projectEnvImported' => 'Окружения сохранены. Исходные файлы оставлены в проекте.',
-      'projectEnvImportFailed' => 'Не удалось прочитать папку. Проверьте доступ и объём проекта.',
-      'projectEnvImportFolder' => 'Подключить папку / импорт .env',
-      'projectEnvImportHelp' => 'Выберите файлы для импорта. Каждый станет отдельным окружением. Существующие окружения и исходные файлы сохраняются. Шаблоны .env.example и .env.template пропускаются.',
-      'projectEnvKeepFiles' => 'Оставить файлы',
-      'projectEnvLineError' => ({required Object line}) => 'Ошибка в строке ${line}. Проверьте KEY=value и кавычки.',
-      'projectEnvNone' => 'Файлы .env не найдены. Шаблоны и служебные папки пропущены.',
-      'projectEnvReveal' => 'Показать / скрыть значения',
-      'projectEnvRows' => 'Ключи и значения',
-      'projectEnvText' => 'Из текста .env',
-      'projectEnvTextHelp' => 'Вставьте KEY=value, по переменной на строку. Поддерживаются пустые значения, кавычки, комментарии и export. Подстановки не выполняются. Текст содержит открытые значения.',
-      'projectEnvVariableCount' => ({required Object count}) => 'Переменных: ${count}',
-      'projectSecretAccounts' => 'Учётные записи и заметки',
-      'projectSecretCopied' => 'Скопировано',
-      'projectSecretCopyFailed' => 'Не удалось скопировать',
-      'projectSecretFiles' => 'Файлы',
-      'projectSecretOpenFile' => 'Открыть файл',
-      'projectSecretsEmpty' => 'Здесь появятся секреты проекта. Добавьте запись или окружение в главном окне.',
-      'projectSecretsShow' => 'Показать секреты проекта',
-      'projectMore' => 'Ещё',
-      'projectEnvHideValue' => 'Скрыть значение',
-      'projectEnvShowValue' => 'Показать значение',
       _ => null,
     };
   }

@@ -14,13 +14,9 @@ class VaultConfigurationForms extends StatelessWidget {
       captureAllowed: data['capture'] as bool,
       canManageVault: data['manage'] as bool,
       busy: false,
-      workspacePassword: data['workspace'] == true,
       onExport: () => unawaited(action('export', null)),
       onChangePassword: () => unawaited(action('password', null)),
     ),
-    'project' => const _ProjectCreateDialog(),
-    'projectImport' => _ProjectImportDialog(data: data, action: action),
-    'projectSecrets' => _ProjectSecretsPanel(data: data, action: action),
     'confirm' => Builder(
       builder: (context) => ConfigurationPage(
         title: Text(data['title'] as String),
@@ -33,11 +29,6 @@ class VaultConfigurationForms extends StatelessWidget {
     ),
     'entry' => _EntryConfigurationDialog(data: data, action: action),
     'choice' => _ConfigurationChoiceDialog(data: data, action: action),
-    'environment' => _ProjectEnvironmentDialog(
-      data: data,
-      save: (value) async => await action('save', value) as String?,
-    ),
-    'launch' => _ProjectLaunchDialog(data: data, save: (value) async => await action('save', value) as String?),
     'shortcuts' => ShortcutDialog(desktop: ConfigurationShortcuts(data, action)),
     'github' => GitHubDialog(
       action: action,
@@ -52,7 +43,7 @@ class VaultConfigurationForms extends StatelessWidget {
       actionLabel: data['label'] as String,
       canApply: data['apply'] == true,
     ),
-    'password' => VaultPasswordDialog(change: data['change'] == true, create: data['create'] == true),
+    'password' => VaultPasswordDialog(change: data['change'] == true),
     'name' => VaultNameDialog(
       title: data['title'] as String,
       label: data['label'] as String,
@@ -68,7 +59,6 @@ class VaultConfigurationForms extends StatelessWidget {
     if (kind == 'preferences' && value is String) return {'action': value};
     return switch (kind) {
       'preferences' => {'idle': value.idle, 'hidden': value.hidden, 'capture': value.capture},
-      'project' => {'name': value.name, 'password': value.password},
       'password' => {'current': value.current, 'password': value.password},
       _ => value,
     };

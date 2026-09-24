@@ -1,6 +1,5 @@
 import 'dart:typed_data';
 
-import '../../../core/crypto/crypto.dart';
 import '../../../core/sync/github/services/github_api.dart';
 import '../../../core/sync/github/controllers/github_backup.dart';
 import 'vault_session_controller.dart';
@@ -57,19 +56,13 @@ class VaultSyncController {
     Uint8List bytes,
     String password, {
     RemoteVault? remote,
-    bool intoProject = false,
   }) async {
     final catalog = vault.catalog;
     if (_busy || catalog == null) return false;
     final epoch = vault.epoch;
-    final project = intoProject ? vault.project : null;
-    if (intoProject && (project == null || vault.store == null)) return false;
-    final target = project == null
-        ? catalog.newVault()
-        : VaultReference(id: project.vaultId, file: vault.store!.file, isProject: true);
+    final target = catalog.newVault();
     _busy = true;
     try {
-      if (project != null && await target.store.exists()) throw const VaultConflictException();
       if (!vault.accepts(epoch)) return false;
       if (remote != null) await backup.bindSynchronizedImport(target.id, remote);
       if (vault.accepts(epoch) == false) {
@@ -77,9 +70,7 @@ class VaultSyncController {
         return false;
       }
       try {
-        final restored = project == null
-            ? await vault.importBytes(target, bytes, password)
-            : await vault.restoreProjectBytes(bytes, password: project.unlockWithWorkspace ? null : password);
+        final restored = await vault.importBytes(target, bytes, password);
         if (!restored && remote != null && !await target.store.exists()) {
           await backup.cancelSynchronizedImport(target.id);
         }

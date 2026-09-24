@@ -16,10 +16,10 @@ class VaultCatalog {
     file: File('${directory.path}${Platform.pathSeparator}vault.smv'),
   );
 
-  Future<List<VaultReference>> list({bool includeProjects = true}) async {
+  Future<List<VaultReference>> list() async {
     final result = <VaultReference>[];
     if (await legacy.store.exists()) result.add(legacy);
-    for (final group in ['vaults', if (includeProjects) 'projects']) {
+    for (final group in ['vaults']) {
       final folder = Directory('${directory.path}${Platform.pathSeparator}$group');
       final type = await FileSystemEntity.type(folder.path, followLinks: false);
       if (type == FileSystemEntityType.notFound) continue;
@@ -30,7 +30,7 @@ class VaultCatalog {
         if (entity is! File) continue;
         final name = entity.uri.pathSegments.last;
         if (!RegExp(r'^[0-9a-f]{32}\.smv$').hasMatch(name)) continue;
-        result.add(VaultReference(id: name.substring(0, 32), file: entity, isProject: group == 'projects'));
+        result.add(VaultReference(id: name.substring(0, 32), file: entity));
       }
     }
     if (result.map((vault) => vault.id).toSet().length != result.length) {
@@ -50,7 +50,7 @@ class VaultCatalog {
 
   Future<List<({VaultReference vault, File file, DateTime date})>> history() async {
     final references = <VaultReference>[legacy];
-    for (final group in ['vaults', 'projects']) {
+    for (final group in ['vaults']) {
       final folder = Directory('${directory.path}/$group');
       if (await FileSystemEntity.type(folder.path, followLinks: false) == FileSystemEntityType.directory) {
         await for (final entity in folder.list(followLinks: false)) {
@@ -60,7 +60,6 @@ class VaultCatalog {
               VaultReference(
                 id: name.substring(0, 32),
                 file: File('${folder.path}/${name.substring(0, 36)}'),
-                isProject: group == 'projects',
               ),
             );
           }
@@ -81,7 +80,7 @@ class VaultCatalog {
     return result;
   }
 
-  VaultReference newVault({bool project = false}) {
+  VaultReference newVault() {
     final random = Random.secure();
     final id = List.generate(
       16,
@@ -89,9 +88,8 @@ class VaultCatalog {
     ).join();
     return VaultReference(
       id: id,
-      isProject: project,
       file: File(
-        '${directory.path}${Platform.pathSeparator}${project ? 'projects' : 'vaults'}${Platform.pathSeparator}$id.smv',
+        '${directory.path}${Platform.pathSeparator}vaults${Platform.pathSeparator}$id.smv',
       ),
     );
   }

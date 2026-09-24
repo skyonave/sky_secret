@@ -342,7 +342,6 @@ class GitHubBackup extends ChangeNotifier {
           var encoded = original;
           var entries = session.entries;
           var folders = session.folders;
-          var projects = session.projects;
           var name = session.name;
           var conflictCount = 0;
           if (current?.blob != localHash && current?.blob != baseline) {
@@ -367,7 +366,6 @@ class GitHubBackup extends ChangeNotifier {
             conflictCount = merged.conflicts;
             entries = merged.entries;
             folders = merged.folders;
-            projects = merged.projects;
             name = merged.name;
             if (await VaultMerge.sameContents(merged, remoteSession) &&
                 remoteSession.revision.includes(session.revision) &&
@@ -380,7 +378,6 @@ class GitHubBackup extends ChangeNotifier {
                 folders: folders,
                 name: name,
                 mergeRevision: remoteSession.revision,
-                projects: projects,
               );
               adopted = await session.openRevision(encoded);
             }

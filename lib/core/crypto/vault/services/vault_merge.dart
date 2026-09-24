@@ -10,9 +10,8 @@ class VaultMerge {
   final List<VaultFolder> folders;
   final String? name;
   final int conflicts;
-  final List<VaultProject> projects;
 
-  VaultMerge(this.entries, this.folders, this.name, this.conflicts, {this.projects = const []});
+  VaultMerge(this.entries, this.folders, this.name, this.conflicts);
 
   static Future<VaultMerge> combine(
     VaultSession base,
@@ -24,9 +23,9 @@ class VaultMerge {
     return local
         .runWorker(
           VaultMerge._startMerge(
-            _MergeInput(base.entries, base.folders, base.name, projects: base.projects),
-            _MergeInput(local.entries, local.folders, local.name, projects: local.projects),
-            _MergeInput(remote.entries, remote.folders, remote.name, projects: remote.projects),
+            _MergeInput(base.entries, base.folders, base.name),
+            _MergeInput(local.entries, local.folders, local.name),
+            _MergeInput(remote.entries, remote.folders, remote.name),
           ),
         )
         .then(
@@ -35,7 +34,6 @@ class VaultMerge {
             merged.folders,
             merged.name,
             merged.conflicts,
-            projects: local.prepareProjects(merged.projects),
           ),
         );
   }
@@ -157,17 +155,6 @@ class VaultMerge {
       name = combined;
       conflicts++;
     }
-    var projects = <VaultProject>[];
-    if (base.projects.isNotEmpty || local.projects.isNotEmpty || remote.projects.isNotEmpty) {
-      final mergedProjects = await _combine(
-        _MergeInput(base.projects.map((p) => p.toMergeEntry()).toList(), const [], null),
-        _MergeInput(local.projects.map((p) => p.toMergeEntry()).toList(), const [], null),
-        _MergeInput(remote.projects.map((p) => p.toMergeEntry()).toList(), const [], null),
-      );
-      projects = mergedProjects.entries.map(VaultProject.fromMergeEntry).toList();
-      if (projects.length > VaultCipher.maxProjects) throw const VaultFormatException();
-      conflicts += mergedProjects.conflicts;
-    }
     return VaultMerge(
       [
         for (final e in entries.values) e.inFolder(folders.containsKey(e.folderId) ? e.folderId : null),
@@ -175,22 +162,17 @@ class VaultMerge {
       folders.values.map(VaultFolder.fromJson).toList(),
       name,
       conflicts,
-      projects: projects,
     );
   }
 
   static Future<bool> sameContents(VaultMerge merged, VaultSession session) => session.runWorker(
     VaultMerge._startCompare(
       merged,
-      _MergeInput(session.entries, session.folders, session.name, projects: session.projects),
+      _MergeInput(session.entries, session.folders, session.name),
     ),
   );
 
   static bool _sameContents(VaultMerge merged, _MergeInput session) {
-    final projects = {for (final p in session.projects) p.id: p.toJson()};
-    if (projects.length != merged.projects.length || merged.projects.any((p) => !_equal(p.toJson(), projects[p.id]))) {
-      return false;
-    }
     if (merged.name != session.name ||
         merged.entries.length != session.entries.length ||
         merged.folders.length != session.folders.length) {
@@ -309,7 +291,6 @@ class _MergeInput {
   final List<VaultEntry> entries;
   final List<VaultFolder> folders;
   final String? name;
-  final List<VaultProject> projects;
 
-  _MergeInput(this.entries, this.folders, this.name, {this.projects = const []});
+  _MergeInput(this.entries, this.folders, this.name);
 }

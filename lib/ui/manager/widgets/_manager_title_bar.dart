@@ -2,16 +2,12 @@ part of '../manager_window.dart';
 
 class _ManagerTitleBar extends StatelessWidget {
   final DesktopActions desktop;
-  final ValueChanged<bool> onSectionChanged;
-  final bool projectsSelected;
-  final bool projectsAvailable;
+  final bool unlocked;
   final VoidCallback onLock;
 
   const _ManagerTitleBar({
     required this.desktop,
-    required this.onSectionChanged,
-    required this.projectsSelected,
-    required this.projectsAvailable,
+    required this.unlocked,
     required this.onLock,
   });
 
@@ -47,25 +43,10 @@ class _ManagerTitleBar extends StatelessWidget {
             ),
           ),
         ),
-        _ManagerSectionButton(
-          label: t.general,
-          projects: false,
-          onSectionChanged: onSectionChanged,
-          projectsSelected: projectsSelected,
-        ),
-        const SizedBox(width: 4),
-        _ManagerSectionButton(
-          label: t.projects,
-          enabled: projectsAvailable,
-          projects: true,
-          onSectionChanged: onSectionChanged,
-          projectsSelected: projectsSelected,
-        ),
-        const SizedBox(width: 6),
         DesktopIconButton(
           key: const Key('lock-vault'),
-          tooltip: t.projectLockWorkspace,
-          onPressed: projectsAvailable ? onLock : null,
+          tooltip: t.vaultLock,
+          onPressed: unlocked ? onLock : null,
           icon: const Icon(Icons.lock_outline_rounded, size: 17),
         ),
         const SizedBox(width: 4),

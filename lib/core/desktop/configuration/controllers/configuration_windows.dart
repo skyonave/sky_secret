@@ -31,7 +31,6 @@ abstract final class ConfigurationWindows {
 
   static Future<dynamic> open({
     required String kind,
-    bool companion = false,
     required String locale,
     Map<String, dynamic> data = const {},
     required bool Function() isValid,
@@ -39,9 +38,9 @@ abstract final class ConfigurationWindows {
   }) async {
     if (!isValid()) return null;
     final token = List.generate(24, (_) => Random.secure().nextInt(256).toRadixString(16).padLeft(2, '0')).join();
-    final window = _Configuration(WindowMethodChannel('skysecret/configuration/$token'), isValid, companion);
+    final window = _Configuration(WindowMethodChannel('skysecret/configuration/$token'), isValid);
     _windows.add(window);
-    opened.value = _windows.any((item) => !item.companion);
+    opened.value = _windows.isNotEmpty;
     try {
       await window.channel.setMethodCallHandler((call) async {
         if (!window.active || !isValid()) {
@@ -55,10 +54,9 @@ abstract final class ConfigurationWindows {
         if (call.method == 'connect') {
           final id = call.arguments;
           if (id is int && registerWindow(id)) {
-            final placed = await _placement.invokeMethod<bool>(companion ? 'placeResources' : 'placeConfiguration', {
+            final placed = await _placement.invokeMethod<bool>('placeConfiguration', {
               'window': id,
               'gap': 12.0,
-              'slot': !companion && _windows.any((item) => item.companion && item.connected) ? 2 : 1,
             });
             window.connected = placed == true && window.active && isValid();
             window.windowId = id;
@@ -78,7 +76,7 @@ abstract final class ConfigurationWindows {
           case 'read':
             if (window.read) return null;
             window.read = true;
-            return {'kind': kind, 'data': data, 'companion': companion};
+            return {'kind': kind, 'data': data};
           case 'alive':
             return true;
           case 'activity':
@@ -112,7 +110,6 @@ abstract final class ConfigurationWindows {
       if (!window.active || !isValid()) return null;
       final activated = await window.prepared!.activate(window.channel.name, locale);
       if (activated == false || !window.active || !isValid()) return null;
-      if (companion) unawaited(_pool.prepare(locale).catchError((_) {}));
       return await window.result.future;
     } finally {
       window.active = false;
@@ -121,16 +118,15 @@ abstract final class ConfigurationWindows {
       try {
         await _close(window);
       } finally {
-        opened.value = _windows.any((item) => !item.companion);
+        opened.value = _windows.isNotEmpty;
       }
       final previous = _windows.lastOrNull;
       if (previous != null && previous.active && previous.isValid() && previous.connected) {
-        await _placement.invokeMethod<bool>(previous.companion ? 'placeResources' : 'placeConfiguration', {
+        await _placement.invokeMethod<bool>('placeConfiguration', {
           'window': previous.windowId,
           'gap': 12.0,
-          'slot': previous.companion ? 1 : (_windows.any((item) => item.companion) ? 2 : 1),
         });
-        if (!previous.companion && previous.active && previous.isValid()) await previous.controller?.show();
+        if (previous.active && previous.isValid()) await previous.controller?.show();
       }
     }
   }
@@ -157,7 +153,6 @@ abstract final class ConfigurationWindows {
 
 class _Configuration {
   final WindowMethodChannel channel;
-  final bool companion;
   final bool Function() isValid;
   final result = Completer<dynamic>();
   WindowController? controller;
@@ -168,5 +163,5 @@ class _Configuration {
   Timer? timeout;
   int? windowId;
 
-  _Configuration(this.channel, this.isValid, this.companion);
+  _Configuration(this.channel, this.isValid);
 }

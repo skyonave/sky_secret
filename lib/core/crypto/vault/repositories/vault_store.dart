@@ -103,11 +103,6 @@ class VaultStore {
 
   Future<Uint8List> readEncryptedSnapshot() => _read();
 
-  Future<void> saveCreated(VaultSession session, {bool Function()? allowed}) async {
-    if (session.isLocked) throw StateError('Vault is locked');
-    await _commit(session.persistedBytes, null, allowed: () => !session.isLocked && (allowed?.call() ?? true));
-  }
-
   Future<VaultSession> importEncryptedSnapshot(
     Uint8List bytes,
     String password, {
@@ -238,10 +233,8 @@ class VaultStore {
     List<VaultEntry> entries, {
     List<VaultFolder>? folders,
     String? name,
-    List<VaultProject>? projects,
   }) async {
     final snapshot = session.prepareEntries(entries);
-    final projectSnapshot = session.prepareProjects(projects ?? session.projects);
     final groups = List<VaultFolder>.of(folders ?? session.folders);
     final title = name ?? session.name;
     final previous = session.persistedBytes;
@@ -250,12 +243,11 @@ class VaultStore {
       snapshot,
       folders: groups,
       name: title,
-      projects: projectSnapshot,
     );
     if (session.isLocked) throw StateError('Vault is locked');
     await _commit(encoded, previous, allowed: () => !session.isLocked);
     if (!session.isLocked) {
-      session.acceptPersisted(encoded, snapshot, groups, title, projects: projectSnapshot);
+      session.acceptPersisted(encoded, snapshot, groups, title);
     }
   }
 
@@ -267,7 +259,6 @@ class VaultStore {
     List<VaultFolder> folders,
     String? name, {
     VaultSession? authenticated,
-    List<VaultProject>? projects,
   }) async {
     if (session.isLocked || !_same(session.persistedBytes, previous)) {
       throw const VaultConflictException();
@@ -289,7 +280,7 @@ class VaultStore {
       if (authenticated != null) {
         session.adoptRevision(authenticated);
       } else {
-        session.acceptPersisted(encoded, entries, folders, name, projects: projects);
+        session.acceptPersisted(encoded, entries, folders, name);
       }
     }
   }

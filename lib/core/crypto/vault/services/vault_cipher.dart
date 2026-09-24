@@ -14,13 +14,11 @@ import '../../authentication/ssh_endpoint.dart';
 import '../../authentication/totp.dart';
 import '../models/vault_kdf_profile.dart';
 import '../models/vault_revision.dart';
-import '../models/project_environment.dart';
 
 part '../models/_vault_entry.dart';
 part '../models/_vault_attachment.dart';
 part '../models/_vault_folder.dart';
 part '../models/_vault_session.dart';
-part '../models/_vault_project.dart';
 
 class VaultFormatException implements Exception {
   const VaultFormatException();
@@ -38,7 +36,6 @@ abstract final class VaultCipher {
   static const maxFiles = 5000;
   static const maxItems = maxEntries + maxFiles;
   static const maxFolders = 100;
-  static const maxProjects = 100;
 
   static Future<VaultSession> create(String password, {String? name}) =>
       Isolate.run(() => VaultCipher._create(password, name));
@@ -62,11 +59,10 @@ abstract final class VaultCipher {
     List<VaultFolder> folders,
     String? name,
     VaultRevision revision,
-    List<VaultProject> projects,
   ) => CancellableWorker(() async {
     final key = protectedKey.read();
     try {
-      return await VaultCipher._seal(key, prefix, entries, folders, name, revision, projects: projects);
+      return await VaultCipher._seal(key, prefix, entries, folders, name, revision);
     } finally {
       key.fillRange(0, key.length, 0);
     }
@@ -235,7 +231,6 @@ abstract final class VaultCipher {
         contents.folders,
         contents.name,
         contents.revision ?? VaultCipher._legacyRevision(bytes),
-        projects: contents.projects,
       );
     } on SecretBoxAuthenticationError {
       throw const VaultUnlockException();
@@ -258,7 +253,6 @@ abstract final class VaultCipher {
     List<VaultFolder> folders,
     String? name,
     VaultRevision? revision,
-    List<VaultProject> projects,
   })
   _decodeContents(List<int> plain) {
     final json = jsonDecode(utf8.decode(plain));
@@ -271,13 +265,8 @@ abstract final class VaultCipher {
       throw const VaultFormatException();
     }
     final legacy = json.length == 1 && json.containsKey('entries');
-    final projectSchema = [10, 11].contains(json['schemaVersion']);
-    final rawProjects = projectSchema ? json['projects'] : const [];
-    if (rawProjects is! List || rawProjects.length > VaultCipher.maxProjects) {
-      throw const VaultFormatException();
-    }
-    final projects = rawProjects.map(VaultProject.fromJson).toList();
-    if (projects.map((project) => project.id).toSet().length != projects.length) {
+    final retiredCatalogSchema = [10, 11].contains(json['schemaVersion']);
+    if (retiredCatalogSchema && (json['projects'] is! List || (json['projects'] as List).length > 100)) {
       throw const VaultFormatException();
     }
     var rawFiles = 0;
@@ -300,7 +289,7 @@ abstract final class VaultCipher {
     final organized = [6, 7, 8, 9, 10, 11].contains(json['schemaVersion']);
     if (!legacy &&
         (json.length !=
-                (projectSchema
+                (retiredCatalogSchema
                     ? 6
                     : [5, 6, 7, 8, 9, 10, 11].contains(json['schemaVersion'])
                     ? 5
@@ -333,6 +322,7 @@ abstract final class VaultCipher {
       throw const VaultFormatException();
     }
     final entries = (json['entries'] as List)
+        .where((value) => !(json['schemaVersion'] == 11 && value['kind'] == 'environment'))
         .map(
           (value) => VaultEntry.fromJson(
             value,
@@ -406,7 +396,6 @@ abstract final class VaultCipher {
     }
     return (
       entries: normalized,
-      projects: projects,
       folders: folders,
       name: legacy ? null : json['name'] as String?,
       revision: [5, 6, 7, 8, 9, 10, 11].contains(json['schemaVersion'])
@@ -426,9 +415,8 @@ abstract final class VaultCipher {
     List<VaultEntry> entries,
     List<VaultFolder> folders,
     String? name,
-    VaultRevision revision, {
-    List<VaultProject> projects = const [],
-  }) async {
+    VaultRevision revision,
+  ) async {
     final secret = SecretKeyData(
       Uint8List.fromList(key),
       overwriteWhenDestroyed: true,
@@ -462,15 +450,7 @@ abstract final class VaultCipher {
       plain = Uint8List.fromList(
         utf8.encode(
           jsonEncode({
-            'schemaVersion': entries.any((entry) => entry.isEnvironment)
-                ? 11
-                : projects.isNotEmpty
-                ? 10
-                : entries.any((entry) => entry.hasTotp)
-                ? 9
-                : 8,
-            if (projects.isNotEmpty || entries.any((entry) => entry.isEnvironment))
-              'projects': projects.map((project) => project.toJson()).toList(),
+            'schemaVersion': entries.any((entry) => entry.hasTotp) ? 9 : 8,
             'revision': revision.toJson(),
             'name': name,
             'folders': folders.map((folder) => folder.toJson()).toList(),
@@ -484,9 +464,6 @@ abstract final class VaultCipher {
       final checked = VaultCipher._decodeContents(plain);
       for (final entry in checked.entries) {
         entry._destroy();
-      }
-      for (final project in checked.projects) {
-        project._credential.destroy();
       }
       final box = await VaultCipher._aes.encrypt(
         plain,
@@ -537,7 +514,6 @@ abstract final class VaultCipher {
         contents.folders,
         contents.name,
         contents.revision ?? VaultCipher._legacyRevision(bytes),
-        projects: contents.projects,
       );
     } on SecretBoxAuthenticationError {
       throw const VaultUnlockException();
