@@ -124,13 +124,16 @@ class VaultSessionController {
   Future<void> renameProject(String name) async {
     final project = _project;
     final workspace = workspaceSession;
+    final epoch = _epoch;
     if (project == null || workspace == null || workspace.isLocked) return;
     await _workspaceStore!.save(
       workspace,
       workspace.entries,
       projects: [for (final p in workspace.projects) p.id == project.id ? p.renamed(name) : p],
     );
-    if (!workspace.isLocked) _project = workspace.projects.firstWhere((p) => p.id == project.id);
+    if (accepts(epoch) && !workspace.isLocked && _project?.id == project.id) {
+      _project = workspace.projects.firstWhere((p) => p.id == project.id);
+    }
   }
 
   Future<void> toggleProjectArchive(VaultProject project) async {

@@ -47,12 +47,13 @@ abstract final class VaultFileImport {
             throw const FileImportException(FileImportProblem.changed);
           }
           if (session.isLocked) throw StateError('Vault is locked');
-          entries.add(
+          final imported = session.prepareEntries([
             VaultEntry.file(
               VaultAttachment.create(name, bytes),
               folderId: folderId,
             ),
-          );
+          ]);
+          entries.addAll(imported);
           total += bytes.length;
         } finally {
           bytes.fillRange(0, bytes.length, 0);

@@ -2,8 +2,41 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skysecret/core/crypto/crypto.dart';
+import 'package:skysecret/core/files/services/vault_file_import.dart';
 
 void main() {
+  test('lock revokes merge results before they are saved', () async {
+    final session = await VaultCipher.create('Synthetic merge password 1!');
+    addTearDown(session.lock);
+    final entry = VaultEntry.create(title: 'Synthetic', password: 'Synthetic merge secret');
+    final attachment = VaultAttachment.create('synthetic.txt', [1, 2, 3]);
+    final entries = [entry, VaultEntry.file(attachment)];
+    final encoded = await session.encrypt(entries);
+    final base = await session.openRevision(encoded);
+    final remote = await session.openRevision(encoded);
+    session.acceptPersisted(encoded, entries, [], null);
+    final merged = await VaultMerge.combine(base, session, remote);
+    final mergedEntry = merged.entries.singleWhere((value) => value.id == entry.id);
+    final mergedAttachment = merged.entries.singleWhere((value) => value.isFile).attachments.single;
+    expect(mergedEntry.password, 'Synthetic merge secret');
+    session.lock();
+    expect(() => mergedEntry.password, throwsStateError);
+    expect(() => mergedAttachment.bytes, throwsStateError);
+  });
+
+  test('lock revokes imported attachment results before they are saved', () async {
+    final directory = await Directory.systemTemp.createTemp('sky-import-lifetime-');
+    addTearDown(() => directory.delete(recursive: true));
+    final file = File('${directory.path}/synthetic.txt');
+    await file.writeAsBytes([1, 2, 3]);
+    final session = await VaultCipher.create('Synthetic import password 1!');
+    addTearDown(session.lock);
+    final entries = await VaultFileImport.read(session, [file.path]);
+    expect(entries.single.attachments.single.bytes, [1, 2, 3]);
+    session.lock();
+    expect(() => entries.single.attachments.single.bytes, throwsStateError);
+  });
+
   test('lock revokes original, moved, replaced and removed secret references', () async {
     final directory = await Directory.systemTemp.createTemp('sky-lifetime-');
     addTearDown(() => directory.delete(recursive: true));

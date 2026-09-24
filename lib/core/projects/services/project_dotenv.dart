@@ -8,7 +8,7 @@ abstract final class ProjectDotenv {
     final names = <String>{};
     final lines = source.replaceFirst(RegExp(r'^\uFEFF'), '').split(RegExp(r'\r?\n'));
     for (var index = 0; index < lines.length; index++) {
-      var line = lines[index].trim();
+      var line = lines[index].trimLeft();
       if (line.isEmpty || line.startsWith('#')) continue;
       if (line.startsWith('export ')) line = line.substring(7).trimLeft();
       final separator = line.indexOf('=');

@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 
 import '../../crypto/vault/models/project_environment.dart';
+import '../../os/windows/services/windows_file_removal.dart';
 import 'project_dotenv.dart';
 
 class ProjectEnvSource {
@@ -14,24 +15,25 @@ class ProjectEnvSource {
   final ProjectEnvironment? environment;
   final bool invalid;
   bool _removed = false;
+  bool _cleared = false;
   ProjectEnvSource(this.root, this.path, this.name, this._bytes, this.environment, this.invalid);
 
   Future<bool> removeUnchanged({required bool Function() allowed}) async {
-    if (!allowed() || environment == null) return false;
+    if (_cleared || !allowed() || environment == null) return false;
     if (_removed) return true;
-    final file = File(path);
-    if (await FileSystemEntity.type(path, followLinks: false) != FileSystemEntityType.file) return false;
-    final resolved = await file.resolveSymbolicLinks();
-    if (resolved != path || !resolved.startsWith('$root${Platform.pathSeparator}')) return false;
-    if (await file.length() != _bytes.length) return false;
-    final current = await file.readAsBytes();
-    if (!allowed() || !listEquals(current, _bytes)) return false;
-    await file.delete();
-    _removed = true;
-    return true;
+    _removed = WindowsFileRemoval.removeUnchanged(
+      path: path,
+      root: root,
+      expected: _bytes,
+      allowed: () => !_cleared && allowed(),
+    );
+    return _removed;
   }
 
-  void clear() => _bytes.fillRange(0, _bytes.length, 0);
+  void clear() {
+    _cleared = true;
+    _bytes.fillRange(0, _bytes.length, 0);
+  }
 }
 
 abstract final class ProjectEnvImport {
@@ -84,6 +86,7 @@ abstract final class ProjectEnvImport {
         }
       }
       result.sort((a, b) => a.name.compareTo(b.name));
+      if (!allowed()) throw const FileSystemException('Cancelled');
       return result;
     } catch (_) {
       for (final source in result) {

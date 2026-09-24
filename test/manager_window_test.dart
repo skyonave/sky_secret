@@ -1,11 +1,15 @@
 import 'dart:io';
 import 'dart:async';
 
+import 'support/configuration_harness.dart';
+
 import 'package:skysecret/ui/generator/generator_dialog.dart';
 import 'package:skysecret/ui/generator/services/generator_service.dart';
 import 'package:skysecret/core/settings/repositories/generator_preferences.dart';
 import 'package:skysecret/ui/vault/vault_panel.dart';
 import 'package:skysecret/ui/shared/input/sensitive_text_editing.dart';
+import 'package:skysecret/ui/shared/desktop_tooltip.dart';
+import 'package:skysecret/core/desktop/configuration/controllers/configuration_windows.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -101,6 +105,7 @@ void main() {
   Future<void> generator(WidgetTester tester) async {
     expect(find.byKey(const Key('open-generator')), findsNothing);
     final context = tester.element(find.byType(VaultPanel));
+    ConfigurationWindows.isChild = true;
     unawaited(
       GeneratorDialog.show(
         context: context,
@@ -110,6 +115,7 @@ void main() {
         canApply: false,
       ),
     );
+    ConfigurationWindows.isChild = false;
     await tester.pumpAndSettle();
   }
 
@@ -122,7 +128,7 @@ void main() {
 
   String password(WidgetTester tester) => tester.widget<Text>(find.byKey(const Key('generated-password'))).data!;
 
-  testWidgets('generator Escape closes the panel, manager close hides', (tester) async {
+  ConfigurationHarness.testWidgets('generator Escape closes the panel, manager close hides', (tester) async {
     final desktop = FakeDesktop();
     await open(tester, desktop);
     expect(find.text(t.emptyVault), findsOneWidget);
@@ -131,14 +137,16 @@ void main() {
     await tester.sendKeyEvent(LogicalKeyboardKey.escape);
     await tester.pumpAndSettle();
     expect(desktop.hides, 0);
-    await tester.tap(find.byTooltip(t.hide));
+    await tester.tap(find.byWidgetPredicate((widget) => widget is DesktopIconButton && widget.tooltip == t.hide));
     expect(desktop.hides, 1);
     expect(tester.takeException(), isNull);
   });
 
   for (final locale in AppLocale.values) {
     for (final size in [const Size(460, 600), const Size(384, 504)]) {
-      testWidgets('generator numeric settings remain usable: ${locale.name} $size', (tester) async {
+      ConfigurationHarness.testWidgets('generator numeric settings remain usable: ${locale.name} $size', (
+        tester,
+      ) async {
         await LocaleSettings.setLocale(locale);
         await open(tester, FakeDesktop(), size: size);
         await generator(tester);
@@ -157,7 +165,7 @@ void main() {
     }
   }
   for (final externalCopy in [false, true]) {
-    testWidgets(
+    ConfigurationHarness.testWidgets(
       'clipboard expiry preserves newer copies, even identical: $externalCopy',
       (tester) async {
         final clipboard = FakeClipboard();
@@ -172,7 +180,7 @@ void main() {
       },
     );
   }
-  testWidgets('busy clipboard retries cleanup and recopy restarts timer', (
+  ConfigurationHarness.testWidgets('busy clipboard retries cleanup and recopy restarts timer', (
     tester,
   ) async {
     final clipboard = FakeClipboard();
@@ -191,7 +199,7 @@ void main() {
     await tester.pumpWidget(const SizedBox.shrink());
   });
 
-  testWidgets('shortcut recorder saves, reports conflicts and cancels', (
+  ConfigurationHarness.testWidgets('shortcut recorder saves, reports conflicts and cancels', (
     tester,
   ) async {
     final desktop = FakeDesktop();
@@ -199,6 +207,8 @@ void main() {
     await tester.tap(find.byKey(const Key('shortcut-settings')));
     await tester.pumpAndSettle();
     expect(desktop.capturing, isTrue);
+    await tester.tap(find.byKey(const Key('shortcut-recorder')));
+    await tester.pump();
     await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
     await tester.pump();
     expect(find.text('Ctrl + …'), findsOneWidget);

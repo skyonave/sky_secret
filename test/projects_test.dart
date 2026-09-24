@@ -66,6 +66,36 @@ void main() {
     return (await controller.createProject('Synthetic project', password: separate ? _separate : null))!;
   }
 
+  test('a completed rename cannot restore a project after leaving its context', () async {
+    final project = await create();
+    final rootFile = controller.store!.file;
+    controller.dispose();
+    final entered = Completer<void>();
+    final release = Completer<void>();
+    controller = VaultSessionController(
+      catalog: catalog,
+      store: VaultStore(
+        file: rootFile,
+        beforeCommit: () async {
+          entered.complete();
+          await release.future;
+        },
+      ),
+    );
+    await controller.load();
+    await controller.open(_master);
+    await controller.selectProject(controller.projects.single);
+    final renaming = controller.renameProject('Renamed');
+    await entered.future;
+    controller.suspendContext();
+    release.complete();
+    await renaming;
+    expect(controller.project, isNull);
+    expect(controller.session, same(controller.workspaceSession));
+    expect(controller.projects.single.id, project.id);
+    expect(controller.projects.single.name, 'Renamed');
+  });
+
   test('shared projects have independent keys and never appear among general secrets or search', () async {
     await controller.open(_master);
     await controller.save([VaultEntry.create(title: 'Synthetic everyday', password: 'Synthetic value')]);

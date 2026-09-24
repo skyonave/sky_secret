@@ -6,6 +6,45 @@ import 'package:skysecret/core/projects/services/project_dotenv.dart';
 import 'package:skysecret/core/projects/services/project_env_import.dart';
 
 void main() {
+  test('source removal cannot delete a replacement written after comparison', () async {
+    final directory = await Directory.systemTemp.createTemp('project-env-delete-race-');
+    addTearDown(() => directory.delete(recursive: true));
+    final file = File('${directory.path}/.env');
+    await file.writeAsString('TOKEN=synthetic');
+    final sources = await ProjectEnvImport.scan(directory, allowed: () => true);
+    addTearDown(() => sources.single.clear());
+    var checks = 0;
+    var replaced = false;
+    final removed = await sources.single.removeUnchanged(
+      allowed: () {
+        checks++;
+        if (checks >= 3) {
+          try {
+            file.writeAsStringSync('TOKEN=changed');
+            replaced = true;
+          } on FileSystemException {
+            return true;
+          }
+        }
+        return true;
+      },
+    );
+    if (replaced) {
+      expect(removed, isFalse);
+      expect(await file.readAsString(), 'TOKEN=changed');
+    } else {
+      expect(removed, isTrue);
+      expect(await file.exists(), isFalse);
+    }
+  });
+
+  test('quoted multiline values preserve trailing whitespace on the first line', () {
+    for (final quote in ['"', "'"]) {
+      final environment = ProjectDotenv.parse('KEY=${quote}first  \t\nsecond$quote');
+      expect(environment.variables['KEY'], 'first  \t\nsecond');
+    }
+  });
+
   test('dotenv handles empty values, quotes, comments, CRLF, BOM and literal expressions', () {
     final env = ProjectDotenv.parse(
       '\uFEFF# comment\r\nexport TOKEN="synthetic=a#b" # note\r\nEMPTY=""\r\nBLANK=\r\nNAME=hello # comment\r\nLITERAL=\'\${TOKEN}\'\r\nMULTI="line1\\nline2"',

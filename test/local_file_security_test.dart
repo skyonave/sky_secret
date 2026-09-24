@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:skysecret/core/settings/repositories/shortcut_settings.dart';
 import 'package:skysecret/core/settings/repositories/vault_preferences.dart';
 import 'package:skysecret/core/storage/local_file.dart';
+import 'package:skysecret/core/os/windows/services/windows_file_removal.dart';
 
 class GrowingHandle extends Fake implements RandomAccessFile {
   int requested = 0;
@@ -37,6 +38,32 @@ class GrowingFile extends Fake implements File {
 }
 
 void main() {
+  test('conditional removal rejects changed bytes, unrelated roots, cancellation and active writers', () async {
+    final directory = await Directory.systemTemp.createTemp('sky-conditional-delete-');
+    addTearDown(() => directory.delete(recursive: true));
+    final file = File('${directory.path}/synthetic.env');
+    final bytes = Uint8List.fromList([1, 2, 3]);
+    await file.writeAsBytes(bytes);
+    bool remove({Uint8List? expected, String? root, bool allowed = true}) => WindowsFileRemoval.removeUnchanged(
+      path: file.path,
+      root: root ?? directory.path,
+      expected: expected ?? bytes,
+      allowed: () => allowed,
+    );
+    expect(remove(expected: Uint8List.fromList([1, 2, 4])), isFalse);
+    expect(remove(root: '${directory.path}/other'), isFalse);
+    expect(remove(allowed: false), isFalse);
+    final writer = await file.open(mode: FileMode.append);
+    try {
+      expect(remove(), isFalse);
+    } finally {
+      await writer.close();
+    }
+    expect(await file.readAsBytes(), bytes);
+    expect(remove(), isTrue);
+    expect(await file.exists(), isFalse);
+  });
+
   test('bounded reads reject large files, directories and growth after size inspection', () async {
     final directory = await Directory.systemTemp.createTemp('sky-file-audit-');
     addTearDown(() => directory.delete(recursive: true));

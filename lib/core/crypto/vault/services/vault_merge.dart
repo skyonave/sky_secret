@@ -31,7 +31,7 @@ class VaultMerge {
         )
         .then(
           (merged) => VaultMerge(
-            merged.entries,
+            local.prepareEntries(merged.entries),
             merged.folders,
             merged.name,
             merged.conflicts,

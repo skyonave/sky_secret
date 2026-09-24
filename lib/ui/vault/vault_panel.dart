@@ -1633,18 +1633,20 @@ class VaultPanelState extends State<VaultPanel> {
   }
 
   bool get _canSearch {
+    if (!mounted ||
+        !_contentActive ||
+        _session?.isLocked != false ||
+        _busy ||
+        _editor.active ||
+        _renamingVault ||
+        _searching ||
+        _sensitiveDialogOpen ||
+        !(ModalRoute.of(context)?.isCurrent ?? false)) {
+      return false;
+    }
     final focus = FocusManager.instance.primaryFocus?.context;
-    final editing = focus?.findAncestorStateOfType<EditableTextState>() != null;
-    return mounted &&
-        _contentActive &&
-        _session?.isLocked == false &&
-        !_busy &&
-        !_editor.active &&
-        !_renamingVault &&
-        !_searching &&
-        !_sensitiveDialogOpen &&
-        !editing &&
-        (ModalRoute.of(context)?.isCurrent ?? false);
+    if (focus != null && !focus.mounted) return false;
+    return focus?.findAncestorStateOfType<EditableTextState>() == null;
   }
 
   void _updateSearchHandler() {

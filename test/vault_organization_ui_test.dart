@@ -1,6 +1,9 @@
 import 'dart:io';
 
+import 'support/configuration_harness.dart';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skysecret/app.dart';
 import 'package:skysecret/core/crypto/crypto.dart';
@@ -41,8 +44,8 @@ class OrganizationStore extends VaultStore {
 
 void main() {
   for (final locale in AppLocale.values) {
-    testWidgets(
-      'sections, drag/drop, inline name, delete/cancel: ${locale.name}',
+    ConfigurationHarness.testWidgets(
+      'sections, drag/drop, rename/cancel, delete/undo: ${locale.name}',
       (tester) async {
         await LocaleSettings.setLocale(locale);
         final session = (await tester.runAsync(
@@ -83,20 +86,20 @@ void main() {
         await tester.pumpAndSettle();
         expect(find.byType(AlertDialog), findsNothing);
         await tester.enterText(
-          find.byKey(const Key('vault-inline-name')),
+          find.byKey(const Key('vault-name-input')),
           'Personal synthetic vault',
         );
         await commit(
-          () => tester.tap(find.byKey(const Key('confirm-vault-name'))),
+          () => tester.tap(find.byKey(const Key('confirm-name'))),
         );
         expect(find.text('Personal synthetic vault'), findsOneWidget);
         await tester.tap(find.byKey(const Key('vault-heading')));
         await tester.pumpAndSettle();
         await tester.enterText(
-          find.byKey(const Key('vault-inline-name')),
+          find.byKey(const Key('vault-name-input')),
           'Cancelled name',
         );
-        await tester.tap(find.byKey(const Key('cancel-vault-name')));
+        await tester.tap(find.text(t.cancel));
         await tester.pumpAndSettle();
         expect(find.text('Personal synthetic vault'), findsOneWidget);
 
@@ -109,7 +112,7 @@ void main() {
         await commit(() => tester.tap(find.byKey(const Key('confirm-name'))));
         expect(find.text('Synthetic record'), findsOneWidget);
         expect(find.byType(ChoiceChip), findsNothing);
-        expect(find.text(t.vaultGeneral), findsNothing);
+        expect(find.text(t.vaultGeneral), findsOneWidget);
         final folderId = session.folders.single.id;
         final start = tester.getCenter(find.text('Synthetic record'));
         final end = tester.getCenter(
@@ -124,7 +127,7 @@ void main() {
         await tester.tap(find.byKey(ValueKey('folder-header-$folderId')));
         await tester.pumpAndSettle();
 
-        await tester.tap(find.byKey(ValueKey('folder-actions-$folderId')));
+        await tester.tap(find.byKey(ValueKey('folder-header-$folderId')), buttons: kSecondaryMouseButton);
         await tester.pumpAndSettle();
         await tester.tap(find.text(t.vaultRenameFolder));
         await tester.pumpAndSettle();
@@ -136,33 +139,32 @@ void main() {
         expect(session.entries.single.folderId, folderId);
         expect(find.text('Renamed section'), findsOneWidget);
 
-        await tester.tap(find.byKey(ValueKey('folder-actions-$folderId')));
+        await tester.tap(find.byKey(ValueKey('folder-header-$folderId')), buttons: kSecondaryMouseButton);
         await tester.pumpAndSettle();
         await tester.tap(find.text(t.vaultDeleteFolder));
         await tester.pumpAndSettle();
-        await commit(() => tester.tap(find.byKey(const Key('confirm-delete'))));
+        await commit(() => tester.tap(find.widgetWithText(FilledButton, t.vaultDeleteFolder)));
         expect(session.folders, isEmpty);
         expect(session.entries.single.folderId, isNull);
         await tester.tap(find.text('Synthetic record'));
         await tester.pumpAndSettle();
         expect(clipboard.text, 'Synthetic secret');
-        await tester.tap(find.byTooltip(t.vaultDeleteEntry));
-        await tester.pumpAndSettle();
-        await tester.tap(find.text(t.cancel));
-        await tester.pumpAndSettle();
-        expect(session.entries, hasLength(1));
         store.failNext = true;
-        await tester.tap(find.byTooltip(t.vaultDeleteEntry));
-        await tester.pumpAndSettle();
-        await commit(() => tester.tap(find.byKey(const Key('confirm-delete'))));
+        Future<void> delete() async {
+          await tester.tap(find.text('Synthetic record'), buttons: kSecondaryMouseButton);
+          await tester.pumpAndSettle();
+          await tester.tap(find.text(t.vaultDeleteEntry));
+        }
+
+        await commit(delete);
         expect(find.text(t.vaultWriteFailed), findsOneWidget);
         expect(session.entries, hasLength(1));
         expect(clipboard.text, 'Synthetic secret');
-        await tester.tap(find.byTooltip(t.vaultDeleteEntry));
-        await tester.pumpAndSettle();
-        await commit(() => tester.tap(find.byKey(const Key('confirm-delete'))));
+        await commit(delete);
         expect(session.entries, isEmpty);
         expect(clipboard.text, isNull);
+        await commit(() => tester.tap(find.byKey(ValueKey('undo-delete-${record.id}'))));
+        expect(session.entries.single.password, 'Synthetic secret');
         expect(session.name, 'Personal synthetic vault');
         expect(session.folders, isEmpty);
         await tester.pumpWidget(const SizedBox.shrink());

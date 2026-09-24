@@ -1,7 +1,10 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'support/configuration_harness.dart';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skysecret/app.dart';
@@ -39,7 +42,7 @@ class ObservedStore extends VaultStore {
 
 void main() {
   for (final locale in AppLocale.values) {
-    testWidgets(
+    ConfigurationHarness.testWidgets(
       'vault UI create/save/restart/unlock/edit/copy/lock: ${locale.name}',
       (tester) async {
         await LocaleSettings.setLocale(locale);
@@ -80,6 +83,13 @@ void main() {
             await store.opening;
           });
           await tester.pumpAndSettle();
+          await ConfigurationHarness.pumpUntil(
+            tester,
+            find.byWidgetPredicate(
+              (widget) =>
+                  widget is ButtonStyleButton && widget.key == const Key('add-entry') && widget.onPressed != null,
+            ),
+          );
         }
 
         Future<void> save() async {
@@ -109,11 +119,20 @@ void main() {
         );
         await open();
         await tap('add-entry');
+        await ConfigurationHarness.pumpUntil(tester, find.byKey(const Key('entry-password')));
         await tester.pumpAndSettle();
         final generated = tester.widget<TextField>(find.byKey(const Key('entry-password'))).controller!.text;
         expect(generated.length, 24);
         await tester.tap(find.byKey(const Key('generate-entry-password')));
-        await tester.pump();
+        await ConfigurationHarness.pumpUntil(
+          tester,
+          find.byWidgetPredicate(
+            (widget) =>
+                widget is TextField &&
+                widget.key == const Key('entry-password') &&
+                widget.controller!.text != generated,
+          ),
+        );
         expect(
           tester.widget<TextField>(find.byKey(const Key('entry-password'))).controller!.text,
           isNot(generated),
@@ -176,7 +195,9 @@ void main() {
         await tester.tap(find.text('Synthetic UI record'));
         await tester.pumpAndSettle();
         expect(clipboard.text, 'Synthetic UI secret');
-        await tester.tap(find.byTooltip(t.vaultEditEntry));
+        await tester.tap(find.text('Synthetic UI record'), buttons: kSecondaryMouseButton);
+        await tester.pumpAndSettle();
+        await tester.tap(find.text(t.vaultEditEntry));
         await tester.pumpAndSettle();
         await tester.enterText(
           find.byKey(const Key('entry-title')),

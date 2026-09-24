@@ -1,6 +1,9 @@
 import 'dart:async';
 
+import 'support/configuration_harness.dart';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:skysecret/ui/shared/desktop_option.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skysecret/app.dart';
@@ -57,7 +60,7 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  testWidgets('disable stops timeout and reenable starts a fresh timeout', (
+  ConfigurationHarness.testWidgets('disable stops timeout and reenable starts a fresh timeout', (
     tester,
   ) async {
     final session = (await tester.runAsync(
@@ -88,7 +91,7 @@ void main() {
     await tester.pumpWidget(const SizedBox.shrink());
   });
 
-  testWidgets(
+  ConfigurationHarness.testWidgets(
     'password count, configurable generation and cancel preserve draft',
     (tester) async {
       final session = (await tester.runAsync(
@@ -104,16 +107,19 @@ void main() {
       await tester.tap(find.byKey(const Key('entry-password-options')));
       await tester.pumpAndSettle();
       await tester.enterText(find.byKey(const Key('generator-count')), '48');
+      await tester.pump();
       tester.widget<DesktopOption>(find.byKey(const Key('generator-symbols'))).onChanged!(false);
       await tester.pump();
-      await tester.tap(find.byTooltip(t.generatorClose));
+      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
       await tester.pumpAndSettle();
       expect(password(), original);
       await tester.tap(find.byKey(const Key('entry-password-options')));
       await tester.pumpAndSettle();
       await tester.enterText(find.byKey(const Key('generator-count')), '48');
+      await tester.pump();
       tester.widget<DesktopOption>(find.byKey(const Key('generator-symbols'))).onChanged!(false);
       await tester.pump();
+      await tester.ensureVisible(find.byKey(const Key('generator-apply')));
       await tester.tap(find.byKey(const Key('generator-apply')));
       await tester.pumpAndSettle();
       expect(password(), matches(RegExp(r'^[a-zA-Z0-9]{48}$')));
@@ -128,7 +134,7 @@ void main() {
     },
   );
 
-  testWidgets(
+  ConfigurationHarness.testWidgets(
     'activity resets two-minute timeout; hidden vault and modal lock',
     (tester) async {
       final session = (await tester.runAsync(
@@ -168,7 +174,7 @@ void main() {
     },
   );
 
-  testWidgets('timeout during save cannot reopen vault when write completes', (
+  ConfigurationHarness.testWidgets('timeout during save cannot reopen vault when write completes', (
     tester,
   ) async {
     final session = (await tester.runAsync(
