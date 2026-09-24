@@ -16,6 +16,7 @@ import '../../core/desktop/totp/controllers/totp_session.dart';
 import '../../core/desktop/drag/controllers/file_drag_controller.dart';
 import '../../core/desktop/drag/controllers/secret_drag_controller.dart';
 import '../../core/os/windows/services/ssh_connections.dart';
+import '../../core/os/windows/services/windows_auto_start.dart';
 import '../../core/settings/repositories/vault_preferences.dart';
 import '../../core/settings/repositories/vault_tree_preferences.dart';
 import '../../core/settings/repositories/shortcut_settings.dart';
@@ -1153,12 +1154,20 @@ class VaultPanelState extends State<VaultPanel> {
 
   Future<void> _showPreferences() async {
     final previousCapture = _preferences?.captureAllowed ?? false;
+    bool? previousAutoStart;
+    try {
+      previousAutoStart = await WindowsAutoStart.read();
+    } catch (_) {
+      previousAutoStart = null;
+    }
+    if (!mounted) return;
     final data = await _configuration(
       'preferences',
       data: {
         'idle': _autoLockEnabled,
         'hidden': _lockWhenHidden,
         'capture': previousCapture,
+        'autoStart': previousAutoStart,
         'manage': _session != null,
       },
     );
@@ -1166,8 +1175,11 @@ class VaultPanelState extends State<VaultPanel> {
     if (data['action'] == 'export') return _exportVault();
     if (data['action'] == 'password') return _changePassword();
     final result = (idle: data['idle'] as bool, hidden: data['hidden'] as bool, capture: data['capture'] as bool);
-    if (!mounted ||
-        (result.idle == _autoLockEnabled && result.hidden == _lockWhenHidden && result.capture == previousCapture)) {
+    final autoStart = data['autoStart'] as bool?;
+    final startupChanged = autoStart != null && autoStart != previousAutoStart;
+    final preferencesChanged =
+        result.idle != _autoLockEnabled || result.hidden != _lockWhenHidden || result.capture != previousCapture;
+    if (!mounted || (!preferencesChanged && !startupChanged)) {
       return;
     }
     setState(() => _savingPreferences = true);
@@ -1176,7 +1188,9 @@ class VaultPanelState extends State<VaultPanel> {
         _notice(t.captureSettingFailed);
         return;
       }
-      await _preferences!.save(result.idle, lockWhenHidden: result.hidden, captureAllowed: result.capture);
+      if (preferencesChanged) {
+        await _preferences!.save(result.idle, lockWhenHidden: result.hidden, captureAllowed: result.capture);
+      }
       if (!mounted) return;
       setState(() {
         _autoLockEnabled = result.idle;
@@ -1184,6 +1198,13 @@ class VaultPanelState extends State<VaultPanel> {
       });
       _idleTimer?.cancel();
       _touchActivity();
+      if (startupChanged) {
+        try {
+          await WindowsAutoStart.setEnabled(autoStart);
+        } catch (_) {
+          if (mounted) _notice(t.windowsAutoStartSaveFailed);
+        }
+      }
     } catch (_) {
       if (result.capture != previousCapture && !WindowPrivacy.setCaptureAllowed(previousCapture)) {
         _notice(t.captureSettingFailed);

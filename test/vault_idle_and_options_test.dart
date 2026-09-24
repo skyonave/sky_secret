@@ -59,6 +59,85 @@ void main() {
     await tester.pumpAndSettle();
   }
 
+  ConfigurationHarness.testWidgets('Windows startup changes only on save and rereads system state', (tester) async {
+    const channel = MethodChannel('skysecret/auto_start');
+    final messenger = tester.binding.defaultBinaryMessenger;
+    var registered = false;
+    var writes = 0;
+    var failRead = false;
+    var failWrite = false;
+    messenger.setMockMethodCallHandler(channel, (call) async {
+      if (call.method == 'read' && failRead || call.method == 'set' && failWrite) {
+        throw PlatformException(code: 'ACCESS_DENIED');
+      }
+      if (call.method == 'set') {
+        registered = call.arguments as bool;
+        writes++;
+      }
+      return registered;
+    });
+    addTearDown(() => messenger.setMockMethodCallHandler(channel, null));
+    final session = (await tester.runAsync(() => VaultCipher.create('Synthetic password 1!')))!;
+    await mount(tester, OrganizationStore(session), preferences: VaultPreferences());
+
+    Future<void> openSettings() async {
+      await tester.tap(find.byKey(const Key('vault-settings')));
+      await tester.pumpAndSettle();
+    }
+
+    final option = find.byKey(const Key('windows-auto-start'));
+    await openSettings();
+    expect(tester.widget<DesktopOption>(option).value, isFalse);
+    await tester.tap(option);
+    await tester.pump();
+    await tester.tap(find.text(t.cancel));
+    await tester.pumpAndSettle();
+    expect(writes, 0);
+    await openSettings();
+    expect(tester.widget<DesktopOption>(option).value, isFalse);
+    await tester.tap(option);
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('save-vault-preferences')));
+    await tester.pumpAndSettle();
+    expect(registered, isTrue);
+    expect(writes, 1);
+    await openSettings();
+    expect(tester.widget<DesktopOption>(option).value, isTrue);
+    await tester.tap(option);
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('save-vault-preferences')));
+    await tester.pumpAndSettle();
+    expect(registered, isFalse);
+    expect(writes, 2);
+
+    failWrite = true;
+    await openSettings();
+    await tester.tap(option);
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('save-vault-preferences')));
+    await tester.pumpAndSettle();
+    expect(registered, isFalse);
+    expect(writes, 2);
+    await openSettings();
+    expect(tester.widget<DesktopOption>(option).value, isFalse);
+    await tester.tap(find.text(t.cancel));
+    await tester.pumpAndSettle();
+
+    registered = true;
+    await openSettings();
+    expect(tester.widget<DesktopOption>(option).value, isTrue);
+    await tester.tap(find.text(t.cancel));
+    await tester.pumpAndSettle();
+    failRead = true;
+    await openSettings();
+    expect(tester.widget<DesktopOption>(option).onChanged, isNull);
+    expect(find.text(t.windowsAutoStartReadFailed), findsOneWidget);
+    await tester.tap(find.byKey(const Key('save-vault-preferences')));
+    await tester.pumpAndSettle();
+    expect(writes, 2);
+    expect(registered, isTrue);
+  });
+
   ConfigurationHarness.testWidgets('disable stops timeout and reenable starts a fresh timeout', (
     tester,
   ) async {

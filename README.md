@@ -28,6 +28,8 @@ Local first, offline, one portable EXE. **Shift+Space → your vault → back to
 
 Download the EXE from **Releases**, run it, open the tray window and create a vault. **There is no master-password reset.** GitHub is optional. Keep verified independent backups.
 
+To start in the tray when signing in to Windows, enable **Start when signing in to Windows** in vault settings and save. After moving the EXE, enable it again from the new location. If Windows has disabled startup, re-enable SkySecret in Task Manager.
+
 Save edits before hiding: hiding locks the vault by default. Completed copies remain available for **10 seconds from copying**, including after hiding. Manual, idle and Windows locks clear the app's current copy immediately. Existing vaults remain readable; update all clients before saving a shared vault with a newer version.
 
 > We work to protect your data, but cannot guarantee its security or recovery. [Protection and limits](SECURITY.md).
@@ -52,6 +54,8 @@ Save edits before hiding: hiding locks the vault by default. Completed copies re
 ### Начать
 
 Скачайте EXE из **Releases**, запустите, откройте окно из трея и создайте сейф. **Сброса мастер-пароля нет.** GitHub подключается по желанию. Храните проверенные независимые копии.
+
+Чтобы приложение запускалось в трее при входе в Windows, включите **Запускать при входе в Windows** в настройках сейфов и сохраните. После перемещения EXE включите настройку заново из нового расположения. Если Windows отключила автозапуск, включите SkySecret в диспетчере задач.
 
 Сохраняйте правки перед скрытием: по умолчанию оно блокирует сейф. Завершённое копирование доступно **10 секунд с момента копирования**, включая время после скрытия. Ручная блокировка, тайм-аут и блокировка Windows сразу очищают текущую копию приложения. Ранее созданные сейфы читаются; перед сохранением общего сейфа в новой версии обновляйте все устройства.
 

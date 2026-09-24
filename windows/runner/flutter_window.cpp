@@ -1,5 +1,6 @@
 #include "flutter_window.h"
 #include "desktop_notice.h"
+#include "windows_auto_start.h"
 
 #include <optional>
 #include <wtsapi32.h>
@@ -29,6 +30,33 @@ bool FlutterWindow::OnCreate() {
     return false;
   }
   RegisterPlugins(flutter_controller_->engine());
+  auto_start_channel_ = std::make_unique<flutter::MethodChannel<flutter::EncodableValue>>(
+      flutter_controller_->engine()->messenger(), "skysecret/auto_start",
+      &flutter::StandardMethodCodec::GetInstance());
+  auto_start_channel_->SetMethodCallHandler([](const auto& call, auto result) {
+    WindowsAutoStart auto_start(WindowsAutoStart::ExecutablePath());
+    bool enabled = false;
+    LSTATUS status;
+    if (call.method_name() == "read") {
+      status = auto_start.Read(&enabled);
+    } else if (call.method_name() == "set") {
+      const auto* value = call.arguments() ? std::get_if<bool>(call.arguments()) : nullptr;
+      if (!value) {
+        result->Error("INVALID_ARGUMENT", "Expected a boolean");
+        return;
+      }
+      enabled = *value;
+      status = auto_start.Set(enabled);
+    } else {
+      result->NotImplemented();
+      return;
+    }
+    if (status != ERROR_SUCCESS) {
+      result->Error("AUTO_START_FAILED", "Windows startup registration failed");
+      return;
+    }
+    result->Success(flutter::EncodableValue(enabled));
+  });
   startup_channel_ = std::make_unique<flutter::MethodChannel<flutter::EncodableValue>>(
       flutter_controller_->engine()->messenger(), "skysecret/startup",
       &flutter::StandardMethodCodec::GetInstance());
@@ -220,6 +248,7 @@ bool FlutterWindow::OnCreate() {
 }
 
 void FlutterWindow::OnDestroy() {
+  auto_start_channel_.reset();
   startup_channel_.reset();
   CompanionWindow::CloseAll();
   if (secret_drag_) secret_drag_->Stop();

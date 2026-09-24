@@ -4,6 +4,7 @@ class _VaultPreferencesDialog extends StatefulWidget {
   final bool autoLockEnabled;
   final bool lockWhenHidden;
   final bool captureAllowed;
+  final bool? autoStart;
   final bool canManageVault;
   final bool busy;
   final VoidCallback onExport;
@@ -13,6 +14,7 @@ class _VaultPreferencesDialog extends StatefulWidget {
     required this.autoLockEnabled,
     required this.lockWhenHidden,
     required this.captureAllowed,
+    required this.autoStart,
     required this.canManageVault,
     required this.busy,
     required this.onExport,
@@ -27,6 +29,7 @@ class _VaultPreferencesDialogState extends State<_VaultPreferencesDialog> {
   late bool enabled = widget.autoLockEnabled;
   late bool hidden = widget.lockWhenHidden;
   late bool captureAllowed = widget.captureAllowed;
+  late bool? autoStart = widget.autoStart;
 
   @override
   Widget build(BuildContext context) => ConfigurationPage(
@@ -42,6 +45,14 @@ class _VaultPreferencesDialogState extends State<_VaultPreferencesDialog> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          DesktopOption(
+            key: const Key('windows-auto-start'),
+            title: t.windowsAutoStart,
+            description: autoStart == null ? t.windowsAutoStartReadFailed : t.windowsAutoStartHelp,
+            value: autoStart ?? false,
+            onChanged: autoStart == null ? null : (value) => setState(() => autoStart = value),
+          ),
+          const SizedBox(height: 4),
           DesktopOption(
             key: const Key('auto-lock-switch'),
             title: t.vaultAutoLock,
@@ -104,7 +115,8 @@ class _VaultPreferencesDialogState extends State<_VaultPreferencesDialog> {
       TextButton(onPressed: () => Navigator.pop(context), child: Text(t.cancel)),
       FilledButton(
         key: const Key('save-vault-preferences'),
-        onPressed: () => Navigator.pop(context, (idle: enabled, hidden: hidden, capture: captureAllowed)),
+        onPressed: () =>
+            Navigator.pop(context, (idle: enabled, hidden: hidden, capture: captureAllowed, autoStart: autoStart)),
         child: Text(t.save),
       ),
     ],

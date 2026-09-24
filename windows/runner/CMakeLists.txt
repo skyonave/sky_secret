@@ -6,6 +6,7 @@ add_executable(${BINARY_NAME} WIN32
   "companion_window.cpp"
   "desktop_notice.cpp"
   "startup_indicator.cpp"
+  "windows_auto_start.cpp"
   "file_drop_target.cpp"
   "file_drag_source.cpp"
   "secret_drag_source.cpp"
@@ -42,6 +43,12 @@ target_link_libraries(${BINARY_NAME} PRIVATE "oleaut32.lib" "uiautomationcore.li
 target_include_directories(${BINARY_NAME} PRIVATE "${CMAKE_SOURCE_DIR}")
 
 add_dependencies(${BINARY_NAME} flutter_assemble)
+
+add_executable(windows_auto_start_test EXCLUDE_FROM_ALL
+  "../../test/windows/windows_auto_start_test.cpp" "windows_auto_start.cpp")
+apply_standard_settings(windows_auto_start_test)
+target_compile_definitions(windows_auto_start_test PRIVATE NOMINMAX)
+target_link_libraries(windows_auto_start_test PRIVATE "advapi32.lib")
 
 add_executable(companion_window_test EXCLUDE_FROM_ALL "../../test/windows/companion_window_test.cpp")
 apply_standard_settings(companion_window_test)

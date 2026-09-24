@@ -12,6 +12,7 @@ class VaultConfigurationForms extends StatelessWidget {
       autoLockEnabled: data['idle'] as bool,
       lockWhenHidden: data['hidden'] as bool,
       captureAllowed: data['capture'] as bool,
+      autoStart: data['autoStart'] as bool?,
       canManageVault: data['manage'] as bool,
       busy: false,
       onExport: () => unawaited(action('export', null)),
@@ -58,7 +59,12 @@ class VaultConfigurationForms extends StatelessWidget {
     if (value == null) return null;
     if (kind == 'preferences' && value is String) return {'action': value};
     return switch (kind) {
-      'preferences' => {'idle': value.idle, 'hidden': value.hidden, 'capture': value.capture},
+      'preferences' => {
+        'idle': value.idle,
+        'hidden': value.hidden,
+        'capture': value.capture,
+        'autoStart': value.autoStart,
+      },
       'password' => {'current': value.current, 'password': value.password},
       _ => value,
     };

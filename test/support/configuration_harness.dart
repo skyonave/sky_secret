@@ -15,6 +15,7 @@ class ConfigurationHarness {
   static const _channels = MethodChannel('mixin.one/desktop_multi_window/channels');
   static const _placement = MethodChannel('skysecret/companion');
   static const _notice = MethodChannel('skysecret/desktop_notice');
+  static const _autoStart = MethodChannel('skysecret/auto_start');
   final WidgetTester tester;
   final _routes = <String, Route<dynamic>>{};
   final _sessions = <String, String>{};
@@ -55,6 +56,7 @@ class ConfigurationHarness {
     ConfigurationWindows.registerWindow = (_) => true;
     messenger.setMockMethodCallHandler(_placement, (_) async => true);
     messenger.setMockMethodCallHandler(_notice, (_) async => null);
+    messenger.setMockMethodCallHandler(_autoStart, (_) async => false);
     messenger.setMockMethodCallHandler(_windows, (call) async {
       if (call.method == 'createWindow') {
         final data = jsonDecode((call.arguments as Map)['arguments'] as String) as Map;
@@ -140,7 +142,7 @@ class ConfigurationHarness {
     ConfigurationWindows.closeAll();
     await ConfigurationWindows.dispose();
     ConfigurationWindows.registerWindow = WindowPrivacy.registerWindow;
-    for (final channel in [_windows, _channels, _placement, _notice]) {
+    for (final channel in [_windows, _channels, _placement, _notice, _autoStart]) {
       tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(channel, null);
     }
   }

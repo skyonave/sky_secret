@@ -35,6 +35,7 @@ class FlutterWindow : public Win32Window {
   flutter::DartProject project_;
   StartupIndicator* startup_;
   std::unique_ptr<flutter::MethodChannel<flutter::EncodableValue>> startup_channel_;
+  std::unique_ptr<flutter::MethodChannel<flutter::EncodableValue>> auto_start_channel_;
 
 
   std::unique_ptr<flutter::FlutterViewController> flutter_controller_;

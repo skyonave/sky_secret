@@ -389,6 +389,16 @@ class Translations with BaseTranslations<AppLocale, Translations> {
 
   String get vaultSettings => 'Настройки сейфов';
 
+  String get windowsAutoStart => 'Запускать при входе в Windows';
+
+  String get windowsAutoStartHelp =>
+      'Запуск в трее для текущего пользователя. После перемещения EXE включите заново. Windows может отключить автозапуск в диспетчере задач.';
+
+  String get windowsAutoStartReadFailed => 'Не удалось проверить автозапуск. Откройте настройки повторно.';
+
+  String get windowsAutoStartSaveFailed =>
+      'Не удалось изменить автозапуск Windows. Проверьте права доступа и расположение EXE, затем повторите попытку.';
+
   String get vaultAutoLock => 'Автоблокировка';
 
   String get vaultLockWhenHidden => 'Блокировать при скрытии';
@@ -1014,6 +1024,11 @@ extension on Translations {
       'vaultWriteFailed' => 'Не удалось завершить операцию. Проверьте свободное место и доступ к файлу.',
       'vaultPreferencesSaveFailed' => 'Не удалось сохранить настройки. Изменение не применено.',
       'vaultSettings' => 'Настройки сейфов',
+      'windowsAutoStart' => 'Запускать при входе в Windows',
+      'windowsAutoStartHelp' => 'Запуск в трее для текущего пользователя. После перемещения EXE включите заново. Windows может отключить автозапуск в диспетчере задач.',
+      'windowsAutoStartReadFailed' => 'Не удалось проверить автозапуск. Откройте настройки повторно.',
+      'windowsAutoStartSaveFailed' =>
+        'Не удалось изменить автозапуск Windows. Проверьте права доступа и расположение EXE, затем повторите попытку.',
       'vaultAutoLock' => 'Автоблокировка',
       'vaultLockWhenHidden' => 'Блокировать при скрытии',
       'vaultLockWhenHiddenHelp' => 'Esc, крестик, сворачивание и уход в трей при потере фокуса блокируют сейф и закрывают редакторы. Несохранённые изменения теряются. Завершённое копирование доступно для вставки 10 секунд с момента копирования. Можно отключить отдельно от таймера.',

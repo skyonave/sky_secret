@@ -391,6 +391,16 @@ class TranslationsEn extends Translations with BaseTranslations<AppLocale, Trans
   @override
   String get vaultSettings => 'Vault settings';
   @override
+  String get windowsAutoStart => 'Start when signing in to Windows';
+  @override
+  String get windowsAutoStartHelp =>
+      'Start in the tray for the current user. Enable again after moving the EXE. Windows can disable startup in Task Manager.';
+  @override
+  String get windowsAutoStartReadFailed => 'Could not check Windows startup. Reopen settings to try again.';
+  @override
+  String get windowsAutoStartSaveFailed =>
+      'Could not change Windows startup. Check access permissions and the EXE location, then try again.';
+  @override
   String get vaultAutoLock => 'Auto-lock';
   @override
   String get vaultLockWhenHidden => 'Lock when hidden';
@@ -1017,6 +1027,11 @@ extension on TranslationsEn {
       'vaultWriteFailed' => 'The operation could not be completed. Check disk space and file access.',
       'vaultPreferencesSaveFailed' => 'Could not save settings. The change was not applied.',
       'vaultSettings' => 'Vault settings',
+      'windowsAutoStart' => 'Start when signing in to Windows',
+      'windowsAutoStartHelp' => 'Start in the tray for the current user. Enable again after moving the EXE. Windows can disable startup in Task Manager.',
+      'windowsAutoStartReadFailed' => 'Could not check Windows startup. Reopen settings to try again.',
+      'windowsAutoStartSaveFailed' =>
+        'Could not change Windows startup. Check access permissions and the EXE location, then try again.',
       'vaultAutoLock' => 'Auto-lock',
       'vaultLockWhenHidden' => 'Lock when hidden',
       'vaultLockWhenHiddenHelp' => 'Esc, close, minimize and hiding to the tray on focus loss lock the vault and close editors. Unsaved changes are lost. Completed clipboard copies remain available for 10 seconds from copying. This setting is independent of the idle timer.',
