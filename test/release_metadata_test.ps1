@@ -12,26 +12,40 @@ $metadata = Join-Path $fixture 'metadata'
 $release = Join-Path $fixture 'release'
 New-Item -ItemType Directory -Path $metadata, $release | Out-Null
 try {
-    $exe = Join-Path $release 'SkySecret-1.2.3-windows-x64.exe'
+    $exe = Join-Path $release 'sky_secret_enigma.exe'
+    $portable = Join-Path $release 'sky_secret_portable.zip'
     [IO.File]::WriteAllText($exe, 'Synthetic executable; never launched')
+    $portableArchive = [IO.Compression.ZipFile]::Open($portable, [IO.Compression.ZipArchiveMode]::Create)
+    try {
+        [IO.Compression.ZipFileExtensions]::CreateEntryFromFile($portableArchive, $exe, 'SkySecret.exe') | Out-Null
+    } finally { $portableArchive.Dispose() }
     [IO.File]::WriteAllText((Join-Path $metadata 'build-manifest.json'), '{"version":"1.2.3"}')
     [IO.File]::WriteAllText((Join-Path $metadata 'pubspec.lock'), 'synthetic')
     $destination = Join-Path $release 'verification.zip'
-    New-VerificationArchive $exe $metadata $destination
+    New-VerificationArchive @($portable, $exe) $metadata $destination
     $files = @(Get-ChildItem -LiteralPath $release -File)
-    if (@(Compare-Object ($files.Name | Sort-Object) @('SkySecret-1.2.3-windows-x64.exe', 'verification.zip')).Count) { throw 'Expected exactly two public downloads' }
+    if (@(Compare-Object ($files.Name | Sort-Object) @('sky_secret_enigma.exe', 'sky_secret_portable.zip', 'verification.zip')).Count) { throw 'Expected two downloads and their verification archive' }
     $archive = [IO.Compression.ZipFile]::OpenRead($destination)
     try {
         $names = @($archive.Entries.FullName | Sort-Object)
         if (@(Compare-Object $names @('build-manifest.json', 'pubspec.lock', 'SHA256SUMS.txt')).Count) { throw 'Unexpected verification contents' }
         $reader = [IO.StreamReader]::new($archive.GetEntry('SHA256SUMS.txt').Open())
         try { $checksums = $reader.ReadToEnd() } finally { $reader.Dispose() }
-        $expectedHash = (Get-FileHash -LiteralPath $exe).Hash.ToLowerInvariant() + '  ' + [IO.Path]::GetFileName($exe)
-        if (($checksums -split '\r?\n') -cnotcontains $expectedHash) { throw 'EXE checksum is missing or incorrect' }
+        foreach ($artifact in @($portable, $exe)) {
+            $expectedHash = (Get-FileHash -LiteralPath $artifact).Hash.ToLowerInvariant() + '  ' + [IO.Path]::GetFileName($artifact)
+            if (($checksums -split '\r?\n') -cnotcontains $expectedHash) { throw 'Release checksum is missing or incorrect' }
+        }
     } finally { $archive.Dispose() }
     $archiveHash = (Get-FileHash -LiteralPath $destination).Hash
-    Assert-Throws { New-VerificationArchive $exe $metadata $destination }
+    Assert-Throws { New-VerificationArchive @($portable, $exe) $metadata $destination }
     if ((Get-FileHash -LiteralPath $destination).Hash -ne $archiveHash) { throw 'Existing archive was changed' }
+    Remove-Item -LiteralPath (Join-Path $metadata 'SHA256SUMS.txt')
+    $invalidDestination = Join-Path $release 'invalid.zip'
+    Assert-Throws { New-VerificationArchive @() $metadata $invalidDestination }
+    Assert-Throws { New-VerificationArchive @($exe, $exe) $metadata $invalidDestination }
+    Assert-Throws { New-VerificationArchive @($release) $metadata $invalidDestination }
+    Assert-Throws { New-VerificationArchive @((Join-Path $metadata 'pubspec.lock')) $metadata $invalidDestination }
+    if (Test-Path -LiteralPath $invalidDestination) { throw 'Invalid inputs created an archive' }
 } finally {
     foreach ($directory in @($metadata, $release)) {
         Get-ChildItem -LiteralPath $directory -File | ForEach-Object { Remove-Item -LiteralPath $_.FullName -Force }
@@ -74,3 +88,4 @@ try {
     Remove-Item -LiteralPath (Join-Path $temporary 'sample.txt'), (Join-Path $temporary 'SHA256SUMS.txt') -Force -ErrorAction SilentlyContinue
     [IO.Directory]::Delete($temporary)
 }
+Write-Output 'Release metadata unit checks passed.'

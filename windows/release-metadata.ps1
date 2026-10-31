@@ -1,5 +1,9 @@
 
-function New-VerificationArchive([string]$Executable, [string]$MetadataDirectory, [string]$Destination) {
+function New-VerificationArchive(
+    [string[]]$Artifacts,
+    [string]$MetadataDirectory,
+    [string]$Destination
+) {
     if (Test-Path -LiteralPath $Destination) { throw 'Verification archive already exists' }
     $files = @(Get-ChildItem -LiteralPath $MetadataDirectory -Force)
     if ($files.Count -eq 0) { throw 'No build information to archive' }
@@ -7,9 +11,16 @@ function New-VerificationArchive([string]$Executable, [string]$MetadataDirectory
         if ($file.PSIsContainer -or $file.Attributes -band [IO.FileAttributes]::ReparsePoint) { throw 'Unexpected verification input' }
         if ($file.Name -ceq 'SHA256SUMS.txt' -or $file.Extension -notin @('.json', '.lock')) { throw 'Unexpected verification file' }
     }
-    $exe = Get-Item -LiteralPath $Executable
-    if ($exe.Extension -ne '.exe' -or $exe.Attributes -band [IO.FileAttributes]::ReparsePoint) { throw 'Expected a regular EXE' }
-    $checksums = @(@($exe) + $files | Sort-Object Name | ForEach-Object {
+    if (-not $Artifacts.Count) { throw 'No release artifacts to verify' }
+    $assets = @($Artifacts | ForEach-Object { Get-Item -LiteralPath $_ -Force })
+    foreach ($asset in $assets) {
+        if ($asset.PSIsContainer -or $asset.Extension -notin @('.exe', '.zip') -or $asset.Attributes -band [IO.FileAttributes]::ReparsePoint) {
+            throw 'Expected regular EXE or ZIP release artifacts'
+        }
+    }
+    $checksumFiles = $assets + $files
+    if (@($checksumFiles.Name | Sort-Object -Unique).Count -ne $checksumFiles.Count) { throw 'Duplicate checksum filename' }
+    $checksums = @($checksumFiles | Sort-Object Name | ForEach-Object {
         (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant() + '  ' + $_.Name
     })
     [IO.File]::WriteAllLines((Join-Path $MetadataDirectory 'SHA256SUMS.txt'), $checksums, [Text.UTF8Encoding]::new($false))

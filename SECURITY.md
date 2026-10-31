@@ -36,17 +36,18 @@ Old exports and GitHub commits **remain decryptable with the old password**. A c
 
 ## Verifying a release
 
-Release attachments are the portable EXE and `verification.zip`. The ZIP contains `attestation.sigstore.json` and `build-verification.zip`; the latter contains checksums, dependency inventory and build information. Both the EXE and the inner ZIP are attested by the tagged GitHub workflow. The outer ZIP is only a container. **Authenticode signing is not provided.** Attestation establishes workflow provenance and integrity, not absence of vulnerabilities or reproducible builds.
+Release attachments are `sky_secret_portable.zip`, `sky_secret_enigma.exe` and `verification.zip`. The verification archive contains `attestation.sigstore.json` and `build-verification.zip`; the latter contains checksums, dependency inventory and build information. Both downloads and the inner verification ZIP are attested by the tagged GitHub workflow. The outer verification ZIP is only a container. **Authenticode signing is not provided.** Attestation establishes workflow provenance and integrity, not absence of vulnerabilities or reproducible builds.
 
-After extracting `verification.zip`, verify both subjects with [GitHub CLI](https://cli.github.com/manual/gh_attestation_verify). Replace `<version>` with the release version (for example, `0.3.1`) and `<commit>` with the full commit shown for that release tag on GitHub:
+After extracting `verification.zip`, verify all three subjects with [GitHub CLI](https://cli.github.com/manual/gh_attestation_verify). Replace `<version>` with the release version and `<commit>` with the full commit shown for that release tag on GitHub:
 
 ```powershell
 $policy = @('--repo', 'Skyonave/sky_secret', '--bundle', 'attestation.sigstore.json', '--signer-workflow', 'Skyonave/sky_secret/.github/workflows/release.yml', '--source-ref', 'refs/tags/v<version>', '--source-digest', '<commit>', '--signer-digest', '<commit>', '--deny-self-hosted-runners')
-gh attestation verify SkySecret-<version>-windows-x64.exe @policy
+gh attestation verify sky_secret_portable.zip @policy
+gh attestation verify sky_secret_enigma.exe @policy
 gh attestation verify build-verification.zip @policy
 ```
 
-Both commands must succeed. Extract the verified inner ZIP to inspect its build information. Do not treat a checksum supplied alongside an unverified file as proof of origin.
+All three commands must succeed. Extract the verified inner ZIP to inspect its build information. Do not treat a checksum supplied alongside an unverified file as proof of origin.
 
 ## Русский
 
@@ -74,4 +75,4 @@ Copy/Cut в текстовых полях проходят через защищ
 
 **Старые экспорты и коммиты GitHub продолжают открываться старым паролем.** Скачанные копии, резервные копии диска и остатки на носителе не отзываются. При компрометации проверьте новую независимую копию, замените репозиторий резервирования на всех устройствах и отдельно разберитесь со старым репозиторием и копиями. Смените также раскрытые пароли аккаунтов и SSH. Приложение не переписывает Git-историю автоматически.
 
-В релизе только EXE и `verification.zip`. Внутри — attestation и подписанный вложенный архив с контрольными суммами и сведениями о сборке. Выполните обе команды выше, подставив номер выпуска вместо `<version>` и полный коммит тега вместо `<commit>`; обе должны завершиться успешно. Подписи **Authenticode нет**. GitHub attestation подтверждает происхождение файлов из workflow и их целостность, но не отсутствие уязвимостей и не воспроизводимость сборки.
+В релизе `sky_secret_portable.zip`, `sky_secret_enigma.exe` и `verification.zip`. В проверочном архиве — attestation и подписанный вложенный архив с контрольными суммами обоих вариантов и сведениями о сборке. Выполните все три команды выше, подставив номер выпуска вместо `<version>` и полный коммит тега вместо `<commit>`; все должны завершиться успешно. Подписи **Authenticode нет**. GitHub attestation подтверждает происхождение файлов из workflow и их целостность, но не отсутствие уязвимостей и не воспроизводимость сборки.

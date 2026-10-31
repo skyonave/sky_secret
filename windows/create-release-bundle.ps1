@@ -58,16 +58,23 @@ try {
         Copy-Item -LiteralPath $dll.FullName -Destination $target
     }
 
-    $stem = "SkySecret-$version-windows-x64"
-
-    $packedName = "SkySecret-$version-ci-$([guid]::NewGuid().ToString('N'))-windows-x64.exe"
-    & (Join-Path $PSScriptRoot 'package-portable.ps1') -BuildDirectory $staging -PackerPath $PackerPath -CrtDirectory $CrtDirectory -OutputName $packedName | Out-Host
-    Copy-Item -LiteralPath (Join-Path $appRoot "build/portable/$packedName") -Destination (Join-Path $output "$stem.exe")
-    $metadata = Join-Path $appRoot ('build/verification-' + [guid]::NewGuid().ToString('N'))
-    New-Item -ItemType Directory -Path $metadata | Out-Null
     $inventory = @(Get-ChildItem -LiteralPath $staging -Recurse -File | Sort-Object FullName | ForEach-Object {
         [ordered]@{ path = [IO.Path]::GetRelativePath($staging, $_.FullName).Replace('\', '/'); bytes = $_.Length; sha256 = (Get-FileHash $_.FullName).Hash.ToLowerInvariant() }
     })
+
+    $packedName = "SkySecret-$version-ci-$([guid]::NewGuid().ToString('N'))-windows-x64.exe"
+    & (Join-Path $PSScriptRoot 'package-portable.ps1') -BuildDirectory $staging -PackerPath $PackerPath -CrtDirectory $CrtDirectory -OutputName $packedName | Out-Host
+    $packed = Join-Path $output 'sky_secret_enigma.exe'
+    Copy-Item -LiteralPath (Join-Path $appRoot "build/portable/$packedName") -Destination $packed
+    foreach ($item in $inventory) {
+        if ((Get-FileHash -LiteralPath (Join-Path $staging $item.path)).Hash -ne $item.sha256) {
+            throw "Release input changed during packaging: $($item.path)"
+        }
+    }
+    $portableZip = Join-Path $output 'sky_secret_portable.zip'
+    [IO.Compression.ZipFile]::CreateFromDirectory($staging, $portableZip, [IO.Compression.CompressionLevel]::Optimal, $false)
+    $metadata = Join-Path $appRoot ('build/verification-' + [guid]::NewGuid().ToString('N'))
+    New-Item -ItemType Directory -Path $metadata | Out-Null
     $flutter = & flutter --version --machine | ConvertFrom-Json
     if ($LASTEXITCODE -ne 0) { throw 'Cannot record Flutter version' }
     $dependencies = & flutter pub deps --json
@@ -85,6 +92,6 @@ try {
         guarantees = 'Build information and file hashes; not a signature, security audit or claim of bit-for-bit reproducibility or runtime acceptance.'
     }
     $manifest | ConvertTo-Json -Depth 20 | Set-Content -LiteralPath (Join-Path $metadata 'build-manifest.json') -Encoding utf8NoBOM
-    New-VerificationArchive -Executable (Join-Path $output "$stem.exe") -MetadataDirectory $metadata -Destination (Join-Path $output 'verification.zip')
+    New-VerificationArchive -Artifacts @($portableZip, $packed) -MetadataDirectory $metadata -Destination (Join-Path $output 'verification.zip')
     Write-Output "Release bundle: $output"
 } finally { Pop-Location }

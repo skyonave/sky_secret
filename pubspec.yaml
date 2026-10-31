@@ -1,7 +1,7 @@
 name: skysecret
 description: "SkySecret: a private workflow for secrets, files and SSH on Windows."
 publish_to: 'none'
-version: 1.0.1+21
+version: 1.0.2+22
 
 environment:
   sdk: ^3.13.0

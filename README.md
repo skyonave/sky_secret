@@ -1,6 +1,10 @@
+> **Enigma / VirusTotal — EN:** Some antivirus engines on VirusTotal flag `sky_secret_enigma.exe`. These detections alone do not prove that the file contains a virus. Enigma bundles SkySecret and its libraries into one EXE for convenience. Choose `sky_secret_portable.zip` for the version without Enigma.
+>
+> **Enigma / VirusTotal — RU:** Некоторые антивирусные движки на VirusTotal отмечают `sky_secret_enigma.exe`. Сами по себе эти срабатывания не доказывают наличие вируса в файле. Enigma объединяет SkySecret и библиотеки в один EXE для удобства. Вариант без Enigma — `sky_secret_portable.zip`.
+
 # SkySecret
 
-[English](#english) · [Русский](#русский) · [Download 1.0.1](https://github.com/Skyonave/sky_secret/releases/tag/v1.0.1)
+[English](#english) · [Русский](#русский) · [Downloads](https://github.com/Skyonave/sky_secret/releases/latest)
 
 ## English
 
@@ -43,7 +47,7 @@ The current release is a portable Windows x64 app. There is no CLI.
 
 ### Getting started
 
-1. [Download the EXE](https://github.com/Skyonave/sky_secret/releases/download/v1.0.1/SkySecret-1.0.1-windows-x64.exe) and run it.
+1. Open the [release page](https://github.com/Skyonave/sky_secret/releases/latest). For `sky_secret_portable.zip`, extract the whole archive and run `SkySecret.exe` from that folder. The single-file `sky_secret_enigma.exe` runs directly.
 2. Press **Shift+Space** or use the tray icon. Create a vault and choose a master password. **There is no master-password reset.**
 3. Add entries with the buttons above the list or the right-click menu. When the vault is locked, opening the manager puts the cursor in the password field.
 4. To start the app with Windows, enable **Start when signing in to Windows** in vault settings and save. After moving the EXE, enable it again from the new location.
@@ -95,7 +99,7 @@ SkySecret хранит пароли, заметки, файлы, SSH-подкл�
 
 ### Начало работы
 
-1. [Скачайте EXE](https://github.com/Skyonave/sky_secret/releases/download/v1.0.1/SkySecret-1.0.1-windows-x64.exe) и запустите его.
+1. Откройте [страницу выпуска](https://github.com/Skyonave/sky_secret/releases/latest). Если выбрали `sky_secret_portable.zip`, распакуйте архив целиком и запустите `SkySecret.exe` из этой папки. Однофайловый `sky_secret_enigma.exe` запускается сразу.
 2. Нажмите **Shift+Space** или откройте приложение из трея. Создайте сейф и задайте мастер-пароль. **Сброса мастер-пароля нет.**
 3. Добавляйте записи кнопками над списком или через меню по правой кнопке мыши. Если сейф закрыт, при открытии менеджера курсор сразу попадёт в поле пароля.
 4. Для автозапуска включите **Запускать при входе в Windows** в настройках сейфов и сохраните. После перемещения EXE включите настройку заново из нового расположения.

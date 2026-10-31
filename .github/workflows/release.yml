@@ -32,17 +32,17 @@ jobs:
         run: |
           . ./windows/release-metadata.ps1
           Get-ReleaseVersion (Get-Content pubspec.yaml -Raw) $env:RELEASE_TAG
-      - name: Install pinned Flutter 3.47.2
+      - name: Install pinned Flutter 3.47.8
         run: |
           $sdkPath = Join-Path $env:RUNNER_TEMP 'flutter'
           git init $sdkPath
           if ($LASTEXITCODE -ne 0) { throw 'SDK init failed' }
           git -C $sdkPath remote add origin https://github.com/flutter/flutter.git
           if ($LASTEXITCODE -ne 0) { throw 'SDK remote failed' }
-          git -C $sdkPath fetch --depth 1 origin refs/tags/3.47.2:refs/tags/3.47.2
+          git -C $sdkPath fetch --depth 1 origin refs/tags/3.47.8:refs/tags/3.47.8
           if ($LASTEXITCODE -ne 0) { throw 'SDK fetch failed' }
-          $revision = git -C $sdkPath rev-parse 'refs/tags/3.47.2^{commit}'
-          if ($LASTEXITCODE -ne 0 -or $revision -cne 'd3b14c876900e553bc736ca19295fc09e3853e8e') { throw 'Flutter tag SHA mismatch' }
+          $revision = git -C $sdkPath rev-parse 'refs/tags/3.47.8^{commit}'
+          if ($LASTEXITCODE -ne 0 -or $revision -cne '737ba8f885dc774b53b442759999a312c9461e4e') { throw 'Flutter tag SHA mismatch' }
           git -C $sdkPath checkout --detach $revision
           if ($LASTEXITCODE -ne 0) { throw 'SDK checkout failed' }
           (Join-Path $sdkPath 'bin') >> $env:GITHUB_PATH
@@ -71,7 +71,7 @@ jobs:
         run: flutter build windows --release --no-pub --no-tree-shake-icons
       - name: Native window focus unit tests
         run: ./test/run-native-unit-tests.ps1
-      - name: Package EXE and verification archive
+      - name: Package portable ZIP, Enigma EXE and verification archive
         id: package
         env:
           RELEASE_TAG: ${{ github.ref_name }}
@@ -82,14 +82,15 @@ jobs:
           } else {
             ./windows/create-release-bundle.ps1
           }
-      - name: Scan unpacked input and final EXE
+      - name: Scan unpacked input, portable ZIP and Enigma EXE
         if: ${{ !cancelled() && steps.package.outcome == 'success' }}
         timeout-minutes: 15
         run: |
+          $ErrorActionPreference = 'Stop'
           $unpacked = @(Get-ChildItem build -Directory -Filter 'release-input-*')
-          $packed = @(Get-ChildItem build/release-bundle -File -Filter '*.exe')
-          if ($unpacked.Count -ne 1 -or $packed.Count -ne 1) { throw 'Expected one unpacked input and one final EXE' }
-          ./windows/release-antivirus.ps1 -Paths @($unpacked[0].FullName, $packed[0].FullName) -UpdateSignatures
+          if ($unpacked.Count -ne 1) { throw 'Expected one unpacked input' }
+          $downloads = @(Get-Item -LiteralPath 'build/release-bundle/sky_secret_portable.zip', 'build/release-bundle/sky_secret_enigma.exe')
+          ./windows/release-antivirus.ps1 -Paths (@($unpacked[0].FullName) + @($downloads.FullName)) -UpdateSignatures
       - name: Preserve antivirus reports
         if: ${{ !cancelled() && steps.package.outcome == 'success' }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
@@ -109,7 +110,7 @@ jobs:
           if-no-files-found: error
           compression-level: 0
           retention-days: 14
-      - name: Upload the two release files
+      - name: Upload both downloads and verification archive
         if: github.event_name == 'push'
         id: upload
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -137,12 +138,13 @@ jobs:
           artifact-ids: ${{ needs.build.outputs.artifact-id }}
           path: release-bundle
           merge-multiple: true
-      - name: Attest executable and original verification archive
+      - name: Attest both downloads and original verification archive
         id: provenance
         uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
         with:
           subject-path: |
-            release-bundle/*.exe
+            release-bundle/sky_secret_portable.zip
+            release-bundle/sky_secret_enigma.exe
             release-bundle/verification.zip
       - name: Include attestation bundle without changing its subjects
         shell: pwsh
@@ -151,7 +153,7 @@ jobs:
         run: |
           $ErrorActionPreference = 'Stop'
           New-Item -ItemType Directory -Path attested-release | Out-Null
-          Copy-Item -Path release-bundle/*.exe -Destination attested-release
+          Copy-Item -LiteralPath 'release-bundle/sky_secret_portable.zip', 'release-bundle/sky_secret_enigma.exe' -Destination attested-release
           $archive = [IO.Compression.ZipFile]::Open((Join-Path $PWD 'attested-release/verification.zip'), [IO.Compression.ZipArchiveMode]::Create)
           try {
             [IO.Compression.ZipFileExtensions]::CreateEntryFromFile($archive, (Join-Path $PWD 'release-bundle/verification.zip'), 'build-verification.zip') | Out-Null
@@ -189,11 +191,10 @@ jobs:
           SOURCE_COMMIT: ${{ github.sha }}
         run: |
           $ErrorActionPreference = 'Stop'
-          $version = $env:RELEASE_TAG.Substring(1)
-          $exeName = "SkySecret-$version-windows-x64.exe"
+          $downloads = @('sky_secret_portable.zip', 'sky_secret_enigma.exe')
           $files = @(Get-ChildItem -LiteralPath release-bundle -File)
-          $expected = @($exeName, 'verification.zip')
-          if (@(Compare-Object ($files.Name | Sort-Object) ($expected | Sort-Object)).Count) { throw 'Expected only EXE and verification.zip' }
+          $expected = $downloads + @('verification.zip')
+          if (@(Compare-Object ($files.Name | Sort-Object) ($expected | Sort-Object)).Count) { throw 'Expected portable ZIP, Enigma EXE and verification.zip' }
           $archive = [IO.Compression.ZipFile]::OpenRead((Join-Path $PWD 'release-bundle/verification.zip'))
           New-Item -ItemType Directory -Path verification | Out-Null
           try {
@@ -204,7 +205,8 @@ jobs:
               [IO.Compression.ZipFileExtensions]::ExtractToFile($entry, (Join-Path $PWD "verification/$($entry.FullName)"))
             }
           } finally { $archive.Dispose() }
-          foreach ($subject in @("release-bundle/$exeName", 'verification/build-verification.zip')) {
+          $subjects = @($downloads | ForEach-Object { "release-bundle/$_" }) + @('verification/build-verification.zip')
+          foreach ($subject in $subjects) {
             gh attestation verify $subject --repo $env:GH_REPO --bundle verification/attestation.sigstore.json --signer-workflow "$env:GH_REPO/.github/workflows/release.yml" --signer-digest $env:SOURCE_COMMIT --source-digest $env:SOURCE_COMMIT --source-ref "refs/tags/$env:RELEASE_TAG" --deny-self-hosted-runners
             if ($LASTEXITCODE -ne 0) { throw 'Artifact provenance verification failed' }
           }
@@ -215,9 +217,37 @@ jobs:
             $reader = [IO.StreamReader]::new($entry[0].Open())
             try { $checksums = $reader.ReadToEnd() } finally { $reader.Dispose() }
           } finally { $archive.Dispose() }
-          $hash = (Get-FileHash -LiteralPath "release-bundle/$exeName" -Algorithm SHA256).Hash.ToLowerInvariant()
-          if (($checksums -split '\r?\n') -cnotcontains "$hash  $exeName") { throw 'EXE checksum mismatch' }
-          $notes = "Download **$exeName** to run SkySecret. **verification.zip** contains GitHub attestation and the signed build-information archive with SHA-256 checksums. See [Security](https://github.com/$env:GH_REPO/blob/$env:RELEASE_TAG/SECURITY.md) for verification and format compatibility."
+          foreach ($download in $downloads) {
+            $hash = (Get-FileHash -LiteralPath "release-bundle/$download" -Algorithm SHA256).Hash.ToLowerInvariant()
+            if (($checksums -split '\r?\n') -cnotcontains "$hash  $download") { throw "Checksum mismatch: $download" }
+          }
+          $notes = @(
+            'Built with Flutter 3.47.8 / Dart 3.13.7, including the TLS certificate validation security update.'
+            ''
+            'Choose a Windows x64 download:'
+            ''
+            '- **sky_secret_portable.zip**: extract the whole archive and run SkySecret.exe. No Enigma packaging.'
+            '- **sky_secret_enigma.exe**: run directly. Enigma bundles the app and its libraries into one EXE for convenience.'
+            ''
+            '**Enigma / VirusTotal:** some scanners flag the Enigma version. These detections alone do not prove that the file contains a virus.'
+            ''
+            '**verification.zip** contains GitHub attestation and build information with SHA-256 checksums for both downloads.'
+            ''
+            '---'
+            ''
+            'Собрано на Flutter 3.47.8 / Dart 3.13.7 с обновлением безопасности проверки TLS-сертификатов.'
+            ''
+            'Выберите вариант для Windows x64:'
+            ''
+            '- **sky_secret_portable.zip**: распакуйте архив целиком и запустите SkySecret.exe. Без упаковки Enigma.'
+            '- **sky_secret_enigma.exe**: запускается сразу. Enigma объединяет приложение и библиотеки в один EXE для удобства.'
+            ''
+            '**Enigma / VirusTotal:** некоторые сканеры отмечают версию с Enigma. Сами по себе эти срабатывания не доказывают наличие вируса в файле.'
+            ''
+            '**verification.zip** содержит GitHub attestation и сведения о сборке с SHA-256 обоих вариантов.'
+            ''
+            "[Verification / Проверка](https://github.com/$env:GH_REPO/blob/$env:RELEASE_TAG/SECURITY.md)"
+          ) -join "`n"
           $notes | Set-Content -LiteralPath release-notes.md -Encoding utf8NoBOM
           gh release create $env:RELEASE_TAG --repo $env:GH_REPO --verify-tag --target $env:SOURCE_COMMIT --draft --title "SkySecret $env:RELEASE_TAG" --notes-file release-notes.md @($files.FullName)
           if ($LASTEXITCODE -ne 0) { throw 'Draft creation failed; existing releases are never overwritten' }
