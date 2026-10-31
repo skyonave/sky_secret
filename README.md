@@ -1,70 +1,111 @@
 # SkySecret
-SkySecret (Sky Secret)
 
-**A private workflow for secrets, files and SSH on Windows.**
+[English](#english) · [Русский](#русский) · [Download 1.0.1](https://github.com/Skyonave/sky_secret/releases/tag/v1.0.1)
 
-[Русский](#русский) · [Download](https://github.com/Skyonave/sky_secret/releases) · [Security](SECURITY.md)
+## English
 
-Local first, offline, one portable EXE. **Shift+Space → your vault → back to work.** SkySecret focuses on daily work with secrets; it is not intended as a KeePass replacement.
+SkySecret stores passwords, notes, files, SSH connections and TOTP codes in encrypted vaults on your PC. It runs in the Windows tray and opens with **Shift+Space**. The app works offline; a GitHub account is optional.
 
-## Available now
+### Features
 
-- **Encrypted vaults:** passwords, notes, files, SSH and TOTP. Multiple vaults, folders and favorites.
-- **Desktop controls:** compact tray window, **F** opens a search bar that filters the vault list, right-click menus and **Ctrl+S** in editors.
-- **Drag files both ways:** into the vault, or onto the desktop / File Explorer to export a copy. Exported copies are unencrypted.
-- **Drag a secret into a field:** a small preview shows the entry name and what will be inserted. When a login/password pair is unambiguous in the same form or dialog, both fields are filled. Otherwise, a normal field receives the login and a masked field receives the password. Contents are replaced without using the clipboard; sign-in is not submitted. Requires compatible Windows accessibility fields. Press Esc to cancel.
-- **Text editing:** create `.txt` files and edit text in separate windows.
-- **Generator inside entries:** passwords, English passphrases, character rules and saved settings.
-- **Backup and sync:** encrypted `.smv` import/export, local history, optional GitHub backups and manual synchronization with conflict review.
-- **Quick actions:** copy secrets, use TOTP tiles and start saved SSH connections through Windows OpenSSH.
+- **Vaults, folders and favorites.** Keep several vaults, arrange entries in folders and pin the ones you use often.
+- **Drag to fill.** Drag an account to a compatible sign-in form. SkySecret fills the login and password when it can identify the pair. For a single field, it uses the login in a normal field and the password in a masked field. It does not use the clipboard or press Sign in. **Esc** cancels the drag.
+- **TOTP codes.** Codes appear in a separate panel beside the vault, with a countdown until the next code. Click a code to copy it. Add an authenticator using its setup key or an `otpauth://` URI.
+- **Files in and out.** Drag a file into the vault to store it. Drag it onto the desktop or File Explorer to export a copy. Exported files are not encrypted.
+- **Search in place.** **F** opens a search bar that filters the main list. Found entries keep their usual actions, including drag to fill. Clear or close search to restore the list.
+- **Password generator and text editor.** Generate passwords or English passphrases inside an entry. Create `.txt` files and edit them in a separate window.
+- **SSH connections.** Save connection details and open a session through Windows OpenSSH.
+- **Backups and sync.** Export and import encrypted `.smv` files, use local history, or connect GitHub for backups and manual sync with conflict review.
 
-### Preview · synthetic data
+### Demos
 
-| Vault workflow | Passwords and passphrases |
-| --- | --- |
-| ![Vault workflow](assets/previews/workflow.gif) | ![Generator](assets/previews/generator.gif) |
+Import a file, then drag an account into a sign-in form:
 
-## Start
+![File import and drag-to-fill demo](assets/previews/drag-drop-en.gif)
 
-Download the EXE from **Releases**, run it, open the tray window and create a vault. **There is no master-password reset.** GitHub is optional. Keep verified independent backups.
+Watch a TOTP code change, copy it and paste it into the form:
 
-When the vault is locked, **Shift+Space** opens the manager with the password field ready for typing. Clear or close search to restore the full list.
+![TOTP panel, countdown and copying a code](assets/previews/totp-en.gif)
 
-To start in the tray when signing in to Windows, enable **Start when signing in to Windows** in vault settings and save. After moving the EXE, enable it again from the new location. If Windows has disabled startup, re-enable SkySecret in Task Manager.
+The GIFs use demo data and a local test sign-in form.
 
-Save edits before hiding: hiding locks the vault by default. Completed copies remain available for **10 seconds from copying**, including after hiding. Manual, idle and Windows locks clear the app's current copy immediately. Existing vaults remain readable; update all clients before saving a shared vault with a newer version.
+### Platforms
 
-> We work to protect your data, but cannot guarantee its security or recovery. [Protection and limits](SECURITY.md).
+| Platform | Supported | CLI | Executable |
+| --- | :---: | :---: | :---: |
+| Windows x64 | ✅ | ❌ | ✅ `.exe` |
+| Linux | ❌ | ❌ | ❌ |
+| macOS | ❌ | ❌ | ❌ |
+| Android | ❌ | ❌ | ❌ |
+| iOS | ❌ | ❌ | ❌ |
+
+The current release is a portable Windows x64 app. There is no CLI.
+
+### Getting started
+
+1. [Download the EXE](https://github.com/Skyonave/sky_secret/releases/download/v1.0.1/SkySecret-1.0.1-windows-x64.exe) and run it.
+2. Press **Shift+Space** or use the tray icon. Create a vault and choose a master password. **There is no master-password reset.**
+3. Add entries with the buttons above the list or the right-click menu. When the vault is locked, opening the manager puts the cursor in the password field.
+4. To start the app with Windows, enable **Start when signing in to Windows** in vault settings and save. After moving the EXE, enable it again from the new location.
+
+### Your data
+
+Save edits before hiding the app: hiding locks the vault by default. Copied values are cleared from the clipboard after **10 seconds**; a manual, idle or Windows lock clears the app's current copy immediately.
+
+Keep verified, independent copies of your vaults. We work to protect your data, but cannot guarantee its security or recovery. [Protection and limits](SECURITY.md).
 
 ## Русский
 
-**Приватный рабочий процесс для секретов, файлов и SSH на Windows.**
+SkySecret хранит пароли, заметки, файлы, SSH-подключения и TOTP-коды в зашифрованных сейфах на компьютере. Приложение работает в трее Windows и открывается по **Shift+Space**. Интернет для работы не нужен; GitHub подключается по желанию.
 
-Локальные данные, работа без интернета, один переносимый EXE. **Shift+Space → сейф → нужное действие.** SkySecret развивается вокруг повседневной работы с секретами, а не как замена KeePass.
+### Возможности
 
-### Уже работает
+- **Сейфы, папки и избранное.** Можно завести несколько сейфов, разложить записи по папкам и закрепить часто используемые.
+- **Заполнение перетаскиванием.** Перетащите запись в совместимую форму входа. Если SkySecret распознаёт пару полей, он заполняет логин и пароль. В отдельное обычное поле попадёт логин, в скрытое — пароль. Буфер обмена не используется, кнопка входа не нажимается. **Esc** отменяет перетаскивание.
+- **TOTP-коды.** Коды открываются отдельной панелью рядом с сейфом. У каждого виден срок действия; нажатие копирует код. Аутентификатор добавляется по ключу настройки или ссылке `otpauth://`.
+- **Перетаскивание файлов.** Перетащите файл в сейф, чтобы сохранить его. Перетащите обратно на рабочий стол или в Проводник, чтобы получить копию. Экспортированные файлы не зашифрованы.
+- **Поиск в списке.** **F** открывает строку поиска и фильтрует основной список. У найденных записей доступны обычные действия, включая перетаскивание в поля ввода. Очистка или закрытие поиска возвращает список.
+- **Генератор и текстовый редактор.** Генерируйте пароли или английские парольные фразы прямо в записи. Создавайте `.txt`-файлы и редактируйте их в отдельном окне.
+- **SSH-подключения.** Сохраняйте параметры подключения и открывайте сеанс через Windows OpenSSH.
+- **Копии и синхронизация.** Экспортируйте и импортируйте зашифрованные `.smv`-файлы, используйте локальную историю или подключите GitHub для резервных копий и ручной синхронизации с разбором конфликтов.
 
-- **Зашифрованные сейфы:** пароли, заметки, файлы, SSH и TOTP. Несколько сейфов, папки и избранное.
-- **Desktop-интерфейс:** компактное окно у трея, **F** открывает строку поиска с фильтрацией списка сейфа, контекстные меню и **Ctrl+S** в редакторах.
-- **Перетаскивание в обе стороны:** добавление файлов в сейф и экспорт копии на рабочий стол или в Проводник. Внешняя копия не зашифрована.
-- **Перетаскивание секрета в поле:** небольшая плашка показывает название записи и что будет вставлено. Если пара логин/пароль однозначно найдена в одной форме или диалоге, заполняются оба поля. Иначе обычное поле получает логин, скрытое — пароль. Содержимое заменяется без буфера обмена; кнопка входа не нажимается. Нужна поддержка заполнения через специальные возможности Windows. Esc отменяет жест.
-- **Текстовые файлы:** создание `.txt` и редактирование текста в отдельных окнах.
-- **Генератор в записи:** пароли, английские парольные фразы, выбор символов и сохранение настроек.
-- **Копии и синхронизация:** импорт/экспорт `.smv`, локальная история, необязательный GitHub и ручная синхронизация с разбором конфликтов.
-- **Быстрые действия:** копирование секретов, отдельные плашки TOTP и подключения через Windows OpenSSH.
+### Демонстрации
 
-### Начать
+Добавление файла в сейф и заполнение формы перетаскиванием записи:
 
-Скачайте EXE из **Releases**, запустите, откройте окно из трея и создайте сейф. **Сброса мастер-пароля нет.** GitHub подключается по желанию. Храните проверенные независимые копии.
+![Добавление файла и заполнение формы перетаскиванием](assets/previews/drag-drop-ru.gif)
 
-Если сейф закрыт, **Shift+Space** открывает менеджер с фокусом в поле пароля — можно сразу вводить. Очистка или закрытие поиска возвращает полный список.
+Смена TOTP-кода, копирование и вставка в форму:
 
-Чтобы приложение запускалось в трее при входе в Windows, включите **Запускать при входе в Windows** в настройках сейфов и сохраните. После перемещения EXE включите настройку заново из нового расположения. Если Windows отключила автозапуск, включите SkySecret в диспетчере задач.
+![Панель TOTP, таймер и копирование кода](assets/previews/totp-ru.gif)
 
-Сохраняйте правки перед скрытием: по умолчанию оно блокирует сейф. Завершённое копирование доступно **10 секунд с момента копирования**, включая время после скрытия. Ручная блокировка, тайм-аут и блокировка Windows сразу очищают текущую копию приложения. Ранее созданные сейфы читаются; перед сохранением общего сейфа в новой версии обновляйте все устройства.
+В GIF используются демо-данные и локальная тестовая форма входа.
 
-> Мы максимально стараемся обезопасить данные, но не можем гарантировать их безопасность и восстановление. [Защита и её границы](SECURITY.md).
+### Платформы
+
+| Платформа | Поддержка | CLI | Исполняемый файл |
+| --- | :---: | :---: | :---: |
+| Windows x64 | ✅ | ❌ | ✅ `.exe` |
+| Linux | ❌ | ❌ | ❌ |
+| macOS | ❌ | ❌ | ❌ |
+| Android | ❌ | ❌ | ❌ |
+| iOS | ❌ | ❌ | ❌ |
+
+Текущий выпуск — переносимое приложение для Windows x64. CLI нет.
+
+### Начало работы
+
+1. [Скачайте EXE](https://github.com/Skyonave/sky_secret/releases/download/v1.0.1/SkySecret-1.0.1-windows-x64.exe) и запустите его.
+2. Нажмите **Shift+Space** или откройте приложение из трея. Создайте сейф и задайте мастер-пароль. **Сброса мастер-пароля нет.**
+3. Добавляйте записи кнопками над списком или через меню по правой кнопке мыши. Если сейф закрыт, при открытии менеджера курсор сразу попадёт в поле пароля.
+4. Для автозапуска включите **Запускать при входе в Windows** в настройках сейфов и сохраните. После перемещения EXE включите настройку заново из нового расположения.
+
+### Ваши данные
+
+Сохраняйте правки перед скрытием приложения: по умолчанию оно блокирует сейф. Скопированные значения удаляются из буфера через **10 секунд**; ручная блокировка, тайм-аут и блокировка Windows сразу очищают текущую копию приложения.
+
+Храните проверенные независимые копии сейфов. Мы максимально стараемся обезопасить данные, но не можем гарантировать их безопасность и восстановление. [Защита и её границы](SECURITY.md).
 
 ---
 
-Passphrases: [EFF Long Wordlist](https://www.eff.org/dice), Joseph Bonneau / Electronic Frontier Foundation, [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). [Attribution / источник](assets/wordlists/NOTICE.txt) · [License](LICENSE)
+Passphrase wordlist / словарь парольных фраз: [EFF Long Wordlist](https://www.eff.org/dice), Joseph Bonneau / Electronic Frontier Foundation, [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). [Attribution / источник](assets/wordlists/NOTICE.txt) · [License](LICENSE)
