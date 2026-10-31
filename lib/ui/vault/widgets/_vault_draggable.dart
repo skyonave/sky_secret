@@ -13,7 +13,9 @@ class _VaultDraggable extends StatelessWidget {
     builder: (context, constraints) => Draggable<_VaultDrag>(
       key: ValueKey('drag-${item.key}'),
       data: _VaultDrag(controller.session, item),
-      maxSimultaneousDrags: controller.busy || controller.pendingIds.contains(item.entry?.id) ? 0 : 1,
+      maxSimultaneousDrags: controller.busy || controller.filtering || controller.pendingIds.contains(item.entry?.id)
+          ? 0
+          : 1,
       dragAnchorStrategy: controller._dragAnchor,
       onDragUpdate: (details) => controller._scroll(details.globalPosition),
       onDragEnd: (_) {

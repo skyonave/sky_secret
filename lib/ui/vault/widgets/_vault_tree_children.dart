@@ -18,19 +18,20 @@ class _VaultTreeChildren extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final items = controller._organization.children(parentId);
+    final items = controller.organization.children(parentId).where((item) => item.entry?.isFavorite != true).toList();
     return Column(
       key: ValueKey('children-$parentId'),
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         for (var index = 0; index < items.length; index++) ...[
-          _VaultDropTarget(
-            controller: controller,
-            parentId: parentId,
-            beforeKey: items[index].key,
-            insertion: true,
-            child: const SizedBox.shrink(),
-          ),
+          if (!controller.filtering)
+            _VaultDropTarget(
+              controller: controller,
+              parentId: parentId,
+              beforeKey: items[index].key,
+              insertion: true,
+              child: const SizedBox.shrink(),
+            ),
           if (items[index].folder case final folder?)
             _VaultFolderNode(
               controller: controller,
@@ -46,18 +47,19 @@ class _VaultTreeChildren extends StatelessWidget {
               entryPresenter: entryPresenter,
             ),
         ],
-        _VaultDropTarget(
-          controller: controller,
-          parentId: parentId,
-          insertion: items.isNotEmpty,
-          child: Padding(
-            padding: const EdgeInsets.all(12),
-            child: Text(
-              parentId == null ? t.vaultRootDropHint : t.vaultFolderDropHint,
-              style: Theme.of(context).textTheme.bodySmall,
+        if (!controller.filtering)
+          _VaultDropTarget(
+            controller: controller,
+            parentId: parentId,
+            insertion: items.isNotEmpty,
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Text(
+                parentId == null ? t.vaultRootDropHint : t.vaultFolderDropHint,
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
             ),
           ),
-        ),
       ],
     );
   }

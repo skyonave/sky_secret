@@ -19,6 +19,7 @@ void main() {
     var channel = '';
     var epoch = 0;
     var activations = 0;
+    final queries = <String>[];
     final presenter = VaultSearchPresenter(registerWindow: (_) => true);
     messenger.setMockMethodCallHandler(native, (call) async {
       if (call.method == 'createWindow') {
@@ -56,11 +57,9 @@ void main() {
       return response.future;
     }
 
-    Future<String?> open() => presenter.open(
+    Future<void> open() => presenter.open(
       isValid: () => true,
-      find: (query) => [
-        {'id': query},
-      ],
+      onQueryChanged: queries.add,
       activity: () {},
       onBlur: () {},
       copy: (_) async => true,
@@ -81,17 +80,16 @@ void main() {
     presenter.close();
     final second = open();
     activation.complete(true);
-    expect(await first, isNull);
+    await first;
     await Future<void>.delayed(Duration.zero);
     expect(activations, 2);
-    expect(await invoke('search', {'epoch': epoch, 'query': 'current'}), [
-      {'id': 'current'},
-    ]);
-    expect(await invoke('select', {'epoch': epoch, 'id': 'current'}), isTrue);
-    expect(await second, 'current');
+    expect(await invoke('search', {'epoch': epoch, 'query': 'current'}), isTrue);
+    expect(queries, ['current']);
+    expect(await invoke('closed', {'epoch': epoch}), isTrue);
+    await second;
   });
 
-  test('hidden search reuses its window and rejects stale selections, locks and unregistered reads', () async {
+  test('hidden search reuses its window and rejects stale queries, locks and unregistered reads', () async {
     const native = MethodChannel('mixin.one/desktop_multi_window');
     const channels = MethodChannel('mixin.one/desktop_multi_window/channels');
     const placement = MethodChannel('skysecret/companion');
@@ -109,6 +107,8 @@ void main() {
     var detaches = 0;
     var copies = 0;
     var clears = 0;
+    var focusReturns = 0;
+    final queries = <String>[];
     Completer<bool>? copying;
     final presenter = VaultSearchPresenter(registerWindow: (_) => privacy);
     messenger.setMockMethodCallHandler(native, (call) async {
@@ -142,6 +142,11 @@ void main() {
         return true;
       }
       if (call.method == 'detachSearch') detaches++;
+      if (call.method == 'returnFocus') {
+        expect(call.arguments, {'window': 123});
+        focusReturns++;
+        return true;
+      }
       return null;
     });
     Future<dynamic> invoke(String method, Object? args) {
@@ -160,11 +165,9 @@ void main() {
       return response.future;
     }
 
-    Future<String?> open() => presenter.open(
+    Future<void> open() => presenter.open(
       isValid: () => valid,
-      find: (query) => [
-        {'id': query, 'title': query},
-      ],
+      onQueryChanged: queries.add,
       activity: () {},
       onBlur: () => blur++,
       copy: (_) async {
@@ -194,17 +197,17 @@ void main() {
     expect(await invoke('copyQuery', {'epoch': epoch, 'text': 'one'}), isTrue);
     expect(await invoke('copyQuery', {'epoch': epoch, 'text': 'a' * 257}), isFalse);
     expect(copies, 1);
-    expect(await invoke('search', {'epoch': epoch, 'query': 'one'}), [
-      {'id': 'one', 'title': 'one'},
-    ]);
+    expect(await invoke('search', {'epoch': epoch, 'query': 'one'}), isTrue);
     await invoke('search', {'epoch': epoch, 'query': 'two'});
-    expect(await invoke('select', {'epoch': epoch, 'id': 'one'}), isFalse);
+    expect(queries, ['one', 'two']);
+    expect(await invoke('focusResults', {'epoch': epoch}), isTrue);
+    expect(focusReturns, 1);
     expect(await invoke('position', {'epoch': epoch}), isTrue);
     await invoke('blur', {'epoch': epoch});
     expect(blur, 1);
     final oldEpoch = epoch;
-    expect(await invoke('select', {'epoch': epoch, 'id': 'two'}), isTrue);
-    expect(await first, 'two');
+    expect(await invoke('closed', {'epoch': epoch}), isTrue);
+    await first;
     expect(await invoke('search', {'epoch': oldEpoch, 'query': 'one'}), isNull);
     activations = Completer<void>();
     final second = open();
@@ -219,12 +222,13 @@ void main() {
     valid = false;
     expect(await invoke('copyQuery', {'epoch': epoch, 'text': 'one'}), isNull);
     expect(copies, 2);
-    expect(await invoke('select', {'epoch': epoch, 'id': 'one'}), isNull);
+    expect(await invoke('search', {'epoch': epoch, 'query': 'late'}), isNull);
+    expect(queries, ['one', 'two', 'one']);
     presenter.close();
     copying.complete(true);
     expect(await pendingCopy, isFalse);
     expect(clears, 1);
-    expect(await second, isNull);
+    await second;
     expect(positions, 1);
     expect(detaches, greaterThan(0));
   });

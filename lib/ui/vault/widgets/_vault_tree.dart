@@ -2,6 +2,8 @@ part of '../vault_panel.dart';
 
 class _VaultTree extends StatefulWidget {
   final VaultSession session;
+  final VaultOrganization organization;
+  final bool filtering;
   final bool busy;
   final Set<String> pendingIds;
   final List<VaultEntry> pendingEntries;
@@ -21,6 +23,8 @@ class _VaultTree extends StatefulWidget {
   const _VaultTree({
     super.key,
     required this.session,
+    required this.organization,
+    required this.filtering,
     required this.busy,
     required this.pendingIds,
     required this.pendingEntries,
@@ -45,6 +49,8 @@ class _VaultTree extends StatefulWidget {
 class _VaultTreeState extends State<_VaultTree> {
   late final _controller = _VaultTreeController(
     session: widget.session,
+    organization: widget.organization,
+    filtering: widget.filtering,
     busy: widget.busy,
     pendingIds: widget.pendingIds,
     pendingEntries: widget.pendingEntries,
@@ -67,6 +73,8 @@ class _VaultTreeState extends State<_VaultTree> {
     super.didUpdateWidget(oldWidget);
     _controller.configure(
       session: widget.session,
+      organization: widget.organization,
+      filtering: widget.filtering,
       busy: widget.busy,
       pendingIds: widget.pendingIds,
       pendingEntries: widget.pendingEntries,

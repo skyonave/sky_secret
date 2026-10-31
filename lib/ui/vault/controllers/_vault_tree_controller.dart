@@ -2,6 +2,8 @@ part of '../vault_panel.dart';
 
 class _VaultTreeController extends ChangeNotifier {
   VaultSession session;
+  VaultOrganization organization;
+  bool filtering;
   bool busy;
   Set<String> pendingIds;
   List<VaultEntry> pendingEntries;
@@ -13,6 +15,8 @@ class _VaultTreeController extends ChangeNotifier {
 
   _VaultTreeController({
     required this.session,
+    required this.organization,
+    required this.filtering,
     required this.busy,
     required this.pendingIds,
     required this.pendingEntries,
@@ -24,6 +28,8 @@ class _VaultTreeController extends ChangeNotifier {
 
   void configure({
     required VaultSession session,
+    required VaultOrganization organization,
+    required bool filtering,
     required bool busy,
     required Set<String> pendingIds,
     required List<VaultEntry> pendingEntries,
@@ -31,7 +37,7 @@ class _VaultTreeController extends ChangeNotifier {
     required VoidCallback onCollapsedChanged,
     required Future<void> Function(VaultItem, String?, String?) move,
   }) {
-    if (this.session != session || busy || session.isLocked) {
+    if (this.session != session || busy || filtering || session.isLocked) {
       stopDragging();
       _nativeFolderId = null;
       _nativeHover = false;
@@ -39,6 +45,8 @@ class _VaultTreeController extends ChangeNotifier {
       _insertionPointer = null;
     }
     this.session = session;
+    this.organization = organization;
+    this.filtering = filtering;
     this.busy = busy;
     this.pendingIds = pendingIds;
     this.pendingEntries = pendingEntries;
@@ -132,7 +140,11 @@ class _VaultTreeController extends ChangeNotifier {
   }
 
   bool _accept(_VaultDrag drag, String? parentId) =>
-      !busy && !session.isLocked && identical(drag.session, session) && _organization.canMove(drag.item, parentId);
+      !filtering &&
+      !busy &&
+      !session.isLocked &&
+      identical(drag.session, session) &&
+      _organization.canMove(drag.item, parentId);
 
   void _hoverInsertion(_VaultInsertion insertion, DragTargetDetails<_VaultDrag> details) {
     if (!_accept(details.data, insertion.parentId) || insertion.beforeKey == details.data.item.key) return;

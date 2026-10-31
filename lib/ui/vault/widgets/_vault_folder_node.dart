@@ -18,7 +18,7 @@ class _VaultFolderNode extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final expanded = !controller.collapsed.contains(folder.id);
+    final expanded = controller.filtering || !controller.collapsed.contains(folder.id);
     final header = GestureDetector(
       key: controller._headerKeys.putIfAbsent(folder.id, GlobalKey.new),
       onSecondaryTapUp: (details) => onContextMenu(details.globalPosition, folder),
@@ -31,7 +31,7 @@ class _VaultFolderNode extends StatelessWidget {
               clipBehavior: Clip.antiAlias,
               child: InkWell(
                 key: ValueKey('folder-header-${folder.id}'),
-                onTap: controller.busy ? null : () => controller._toggleFolder(folder),
+                onTap: controller.busy || controller.filtering ? null : () => controller._toggleFolder(folder),
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
                   child: Row(
@@ -43,7 +43,7 @@ class _VaultFolderNode extends StatelessWidget {
                       Expanded(child: Text(folder.name, maxLines: 1, overflow: TextOverflow.ellipsis)),
                       const SizedBox(width: 4),
                       Text(
-                        '${controller._organization.children(folder.id).length}',
+                        '${controller.organization.children(folder.id).where((item) => item.entry?.isFavorite != true).length}',
                         style: Theme.of(context).textTheme.labelSmall,
                       ),
                     ],

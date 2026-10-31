@@ -58,19 +58,17 @@ void main() {
     expect(browser.results(session).single.entry.id, deleted.id);
     browser.clear();
     expect(browser.filtering, isFalse);
-    expect(browser.suggestions(session, ''), isEmpty);
-    expect(browser.suggestions(session, '   '), isEmpty);
-    browser.view = VaultView.trash;
-    final suggestions = browser.suggestions(session, 'operator');
-    expect(suggestions.single.keys.toSet(), {'id', 'title', 'username', 'location', 'kind', 'favorite'});
-    expect(suggestions.single['id'], active.id);
-    expect(suggestions.single['favorite'], isTrue);
-    expect(suggestions.single['location'], 'Проект / Production');
-    expect(browser.suggestions(session, 'Old database'), isEmpty);
-    expect(browser.suggestions(session, 'HiddenPasswordNeedle'), isEmpty);
+    final organization = VaultOrganization(entries: [active, file], folders: [section, folder]);
+    expect(browser.filterOrganization(organization), same(organization));
+    browser.query = 'operator';
+    final filtered = browser.filterOrganization(organization);
+    expect(filtered.entries.single.id, active.id);
+    expect(filtered.entries.single.isFavorite, isTrue);
+    expect(filtered.folders, isEmpty);
+    browser.query = 'HiddenPasswordNeedle';
+    expect(browser.filterOrganization(organization).entries, isEmpty);
     session.lock();
     expect(browser.results(session), isEmpty);
-    expect(browser.suggestions(session, 'operator'), isEmpty);
   });
 
   test('entry controller preserves favorite and location, validates and clears draft secrets', () async {

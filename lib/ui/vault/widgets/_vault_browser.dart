@@ -1,18 +1,16 @@
 part of '../vault_panel.dart';
 
 class _VaultBrowser extends StatelessWidget {
-  final VaultSession session;
-  final Set<String> pendingIds;
-  final List<VaultEntry> pendingEntries;
+  final VaultOrganization organization;
+  final bool filtering;
   final Set<String> collapsed;
   final VoidCallback onCollapsedChanged;
   final Widget tree;
   final _VaultEntryPresenter entryPresenter;
 
   const _VaultBrowser({
-    required this.session,
-    required this.pendingIds,
-    required this.pendingEntries,
+    required this.organization,
+    required this.filtering,
     required this.collapsed,
     required this.onCollapsedChanged,
     required this.tree,
@@ -21,12 +19,8 @@ class _VaultBrowser extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final favorites =
-        [
-            ...session.entries,
-            ...pendingEntries,
-          ].where((entry) => entry.isFavorite && (entry.isDeleted == false || pendingIds.contains(entry.id))).toList()
-          ..sort((left, right) => left.order.compareTo(right.order));
+    final favorites = organization.entries.where((entry) => entry.isFavorite).toList()
+      ..sort((left, right) => left.order.compareTo(right.order));
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -38,18 +32,22 @@ class _VaultBrowser extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
               ),
-              onPressed: () {
-                if (collapsed.contains('@favorites')) {
-                  collapsed.remove('@favorites');
-                } else {
-                  collapsed.add('@favorites');
-                }
-                onCollapsedChanged();
-              },
+              onPressed: filtering
+                  ? null
+                  : () {
+                      if (collapsed.contains('@favorites')) {
+                        collapsed.remove('@favorites');
+                      } else {
+                        collapsed.add('@favorites');
+                      }
+                      onCollapsedChanged();
+                    },
               child: Row(
                 children: [
                   Icon(
-                    collapsed.contains('@favorites') ? Icons.chevron_right_rounded : Icons.expand_more_rounded,
+                    !filtering && collapsed.contains('@favorites')
+                        ? Icons.chevron_right_rounded
+                        : Icons.expand_more_rounded,
                     size: 18,
                   ),
                   const SizedBox(width: 4),
@@ -60,11 +58,13 @@ class _VaultBrowser extends StatelessWidget {
               ),
             ),
           ),
-          if (!collapsed.contains('@favorites'))
+          if (filtering || !collapsed.contains('@favorites'))
             for (final entry in favorites) _VaultEntryItem(entry: entry, entryPresenter: entryPresenter),
           const SizedBox(height: 6),
         ],
         tree,
+        if (filtering && organization.entries.isEmpty)
+          Padding(padding: const EdgeInsets.all(12), child: Text(t.browserNoResults)),
       ],
     );
   }

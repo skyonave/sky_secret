@@ -213,7 +213,6 @@ class _ManagerWindowState extends State<ManagerWindow> {
                       githubBackup: widget.githubBackup,
                       copySecret: _copySecret,
                       clearClipboard: _clearVaultClipboard,
-                      onSearchDismissed: widget.desktop.hide,
                       onSshAuthorizationChanged: widget.desktop.setSshAuthenticationPending,
                     ),
                   ),

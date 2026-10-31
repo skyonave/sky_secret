@@ -15,7 +15,7 @@ class VaultSearchPresenter {
   WindowController? _controller;
   WindowMethodChannel? _channel;
   VaultSearchSession? _session;
-  Completer<String?>? _selection;
+  Completer<void>? _closed;
   Future<void>? _warming;
   Future<void> _transition = Future.value();
   Completer<void>? _ready;
@@ -69,15 +69,8 @@ class VaultSearchPresenter {
           case 'search':
             final query = args['query'];
             return query is String ? session!.search(query) : null;
-          case 'select':
-            final id = args['id'];
-            if (id is String && session!.accepts(id)) {
-              _selection?.complete(id);
-              _selection = null;
-              close();
-              return true;
-            }
-            return false;
+          case 'focusResults':
+            return await _placement.invokeMethod<bool>('returnFocus', {'window': _windowId}) == true && valid();
           case 'position':
             return await _placement.invokeMethod<bool>('placeSearch', {'window': _windowId, 'gap': 12.0}) == true &&
                 valid();
@@ -88,6 +81,8 @@ class VaultSearchPresenter {
             _onBlur?.call();
             return true;
           case 'closed':
+            await _placement.invokeMethod<bool>('returnFocus', {'window': _windowId});
+            if (valid() == false) return false;
             close();
             return true;
         }
@@ -111,20 +106,20 @@ class VaultSearchPresenter {
     }
   }
 
-  Future<String?> open({
+  Future<void> open({
     required bool Function() isValid,
-    required List<Map<String, Object>> Function(String) find,
+    required void Function(String) onQueryChanged,
     required VoidCallback activity,
     required VoidCallback onBlur,
     required Future<bool> Function(String) copy,
     required Future<void> Function() clearClipboard,
   }) async {
-    if (_disposed || _session != null) return null;
-    final session = VaultSearchSession(isValid: isValid, find: find, activity: activity);
-    final selected = Completer<String?>();
+    if (_disposed || _session != null) return;
+    final session = VaultSearchSession(isValid: isValid, onQueryChanged: onQueryChanged, activity: activity);
+    final closed = Completer<void>();
     final epoch = ++_epoch;
     _session = session;
-    _selection = selected;
+    _closed = closed;
     _onBlur = onBlur;
     _copy = copy;
     _clearClipboard = clearClipboard;
@@ -145,7 +140,7 @@ class VaultSearchPresenter {
       _transition = activation.catchError((_) {});
       await activation;
       if (_epoch == epoch && session.valid == false) close();
-      return await selected.future;
+      await closed.future;
     } catch (_) {
       if (_epoch == epoch) close();
       rethrow;
@@ -156,8 +151,8 @@ class VaultSearchPresenter {
     final epoch = _epoch++;
     _session?.close();
     _session = null;
-    _selection?.complete(null);
-    _selection = null;
+    _closed?.complete();
+    _closed = null;
     _onBlur = null;
     _copy = null;
     _clearClipboard = null;

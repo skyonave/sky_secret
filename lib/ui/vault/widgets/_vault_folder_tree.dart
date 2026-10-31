@@ -4,6 +4,8 @@ class _VaultFolderTree extends StatelessWidget {
   final _VaultEntryPresenter entryPresenter;
 
   final VaultSession session;
+  final VaultOrganization organization;
+  final bool filtering;
   final GlobalKey<_VaultTreeState> treeKey;
   final bool busy;
   final Set<String> collapsedFolders;
@@ -19,6 +21,8 @@ class _VaultFolderTree extends StatelessWidget {
 
   const _VaultFolderTree({
     required this.session,
+    required this.organization,
+    required this.filtering,
     required this.treeKey,
     required this.busy,
     required this.collapsedFolders,
@@ -38,6 +42,8 @@ class _VaultFolderTree extends StatelessWidget {
   Widget build(BuildContext context) => _VaultTree(
     key: treeKey,
     session: session,
+    organization: organization,
+    filtering: filtering,
     busy: busy,
     collapsed: collapsedFolders,
     onCollapsedChanged: onSaveTreeState,

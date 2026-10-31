@@ -15,41 +15,52 @@ class VaultBrowserController {
 
   bool get filtering => query.trim().isNotEmpty || view != VaultView.all;
 
-  List<Map<String, Object>> suggestions(VaultSession session, String query) {
-    if (query.trim().isEmpty || query.length > 256) return [];
-    final search = VaultBrowserController()..query = query;
-    return search.results(session).take(50).map((result) {
-      final entry = result.entry;
-      return <String, Object>{
-        'id': entry.id,
-        'title': entry.title,
-        'username': entry.username,
-        'location': result.location.join(' / '),
-        'kind': entry.isTotp
-            ? 'totp'
-            : entry.isFile
-            ? 'file'
-            : entry.isSsh
-            ? 'ssh'
-            : 'secret',
-        'favorite': entry.isFavorite,
-      };
-    }).toList();
+  VaultOrganization filterOrganization(VaultOrganization organization) {
+    if (query.trim().isEmpty) return organization;
+    final folders = {for (final folder in organization.folders) folder.id: folder};
+    final words = _words;
+    final entries = organization.entries.where((entry) => _matches(entry, folders, words)).toList();
+    final visibleFolders = <String>{};
+    for (final entry in entries) {
+      if (entry.isFavorite) continue;
+      var folderId = entry.folderId;
+      while (folderId != null && visibleFolders.add(folderId)) {
+        folderId = folders[folderId]?.parentId;
+      }
+    }
+    return VaultOrganization(
+      entries: entries,
+      folders: organization.folders.where((folder) => visibleFolders.contains(folder.id)).toList(),
+    );
+  }
+
+  List<String> get _words => query.trim().toLowerCase().split(RegExp(r'\s+')).where((word) => word.isNotEmpty).toList();
+
+  List<String> _location(VaultEntry entry, Map<String, VaultFolder> folders) {
+    final folder = folders[entry.folderId];
+    final parent = folders[folder?.parentId];
+    return [if (parent != null) parent.name, if (folder != null) folder.name];
+  }
+
+  bool _matches(VaultEntry entry, Map<String, VaultFolder> folders, List<String> words) {
+    final searchable = [
+      entry.title,
+      entry.username,
+      entry.ssh?.host ?? '',
+      ..._location(entry, folders),
+    ].join(' ').toLowerCase();
+    return words.every(searchable.contains);
   }
 
   List<VaultSearchResult> results(VaultSession session) {
     if (session.isLocked) return [];
     final folders = {for (final folder in session.folders) folder.id: folder};
-    final words = query.trim().toLowerCase().split(RegExp(r'\s+')).where((word) => word.isNotEmpty).toList();
+    final words = _words;
     final found = <VaultSearchResult>[];
     for (final entry in session.entries) {
       if (entry.isDeleted != (view == VaultView.trash)) continue;
       if (view == VaultView.favorites && entry.isFavorite == false) continue;
-      final folder = folders[entry.folderId];
-      final parent = folders[folder?.parentId];
-      final location = [if (parent != null) parent.name, if (folder != null) folder.name];
-      final searchable = [entry.title, entry.username, entry.ssh?.host ?? '', ...location].join(' ').toLowerCase();
-      if (words.every(searchable.contains)) found.add(VaultSearchResult(entry, location));
+      if (_matches(entry, folders, words)) found.add(VaultSearchResult(entry, _location(entry, folders)));
     }
     found.sort((left, right) {
       if (view == VaultView.trash) {

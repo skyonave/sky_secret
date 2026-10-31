@@ -98,10 +98,10 @@ class VaultPanel extends StatefulWidget {
   final ValueChanged<bool>? onFileDragChanged;
   final Future<bool> Function(String) copySecret;
   final Future<void> Function() clearClipboard;
-  final Future<void> Function()? onSearchDismissed;
   final VoidCallback? onCodesBlur;
   final ValueChanged<VoidCallback?>? onSearchHandlerChanged;
   final HotKey Function()? searchShortcut;
+  final VaultSearchPresenter? searchPresenter;
 
   const VaultPanel({
     super.key,
@@ -116,10 +116,10 @@ class VaultPanel extends StatefulWidget {
     this.onFileDragChanged,
     required this.copySecret,
     required this.clearClipboard,
-    this.onSearchDismissed,
     this.onCodesBlur,
     this.onSearchHandlerChanged,
     this.searchShortcut,
+    this.searchPresenter,
   });
 
   @override
@@ -179,7 +179,7 @@ class VaultPanelState extends State<VaultPanel> {
   final _formScroll = ScrollController(keepScrollOffset: false);
   final _editor = VaultEntryController();
   final _browser = VaultBrowserController();
-  final _searchWindow = VaultSearchPresenter();
+  late final _searchWindow = widget.searchPresenter ?? VaultSearchPresenter();
   bool _searching = false;
   final _deletions = VaultDeletionController();
   final _deletedEntries = <String, VaultEntry>{};
@@ -193,6 +193,8 @@ class VaultPanelState extends State<VaultPanel> {
   bool _lockWhenHidden = true;
   bool _savingPreferences = false;
   final _master = TextEditingController();
+  final _masterFocus = FocusNode();
+  bool _focusPasswordPending = false;
   final _confirmation = TextEditingController();
   late final SshConnections _sshConnections;
   final _viewers = FileViewerManager();
@@ -512,6 +514,7 @@ class VaultPanelState extends State<VaultPanel> {
 
   void onWindowHidden() {
     _windowShown = false;
+    _focusPasswordPending = false;
     _restoreCodesPending = false;
     ConfigurationWindows.closeAll();
     _cancelPasswordGeneration();
@@ -557,6 +560,10 @@ class VaultPanelState extends State<VaultPanel> {
   void onWindowShown() {
     _windowShown = true;
     if (!_contentActive) return;
+    if (_session == null) {
+      _focusPasswordPending = true;
+      setState(() {});
+    }
     if (_session?.entries.any((entry) => entry.hasTotp && entry.isDeleted == false) == true) {
       unawaited(_openCodes());
     }
@@ -1028,35 +1035,25 @@ class VaultPanelState extends State<VaultPanel> {
     setState(() => _searching = true);
     widget.onSearchHandlerChanged?.call(null);
     try {
-      final id = await _searchWindow.open(
+      await _searchWindow.open(
         isValid: valid,
-        find: (query) => _browser.suggestions(session, query),
+        onQueryChanged: (query) {
+          if (valid()) setState(() => _browser.query = query);
+        },
         activity: _touchActivity,
         onBlur: () => widget.onCodesBlur?.call(),
         copy: widget.copySecret,
         clearClipboard: widget.clearClipboard,
       );
-      if (valid() == false || _busy || _editor.active) return;
-      if (id == null) return;
-      final entry = session.entries.where((entry) => entry.id == id && entry.isDeleted == false).firstOrNull;
-      if (entry == null) return;
-      if (entry.isFile) {
-        await _openFile(entry);
-      } else if (entry.isSsh) {
-        await _connectSsh(entry);
-      } else if (entry.isTotp) {
-        await _openCodes();
-      } else if (entry.hasPassword) {
-        await _copyEntry(entry);
-      } else {
-        await windowManager.focus();
-        if (valid() == false || _busy || _editor.active) return;
-        _edit(entry);
-      }
     } catch (_) {
       if (valid()) _notice(t.searchUnavailable);
     } finally {
-      if (mounted) setState(() => _searching = false);
+      if (mounted) {
+        setState(() {
+          _searching = false;
+          if (_session == session) _browser.query = '';
+        });
+      }
     }
   }
 
@@ -1803,6 +1800,7 @@ class VaultPanelState extends State<VaultPanel> {
     _treeKey.currentState?.stopDragging();
     _browserScroll.dispose();
     _formScroll.dispose();
+    _masterFocus.dispose();
     for (final controller in [
       _master,
       _vaultName,
@@ -2043,6 +2041,14 @@ class VaultPanelState extends State<VaultPanel> {
 
   @override
   Widget build(BuildContext context) {
+    if (_focusPasswordPending && !_loading && !_busy && _error != 'read') {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && _focusPasswordPending && _windowShown && _contentActive && _session == null && !_busy) {
+          _focusPasswordPending = false;
+          _masterFocus.requestFocus();
+        }
+      });
+    }
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) widget.onUnlockedChanged?.call(_lifecycle.hasOpenSession);
     });
@@ -2056,6 +2062,17 @@ class VaultPanelState extends State<VaultPanel> {
     if (_loading) {
       return const Align(alignment: Alignment.bottomCenter, child: LinearProgressIndicator(minHeight: 2));
     }
+    final organization = session == null
+        ? null
+        : _browser.filterOrganization(
+            VaultOrganization(
+              entries: [
+                ...session.entries,
+                ..._pendingEntries,
+              ].where((entry) => entry.isDeleted == false || _deletions.ids.contains(entry.id)).toList(),
+              folders: session.folders,
+            ),
+          );
     final entryPresenter = _VaultEntryPresenter(
       busy: _busy,
       deletions: _deletions,
@@ -2085,6 +2102,7 @@ class VaultPanelState extends State<VaultPanel> {
               vaultName: _vaultName,
               master: _master,
               confirmation: _confirmation,
+              masterFocus: _masterFocus,
               onOpen: _open,
             ),
           ] else if (_inlineEditorActive)
@@ -2109,11 +2127,13 @@ class VaultPanelState extends State<VaultPanel> {
             )
           else ...[
             _VaultBrowser(
-              pendingEntries: _pendingEntries,
+              organization: organization!,
+              filtering: _browser.filtering,
               collapsed: _collapsedFolders,
               onCollapsedChanged: _refreshTreeState,
-              session: session,
               tree: _VaultFolderTree(
+                organization: organization,
+                filtering: _browser.filtering,
                 session: session,
                 treeKey: _treeKey,
                 busy: _busy,
@@ -2130,7 +2150,6 @@ class VaultPanelState extends State<VaultPanel> {
                 entryPresenter: entryPresenter,
               ),
               entryPresenter: entryPresenter,
-              pendingIds: _deletions.ids,
             ),
           ],
         ],

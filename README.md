@@ -10,7 +10,7 @@ Local first, offline, one portable EXE. **Shift+Space → your vault → back to
 ## Available now
 
 - **Encrypted vaults:** passwords, notes, files, SSH and TOTP. Multiple vaults, folders and favorites.
-- **Desktop controls:** compact tray window, search with **F**, right-click menus and **Ctrl+S** in editors.
+- **Desktop controls:** compact tray window, **F** opens a search bar that filters the vault list, right-click menus and **Ctrl+S** in editors.
 - **Drag files both ways:** into the vault, or onto the desktop / File Explorer to export a copy. Exported copies are unencrypted.
 - **Drag a secret into a field:** a small preview shows the entry name and what will be inserted. When a login/password pair is unambiguous in the same form or dialog, both fields are filled. Otherwise, a normal field receives the login and a masked field receives the password. Contents are replaced without using the clipboard; sign-in is not submitted. Requires compatible Windows accessibility fields. Press Esc to cancel.
 - **Text editing:** create `.txt` files and edit text in separate windows.
@@ -28,6 +28,8 @@ Local first, offline, one portable EXE. **Shift+Space → your vault → back to
 
 Download the EXE from **Releases**, run it, open the tray window and create a vault. **There is no master-password reset.** GitHub is optional. Keep verified independent backups.
 
+When the vault is locked, **Shift+Space** opens the manager with the password field ready for typing. Clear or close search to restore the full list.
+
 To start in the tray when signing in to Windows, enable **Start when signing in to Windows** in vault settings and save. After moving the EXE, enable it again from the new location. If Windows has disabled startup, re-enable SkySecret in Task Manager.
 
 Save edits before hiding: hiding locks the vault by default. Completed copies remain available for **10 seconds from copying**, including after hiding. Manual, idle and Windows locks clear the app's current copy immediately. Existing vaults remain readable; update all clients before saving a shared vault with a newer version.
@@ -43,7 +45,7 @@ Save edits before hiding: hiding locks the vault by default. Completed copies re
 ### Уже работает
 
 - **Зашифрованные сейфы:** пароли, заметки, файлы, SSH и TOTP. Несколько сейфов, папки и избранное.
-- **Desktop-интерфейс:** компактное окно у трея, поиск по **F**, контекстные меню и **Ctrl+S** в редакторах.
+- **Desktop-интерфейс:** компактное окно у трея, **F** открывает строку поиска с фильтрацией списка сейфа, контекстные меню и **Ctrl+S** в редакторах.
 - **Перетаскивание в обе стороны:** добавление файлов в сейф и экспорт копии на рабочий стол или в Проводник. Внешняя копия не зашифрована.
 - **Перетаскивание секрета в поле:** небольшая плашка показывает название записи и что будет вставлено. Если пара логин/пароль однозначно найдена в одной форме или диалоге, заполняются оба поля. Иначе обычное поле получает логин, скрытое — пароль. Содержимое заменяется без буфера обмена; кнопка входа не нажимается. Нужна поддержка заполнения через специальные возможности Windows. Esc отменяет жест.
 - **Текстовые файлы:** создание `.txt` и редактирование текста в отдельных окнах.
@@ -54,6 +56,8 @@ Save edits before hiding: hiding locks the vault by default. Completed copies re
 ### Начать
 
 Скачайте EXE из **Releases**, запустите, откройте окно из трея и создайте сейф. **Сброса мастер-пароля нет.** GitHub подключается по желанию. Храните проверенные независимые копии.
+
+Если сейф закрыт, **Shift+Space** открывает менеджер с фокусом в поле пароля — можно сразу вводить. Очистка или закрытие поиска возвращает полный список.
 
 Чтобы приложение запускалось в трее при входе в Windows, включите **Запускать при входе в Windows** в настройках сейфов и сохраните. После перемещения EXE включите настройку заново из нового расположения. Если Windows отключила автозапуск, включите SkySecret в диспетчере задач.
 

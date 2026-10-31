@@ -6,6 +6,7 @@ class _VaultUnlockForm extends StatelessWidget {
   final TextEditingController vaultName;
   final TextEditingController master;
   final TextEditingController confirmation;
+  final FocusNode masterFocus;
   final VoidCallback onOpen;
 
   const _VaultUnlockForm({
@@ -14,6 +15,7 @@ class _VaultUnlockForm extends StatelessWidget {
     required this.vaultName,
     required this.master,
     required this.confirmation,
+    required this.masterFocus,
     required this.onOpen,
   });
 
@@ -50,6 +52,7 @@ class _VaultUnlockForm extends StatelessWidget {
         ),
       _VaultField(
         controller: master,
+        focusNode: masterFocus,
         label: t.vaultMasterPassword,
         fieldKey: 'vault-master',
         busy: busy,

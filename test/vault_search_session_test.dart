@@ -2,52 +2,36 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:skysecret/core/desktop/search/controllers/search_session.dart';
 
 void main() {
-  test('selection belongs to the latest nonempty query and active vault session', () {
+  test('query filters the active vault and empty input restores it', () {
     var unlocked = true;
     var activities = 0;
+    final queries = <String>[];
     final session = VaultSearchSession(
       isValid: () => unlocked,
-      find: (query) => [
-        {'id': query, 'title': query},
-      ],
+      onQueryChanged: queries.add,
       activity: () => activities++,
     );
-    expect(session.accepts('first'), isFalse);
-    expect(session.search('first').single['id'], 'first');
-    expect(session.accepts('first'), isTrue);
-    expect(session.search('second').single['id'], 'second');
-    expect(session.accepts('first'), isFalse);
-    expect(session.accepts('second'), isTrue);
-    expect(session.search(' '), isEmpty);
-    expect(session.accepts('second'), isFalse);
-    session.search('third');
+    expect(session.search('first'), isTrue);
+    expect(session.search('second'), isTrue);
+    expect(session.search(''), isTrue);
+    expect(queries, ['first', 'second', '']);
     unlocked = false;
-    expect(session.accepts('third'), isFalse);
-    expect(session.search('fourth'), isEmpty);
+    expect(session.search('fourth'), isFalse);
+    expect(queries, ['first', 'second', '']);
     expect(activities, 3);
   });
 
-  test('closed search remains revoked after vault unlock and enforces query/result limits', () {
+  test('closed search stays revoked after unlock and rejects excessive input', () {
     var unlocked = true;
-    var lookups = 0;
-    final session = VaultSearchSession(
-      isValid: () => unlocked,
-      find: (_) {
-        lookups++;
-        return List.generate(60, (index) => {'id': '$index'});
-      },
-      activity: () {},
-    );
-    expect(session.search('x' * 257), isEmpty);
-    expect(lookups, 0);
-    expect(session.search('x').length, 50);
-    expect(session.accepts('49'), isTrue);
-    expect(session.accepts('50'), isFalse);
+    final queries = <String>[];
+    final session = VaultSearchSession(isValid: () => unlocked, onQueryChanged: queries.add, activity: () {});
+    expect(session.search('x' * 257), isFalse);
+    expect(queries, isEmpty);
+    expect(session.search('x' * 256), isTrue);
     session.close();
     unlocked = false;
     unlocked = true;
-    expect(session.accepts('49'), isFalse);
-    expect(session.search('x'), isEmpty);
-    expect(lookups, 1);
+    expect(session.search('x'), isFalse);
+    expect(queries, ['x' * 256]);
   });
 }

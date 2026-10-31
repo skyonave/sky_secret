@@ -9,6 +9,7 @@ class _VaultField extends StatelessWidget {
   final int lines;
   final TextInputAction? textInputAction;
   final VoidCallback? onSubmit;
+  final FocusNode? focusNode;
 
   const _VaultField({
     required this.controller,
@@ -19,6 +20,7 @@ class _VaultField extends StatelessWidget {
     this.lines = 1,
     this.textInputAction,
     this.onSubmit,
+    this.focusNode,
   });
 
   @override
@@ -34,6 +36,7 @@ class _VaultField extends StatelessWidget {
         enableIMEPersonalizedLearning: false,
         key: Key(fieldKey),
         controller: controller,
+        focusNode: focusNode,
         enabled: !busy,
         obscureText: secret,
         autocorrect: false,
